@@ -1,0 +1,158 @@
+---
+name: TwoPropCI
+title: Two Proportions - Confidence Interval
+menuGroup: Randomize
+version: '1.0.0'
+jas: '1.2'
+
+options:
+    - name: data
+      type: Data
+      description:
+          R: the data as a data frame
+
+    - name: rows
+      title: Rows
+      type: Variable
+      suggested:
+        - nominal
+        - ordinal
+      permitted:
+        - factor
+      description:
+          R: >
+              the variable to use as the rows in the contingency table (not
+              necessary when providing a formula, see the examples)
+
+    - name: cols
+      title: Columns
+      type: Variable
+      suggested:
+        - nominal
+        - ordinal
+      permitted:
+        - factor
+      description:
+          R: >
+              the variable to use as the columns in the contingency table (not
+              necessary when providing a formula, see the examples)
+
+    - name: counts
+      title: Counts (optional)
+      type: Variable
+      suggested:
+        - continuous
+      permitted:
+        - numeric
+      default:
+      description:
+          R: >
+              the variable to use as the counts in the contingency table (not
+              necessary when providing a formula, see the examples)
+
+    - name: compare
+      title: Compare
+      type: List
+      options:
+        - title: rows
+          name: rows
+        - title: columns
+          name: columns
+      default: rows
+      description:
+          R: >
+            `columns` or `rows` (default), compare columns/rows in difference of proportions
+            or relative risks (2x2 tables)
+
+    - name: confLevel
+      title: Confidence level
+      type: Number
+      default: 95
+      description:
+          R: >
+            a number (default: 95), the confidence level
+
+    - name: ciType
+      title: Type of confidence interval
+      type: List
+      options:
+        - title: bootstrap percentile
+          name:  bootperc
+        - title: bootstrap SE
+          name:  bootse
+      default: bootperc
+
+    - name: obs
+      title: Observed counts
+      type: Bool
+      default: true
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), provide the observed counts
+
+    - name: exp
+      title: Expected counts
+      type: Bool
+      default: false
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), provide the expected counts
+
+    - name: pcRow
+      title: Row
+      type: Bool
+      default: false
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), provide row percentages
+
+    - name: pcCol
+      title: Column
+      type: Bool
+      default: false
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), provide column percentages
+
+    - name: pcTot
+      title: Total
+      type: Bool
+      default: false
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), provide total percentages
+
+    - name: reps
+      title: Number of simulated samples
+      type: Number
+      default: 100
+      description:
+          R: >
+            a number (default: 100), the number of parametric bootstraps
+
+    - name: dotHist
+      title: Plot bootstrap proportions
+      type: List
+      options:
+        - title: Dot plot
+          name:  dotplot
+        - title: Histogram
+          name:  histogram
+      default: dotplot
+
+    - name: seedBool
+      title: Seed random number generator
+      type: Bool
+      default: false
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), whether to seed the random number generator
+
+    - name: rngSeed
+      title: Seed
+      type: Number
+      default: 8675309
+      description:
+          R: >
+            a number (default: 8675309), for seeding the random number generator
+...

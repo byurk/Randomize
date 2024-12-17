@@ -1,0 +1,46 @@
+title: Model-Based Inference
+name: modelBased
+jus: '3.0'
+stage: 0
+compilerMode: tame
+children:
+  - type: LayoutBox
+    margin: large
+    children:
+      - type: RadioButton
+        name: distro_ndistro
+        optionName: distro
+        optionPart: ndistro
+      - type: RadioButton
+        name: distro_tdistro
+        optionName: distro
+        optionPart: tdistro
+        children:
+          - type: TextBox
+            name: dF
+            format: number
+            enable: (distro_tdistro)
+  - type: LayoutBox
+    margin: large
+    children:
+      - type: CheckBox
+        name: areaBool
+        children:
+          - type: TextBox
+            name: obsStat
+            format: number
+            enable: (areaBool)
+          - type: ComboBox
+            name: tail
+            enable: (areaBool)
+  - type: LayoutBox
+    margin: large
+    children:
+      - type: CheckBox
+        name: CIBool
+        children:
+          - type: TextBox
+            name: confLevel
+            format: number
+            suffix: '%'
+            enable: (CIBool)

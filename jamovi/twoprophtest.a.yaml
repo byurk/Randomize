@@ -1,0 +1,160 @@
+---
+name: TwoPropHTest
+title: Two Proportions - Hypothesis Test
+menuGroup: Randomize
+version: '1.0.0'
+jas: '1.2'
+
+options:
+    - name: data
+      type: Data
+      description:
+          R: the data as a data frame
+
+    - name: rows
+      title: Rows
+      type: Variable
+      suggested:
+        - nominal
+        - ordinal
+      permitted:
+        - factor
+      description:
+          R: >
+              the variable to use as the rows in the contingency table (not
+              necessary when providing a formula, see the examples)
+
+    - name: cols
+      title: Columns
+      type: Variable
+      suggested:
+        - nominal
+        - ordinal
+      permitted:
+        - factor
+      description:
+          R: >
+              the variable to use as the columns in the contingency table (not
+              necessary when providing a formula, see the examples)
+
+    - name: counts
+      title: Counts (optional)
+      type: Variable
+      suggested:
+        - continuous
+      permitted:
+        - numeric
+      default:
+      description:
+          R: >
+              the variable to use as the counts in the contingency table (not
+              necessary when providing a formula, see the examples)
+
+    - name: compare
+      title: Compare
+      type: List
+      options:
+        - title: rows
+          name: rows
+        - title: columns
+          name: columns
+      default: rows
+      description:
+          R: >
+            `columns` or `rows` (default), compare columns/rows in difference of proportions
+            or relative risks (2x2 tables)
+
+    - name: hypothesis
+      title: Alternative hypothesis
+      type: List
+      options:
+        - name: different
+          title: "Group 1 ≠ Group 2"
+        - name: oneGreater
+          title: "Group 1 > Group 2"
+        - name: twoGreater
+          title: "Group 1 < Group 2"
+      default: different
+      description:
+          ui: >
+            the alternative hypothesis.
+          R: >
+            `'different'` (default), `'oneGreater'` or
+            `'twoGreater'`, the alternative hypothesis; group 1 different
+            to group 2, group 1 greater than group 2, and group 2 greater than
+            group 1 respectively
+
+    - name: obs
+      title: Observed counts
+      type: Bool
+      default: true
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), provide the observed counts
+
+    - name: exp
+      title: Expected counts
+      type: Bool
+      default: false
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), provide the expected counts
+
+    - name: pcRow
+      title: Row
+      type: Bool
+      default: false
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), provide row percentages
+
+    - name: pcCol
+      title: Column
+      type: Bool
+      default: false
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), provide column percentages
+
+    - name: pcTot
+      title: Total
+      type: Bool
+      default: false
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), provide total percentages
+
+    - name: reps
+      title: Number of simulated samples
+      type: Number
+      default: 100
+      description:
+          R: >
+            a number (default: 100), the number of parametric bootstraps
+
+    - name: dotHist
+      title: Plot bootstrap proportions
+      type: List
+      options:
+        - title: Dot plot
+          name:  dotplot
+        - title: Histogram
+          name:  histogram
+      default: dotplot
+
+    - name: seedBool
+      title: Seed random number generator
+      type: Bool
+      default: false
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), whether to seed the random number generator
+
+    - name: rngSeed
+      title: Seed
+      type: Number
+      default: 8675309
+      description:
+          R: >
+            a number (default: 8675309), for seeding the random number generator
+...

@@ -1,0 +1,53 @@
+---
+title: Mostly Randomization-Based Inference Using the Infer Package
+name: Randomize
+version: 0.0.0
+jms: '1.0'
+authors:
+  - Brian Yurk
+maintainer: yurk@hope.edu
+date: '1970-01-01'
+type: R
+description: |-
+  Randomization-based inference, some additional model-based analyses.
+    A few tools for exploring concepts in Statistics.
+analyses:
+  - title: Single Proportion - Hypothesis Test
+    name: SinglePropHTest
+    ns: Randomize
+    menuGroup: Randomize
+    menuTitle: Single Proportion - Hypothesis Test
+  - title: Single Proportion - Confidence Interval
+    name: SinglePropCI
+    ns: Randomize
+    menuGroup: Randomize
+    menuTitle: Single Proportion - Confidence Interval
+  - title: Two Proportions - Hypothesis Test
+    name: TwoPropHTest
+    ns: Randomize
+    menuGroup: Randomize
+    menuTitle: Two Proportions - Hypothesis Test
+  - title: Two Proportions - Confidence Interval
+    name: TwoPropCI
+    ns: Randomize
+    menuGroup: Randomize
+    menuTitle: Two Proportions - Confidence Interval
+  - title: Contingency Table - Hypothesis Test
+    name: ContTabHTest
+    ns: Randomize
+    menuGroup: Randomize
+    menuTitle: Contingency Table - Hypothesis Test
+  - title: Single Mean - Confidence Interval
+    name: SingleMeanCI
+    ns: Randomize
+    menuGroup: Randomize
+    menuTitle: Single Mean - Confidence Interval
+  - title: Model-Based Inference
+    name: modelBased
+    ns: Randomize
+    menuGroup: Randomize
+    menuTitle: Model-Based Inference
+usesNative: true
+minApp: 1.0.8
+
+...

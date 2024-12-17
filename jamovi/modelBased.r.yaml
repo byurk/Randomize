@@ -1,0 +1,70 @@
+---
+name:  modelBased
+title: Model-Based Inference
+jrs:   '1.1'
+
+items:
+    - name:  textArea
+      title: Calculate Probability
+      type:  Preformatted
+
+    - name: Plot
+      title: Probability density function
+      type: Image
+      description: a plot showing the area under probability density curve
+      renderFun: .areaPlot
+      width: 400
+      height: 200
+      clearWith:
+          - distro
+          - dF
+          - hypTestBool
+          - obsStat
+          - tail
+
+    - name: areaTable
+      title: Shaded area (p-value)
+      type: Table
+      description: table with area under probability density curve
+      clearWith:
+          - distro
+          - dF
+          - hypTestBool
+          - obsStat
+          - tail
+
+      columns:
+          - name: obsStat
+            title: Obs. Val
+            type: number
+
+          - name: area
+            title: Area (p-value)
+            type: number
+            format: zto,pvalue
+
+    - name:  textMultiplier
+      title: CI multiplier
+      type:  Preformatted
+
+    - name: multTable
+      title: Critical value
+      type: Table
+      description: a table with CI multiplier
+      clearWith:
+          - distro
+          - dF
+          - CIBool
+          - confLevel
+
+      columns:
+          - name: confLev
+            title: Confidence level (%)
+            type: number
+
+          - name: critVal
+            title: Multiplier
+            type: number
+            format: zto
+
+...

@@ -1,0 +1,98 @@
+---
+name:  TwoPropCI
+title: Two Proportions - Confidence Interval
+jrs: '1.1'
+
+items:
+    - name: freqs
+      title: Contingency Tables
+      type: Table
+      description: a table of proportions
+      columns: [ ]
+      clearWith:
+        - rows
+        - cols
+        - counts
+
+    - name: diffProp
+      title: Comparative Measures
+      type: Table
+      description: a table of comparative measures
+
+      clearWith:
+        - rows
+        - cols
+        - counts
+        - compare
+
+      columns:
+        - name: t[dp]
+          title: ''
+          type: text
+          content: Difference in 2 proportions
+
+        - name: v[dp]
+          title: Value
+
+    - name:  textSimulations
+      title: Simulated samples
+      type:  Preformatted
+
+
+    - name: Plot
+      title: Differences in bootstrap proportions
+      type: Image
+      description: a plot showing the bootstrap distribution of the differences in proportions
+      renderFun: .bootPlot
+      width: 400
+      height: 350
+      clearWith:
+          - rows
+          - cols
+          - counts
+          - compare
+          - confLevel
+          - ciType
+          - reps
+          - rngSeed
+          - seedBool
+          - dotHist
+
+    - name: simtable
+      title: Simulation Results
+      type: Table
+      description: a table of the simulation results
+      clearWith:
+          - rows
+          - cols
+          - counts
+          - compare
+          - confLevel
+          - ciType
+          - reps
+          - rngSeed
+          - seedBool
+
+
+      columns:
+          - name: reps
+            title: Reps
+            type: integer
+
+          - name: obsDiff
+            title: Proportion
+            type: number
+            format: zto
+
+          - name: cil
+            title: Lower
+            superTitle: Confidence Interval
+            type: number
+            format: zto
+
+          - name: ciu
+            title: Upper
+            superTitle: Confidence Interval
+            type: number
+            format: zto
+...

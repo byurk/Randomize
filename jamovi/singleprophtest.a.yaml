@@ -1,0 +1,82 @@
+---
+name:  SinglePropHTest
+title: Single Proportion - Hypothesis Test
+menuGroup: Randomize
+version: '1.0.0'
+jas: '1.2'
+
+options:
+    - name: data
+      type: Data
+
+    - name: resp # would also like to be able to choose what level is a success
+      title: Variable
+      type: Variable
+      suggested:
+        - nominal
+        - ordinal
+      permitted:
+        - factor
+
+    - name: areCounts
+      title: Values are counts
+      type: Bool
+      default: false
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), the variables are counts
+
+    - name: testValue
+      title: Test value
+      type: Number
+      default: 0.5
+      description:
+          R: >
+            a number (default: 0.5), the value for the null hypothesis
+
+    - name: alt
+      title: Alternative hypothesis
+      type: List
+      options:
+        - title: Not equal
+          name:  notequal
+        - title: Greater
+          name:  greater
+        - title: Less
+          name:  less
+      default: notequal
+
+    - name: reps
+      title: Number of simulated samples
+      type: Number
+      default: 100
+      description:
+          R: >
+            a number (default: 100), the number of parametric bootstraps
+
+    - name: dotHist
+      title: Plot bootstrap proportions
+      type: List
+      options:
+        - title: Dot plot
+          name:  dotplot
+        - title: Histogram
+          name:  histogram
+      default: dotplot
+
+    - name: seedBool
+      title: Seed random number generator
+      type: Bool
+      default: false
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), whether to seed the random number generator
+
+    - name: rngSeed
+      title: Seed
+      type: Number
+      default: 8675309
+      description:
+          R: >
+            a number (default: 8675309), for seeding the random number generator
+...

@@ -1,0 +1,84 @@
+---
+name:  TwoPropHTest
+title: Two Proportions - Hypothesis Test
+jrs: '1.1'
+
+items:
+    - name: freqs
+      title: Contingency Tables
+      type: Table
+      description: a table of proportions
+      columns: [ ]
+      clearWith:
+        - rows
+        - cols
+        - counts
+
+    - name: diffProp
+      title: Comparative Measures
+      type: Table
+      description: a table of comparative measures
+
+      clearWith:
+        - rows
+        - cols
+        - counts
+        - compare
+
+      columns:
+        - name: t[dp]
+          title: ''
+          type: text
+          content: Difference in 2 proportions
+
+        - name: v[dp]
+          title: Value
+
+    - name:  textSimulations
+      title: Simulated samples
+      type:  Preformatted
+
+
+    - name: Plot
+      title: Differences in randomized proportions
+      type: Image
+      description: a plot showing the distribution of the differences in proportions
+      renderFun: .permPlot
+      width: 400
+      height: 350
+      clearWith:
+          - rows
+          - cols
+          - counts
+          - compare
+          - hypothesis
+          - reps
+          - rngSeed
+          - seedBool
+          - dotHist
+
+    - name: simtable
+      title: Simulation Results
+      type: Table
+      description: a table of the simulation results
+      clearWith:
+          - rows
+          - cols
+          - counts
+          - compare
+          - hypothesis
+          - reps
+          - rngSeed
+          - seedBool
+
+
+      columns:
+          - name: reps
+            title: Reps
+            type: integer
+
+          - name: pval
+            title: p-value
+            type: number
+            format: zto,pvalue
+

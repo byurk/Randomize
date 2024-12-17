@@ -1,0 +1,85 @@
+---
+name:  SinglePropHTest
+title: Single Proportion - Hypothesis Test
+jrs:   '1.1'
+
+items:
+    - name:  textSample
+      title: Original sample
+      type:  Preformatted
+
+    - name: summtable
+      title: Summary Statistics
+      type: Table
+      description: a table of the proportions
+      clearWith:
+          - resp
+          - areCounts
+
+      columns:
+          - name: var
+            title: ""
+            type: text
+            combineBelow: true
+
+          - name: level
+            title: Level
+            type: text
+
+          - name: count
+            title: Count
+            type: integer
+
+          - name: total
+            title: Total
+            type: integer
+
+          - name: prop
+            title: Proportion
+            type: number
+            format: zto
+
+    - name:  textSimulations
+      title: Simulated samples
+      type:  Preformatted
+
+
+    - name: Plot
+      title: Parametric Bootstrap Proportions
+      type: Image
+      description: a plot showing the distribution of the proportions
+      renderFun: .bootPlot
+      width: 400
+      height: 350
+      clearWith:
+          - resp
+          - areCounts
+          - testVal
+          - alt
+          - reps
+          - rngSeed
+          - dotHist
+
+    - name: simtable
+      title: Simulation Results
+      type: Table
+      description: a table of the simulation results
+      clearWith:
+          - resp
+          - areCounts
+          - testVal
+          - alt
+          - reps
+          - rngSeed
+
+
+      columns:
+          - name: reps
+            title: Reps
+            type: integer
+
+          - name: pval
+            title: p-value
+            type: number
+            format: zto,pvalue
+...

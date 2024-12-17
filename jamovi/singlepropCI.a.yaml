@@ -1,0 +1,80 @@
+---
+name:  SinglePropCI
+title: Single Proportion - Confidence Interval
+menuGroup: Randomize
+version: '1.0.0'
+jas: '1.2'
+
+options:
+    - name: data
+      type: Data
+
+    - name: resp # would also like to be able to choose what level is a success
+      title: Variable
+      type: Variable
+      suggested:
+        - nominal
+        - ordinal
+      permitted:
+        - factor
+
+    - name: areCounts
+      title: Values are counts
+      type: Bool
+      default: false
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), the variables are counts
+
+    - name: confLevel
+      title: Confidence level
+      type: Number
+      default: 95
+      description:
+          R: >
+            a number (default: 95), the confidence level
+
+    - name: ciType
+      title: Type of confidence interval
+      type: List
+      options:
+        - title: bootstrap percentile
+          name:  bootperc
+        - title: bootstrap SE
+          name:  bootse
+      default: bootperc
+
+    - name: reps
+      title: Number of bootstraps
+      type: Number
+      default: 100
+      description:
+          R: >
+            a number (default: 100), the number of bootstraps
+
+    - name: dotHist
+      title: Plot bootstrap proportions
+      type: List
+      options:
+        - title: Dot plot
+          name:  dotplot
+        - title: Histogram
+          name:  histogram
+      default: dotplot
+
+    - name: seedBool
+      title: Seed random number generator
+      type: Bool
+      default: false
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), whether to seed the random number generator
+
+    - name: rngSeed
+      title: Seed
+      type: Number
+      default: 8675309
+      description:
+          R: >
+            a number (default: 8675309), for seeding the random number generator
+...
