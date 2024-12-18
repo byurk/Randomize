@@ -158,7 +158,7 @@ SinglePropHTestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
                 clearWith=list(
                     "resp",
                     "areCounts",
-                    "testVal",
+                    "testValue",
                     "alt",
                     "reps",
                     "rngSeed",
@@ -170,7 +170,7 @@ SinglePropHTestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
                 clearWith=list(
                     "resp",
                     "areCounts",
-                    "testVal",
+                    "testValue",
                     "alt",
                     "reps",
                     "rngSeed"),

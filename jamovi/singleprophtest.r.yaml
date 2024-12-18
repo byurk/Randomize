@@ -54,7 +54,7 @@ items:
       clearWith:
           - resp
           - areCounts
-          - testVal
+          - testValue
           - alt
           - reps
           - rngSeed
@@ -67,7 +67,7 @@ items:
       clearWith:
           - resp
           - areCounts
-          - testVal
+          - testValue
           - alt
           - reps
           - rngSeed
