@@ -131,7 +131,7 @@ options:
             a number (default: 100), the number of parametric bootstraps
 
     - name: dotHist
-      title: Plot bootstrap proportions
+      title: Plot difference in proportions
       type: List
       options:
         - title: Dot plot
