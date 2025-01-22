@@ -44,7 +44,7 @@ options:
             a number (default: 100), the number of bootstraps
 
     - name: dotHist
-      title: Plot bootstrap proportions
+      title: Plot bootstrap means
       type: List
       options:
         - title: Dot plot

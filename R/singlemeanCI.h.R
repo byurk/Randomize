@@ -139,7 +139,7 @@ SingleMeanCIResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
             self$add(jmvcore::Image$new(
                 options=options,
                 name="Plot",
-                title="Bootstrap Proportions",
+                title="Bootstrap Means",
                 renderFun=".bootPlot",
                 width=400,
                 height=350,

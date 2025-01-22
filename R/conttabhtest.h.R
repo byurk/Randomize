@@ -191,7 +191,7 @@ ContTabHTestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
             self$add(jmvcore::Image$new(
                 options=options,
                 name="Plot",
-                title="Differences in randomized proportions",
+                title="Randomized Chi-Squared Statistics",
                 renderFun=".permPlot",
                 width=400,
                 height=350,

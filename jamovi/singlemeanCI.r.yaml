@@ -43,7 +43,7 @@ items:
 
 
     - name: Plot
-      title: Bootstrap Proportions
+      title: Bootstrap Means
       type: Image
       description: a plot showing the distribution of the means
       renderFun: .bootPlot

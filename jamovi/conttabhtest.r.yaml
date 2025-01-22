@@ -40,7 +40,7 @@ items:
 
 
     - name: Plot
-      title: Differences in randomized proportions
+      title: Randomized Chi-Squared Statistics
       type: Image
       description: a plot showing the distribution of the differences in proportions
       renderFun: .permPlot
