@@ -112,7 +112,7 @@ items:
           combineBelow: true
 
         - name: md
-          title: Mean difference
+          title: Observed difference
           type: number
 
         - name: reps

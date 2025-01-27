@@ -64,8 +64,10 @@ twomeanhtestClass <- R6::R6Class(
       else
       #res <- try(t.test(dep ~ group, data=dataHTest, var.equal=TRUE,
       #                  alternative=Ha, conf.level=confInt), silent=TRUE)
-      res <- try(t.test(dep ~ group, data=dataHTest, var.equal=TRUE,
-        alternative=Ha), silent=TRUE)
+      #res <- try(t.test(dep ~ group, data=dataHTest, var.equal=TRUE,
+      #  alternative=Ha), silent=TRUE)
+      perms <- private$.computePerms(dataHTest)
+      res <- private$.computePval(perms, m[1]-m[2])
         
         if (isError(res)) {
           
@@ -84,7 +86,7 @@ twomeanhtestClass <- R6::R6Class(
               "reps"=self$options$reps,
               #"md"=res$estimate[1]-res$estimate[2],
               "md"=m[1]-m[2],
-              "p"=res$p.value))
+              "p"=res$pval))
             }
             
             if (self$options$desc) {
@@ -165,9 +167,28 @@ twomeanhtestClass <- R6::R6Class(
             table$setNote("hyp", jmvcore::format("H\u2090 \u03BC\u2009<sub>{}</sub> \u2260 \u03BC\u2009<sub>{}</sub>", groups[1], groups[2]))
             
           },
+          .computePval = function(perms, dm) {
+
+            reps <- self$options$reps
+            alt <- self$options$hypothesis
+
+            if (alt == "oneGreater")
+                direction <- "greater"
+            else if (alt == "twoGreater")
+                direction <- "less"
+            else
+                direction <- "two_sided"
+
+            pval <- perms %>%
+                infer::get_p_value(obs_stat = dm, direction = direction) %>%
+                dplyr::pull()
+
+            simres <- list(reps = reps, pval = pval)
+            return(simres)
+          },
           .computePerms = function(dataHTest){
 
-            groupLevels <- base::levels(dataHTest$group) # Can use [1] , [2] to get order?
+            groupLevels <- base::levels(dataHTest$group)
             
             reps <- self$options$reps
 
@@ -177,12 +198,11 @@ twomeanhtestClass <- R6::R6Class(
                 set.seed(NULL)
             }
 
-
             perms <- dataHTest %>%
                 infer::specify(dep ~ group) %>%
                 infer::hypothesize(null = "independence") %>%
                 infer::generate(reps = reps, type = "permute") %>%
-                infer::calculate(stat = "diff in means", order = c("G1", "G2"))
+                infer::calculate(stat = "diff in means", order = c(groupLevels[1], groupLevels[2]))
 
             return(perms)
 

@@ -233,7 +233,7 @@ twomeanhtestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
                         `combineBelow`=TRUE),
                     list(
                         `name`="md", 
-                        `title`="Mean difference", 
+                        `title`="Observed difference", 
                         `type`="number"),
                     list(
                         `name`="reps", 
