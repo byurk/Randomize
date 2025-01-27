@@ -47,6 +47,13 @@ analyses:
     ns: Randomize
     menuGroup: Randomize
     menuTitle: Model-Based Inference
+  - title: Two Means - Hypothesis Test
+    name: twomeanhtest
+    ns: Randomize
+    menuGroup: Randomize
+    menuTitle: Two Means - Hypothesis Test
+    description: |
+      Permutation test for two means-independent samples.
 usesNative: true
 minApp: 1.0.8
 
