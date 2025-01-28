@@ -1,4 +1,4 @@
-name:  twomeanhtest
+name:  twomeanCI
 title: Two Means - Confidence Interval
 jus:   '2.0'
 compilerMode: tame
@@ -34,25 +34,20 @@ children:
         stretchFactor: 1
         children:
           - type: Label
-            label: Hypothesis
+            label: Confidence Interval
             children:
-              - type: RadioButton
-                name: hypothesis_different
-                optionName: hypothesis
-                optionPart: different
-                label: "Group 1 ≠ Group 2"
-
-              - type: RadioButton
-                name: hypothesis_oneGreater
-                optionName: hypothesis
-                optionPart: oneGreater
-                label: "Group 1 > Group 2"
-
-              - type: RadioButton
-                name: hypothesis_twoGreater
-                optionName: hypothesis
-                optionPart: twoGreater
-                label: "Group 1 < Group 2"
+              - type: LayoutBox
+                margin: large
+                children:
+                  - type: TextBox
+                    name: confLevel
+                    format: number
+                    suffix: "%"
+              - type: LayoutBox
+                margin: large
+                children:
+                  - type: ComboBox
+                    name: ciType
 
           - type: Label
             label: Simulations

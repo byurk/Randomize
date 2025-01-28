@@ -72,25 +72,23 @@ options:
             the grouping variable with two levels (not necessary when
             using a formula, see the examples)
 
-    - name: hypothesis
-      title: Alternative hypothesis
+    - name: confLevel
+      title: Confidence level
+      type: Number
+      default: 95
+      description:
+          R: >
+            a number (default: 95), the confidence level
+
+    - name: ciType
+      title: CI type
       type: List
       options:
-        - name: different
-          title: "Group 1 ≠ Group 2"
-        - name: oneGreater
-          title: "Group 1 > Group 2"
-        - name: twoGreater
-          title: "Group 1 < Group 2"
-      default: different
-      description:
-          ui: >
-            the alternative hypothesis.
-          R: >
-            `'different'` (default), `'oneGreater'` or
-            `'twoGreater'`, the alternative hypothesis; group 1 different
-            to group 2, group 1 greater than group 2, and group 2 greater than
-            group 1 respectively
+        - title: bootstrap percentile
+          name:  bootperc
+        - title: bootstrap SE
+          name:  bootse
+      default: bootperc
 
     - name: desc
       title: Descriptives Table

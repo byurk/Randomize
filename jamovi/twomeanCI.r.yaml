@@ -81,7 +81,7 @@ items:
       title: Differences in randomized means
       type: Image
       description: a plot showing the distribution of the differences in proportions
-      renderFun: .permPlot
+      renderFun: .bootPlot
       width: 400
       height: 350
       clearWith:
@@ -92,9 +92,9 @@ items:
           - seedBool
           - dotHist
 
-    - name: htest
-      title: Two Means - Hypothesis Test
-      description: a table containing the permutation test results
+    - name: CITable
+      title: Difference in Means - Confidence Interval
+      description: a table containing the CI results
       type: Table
       rows: (vars)
       clearWith:
