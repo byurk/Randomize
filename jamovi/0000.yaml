@@ -54,6 +54,13 @@ analyses:
     menuTitle: Two Means - Hypothesis Test
     description: |
       Permutation test for two means-independent samples.
+  - title: Two Means - Confidence Interval
+    name: twomeanCI
+    ns: Randomize
+    menuGroup: Randomize
+    menuTitle: Two Means - Confidence Interval
+    description: |
+      Bootstrap CI for difference in means means-independent samples.
 usesNative: true
 minApp: 1.0.8
 

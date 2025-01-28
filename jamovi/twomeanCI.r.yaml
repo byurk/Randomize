@@ -1,0 +1,125 @@
+---
+name: twomeanCI
+title: Two Means - Confidence Interval
+jrs: '1.0'
+
+items:
+    - name: desc
+      title: Group Descriptives
+      type: Table
+      description: a table containing the group descriptives
+      visible: (desc)
+      rows: (vars)
+      clearWith:
+        - group
+
+      columns:
+        - name: dep
+          title: ""
+          content: ($key)
+          type: text
+
+        - name: group[1]
+          title: Group
+          type: text
+
+        - name: num[1]
+          title: "N"
+          type: integer
+
+        - name: mean[1]
+          title: Mean
+          type: number
+
+        - name: med[1]
+          title: Median
+          type: number
+
+        - name: sd[1]
+          title: SD
+          type: number
+
+        - name: group[2]
+          title: Group
+          type: text
+
+        - name: num[2]
+          title: "N"
+          type: integer
+
+        - name: mean[2]
+          title: Mean
+          type: number
+
+        - name: med[2]
+          title: Median
+          type: number
+
+        - name: sd[2]
+          title: SD
+          type: number
+
+    - name: descplot
+      title: Descriptive Plots
+      type: Array
+      description: an array of groups of plots
+      items: (vars)
+      clearWith:
+        - group
+      template:
+          title: $key
+          type: Group
+          items:
+            - name: desc
+              type: Image
+              description: descriptives plot
+              visible: (plots)
+              renderFun: .descplot
+              clearWith: []
+
+    - name: simplot
+      title: Differences in randomized means
+      type: Image
+      description: a plot showing the distribution of the differences in proportions
+      renderFun: .permPlot
+      width: 400
+      height: 350
+      clearWith:
+          - group
+          - hypothesis
+          - reps
+          - rngSeed
+          - seedBool
+          - dotHist
+
+    - name: htest
+      title: Two Means - Hypothesis Test
+      description: a table containing the permutation test results
+      type: Table
+      rows: (vars)
+      clearWith:
+        - group
+        - hypothesis
+        - rngSeed
+        - seedBool
+        - reps
+
+      columns:
+        - name: var
+          title: ""
+          content: ($key)
+          type: text
+          combineBelow: true
+
+        - name: md
+          title: Observed difference
+          type: number
+
+        - name: reps
+          title: Reps
+          type: integer
+
+        - name: p
+          title: p
+          type: number
+          format: zto,pvalue
