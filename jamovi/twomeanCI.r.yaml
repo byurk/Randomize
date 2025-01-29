@@ -78,7 +78,7 @@ items:
               clearWith: []
 
     - name: simplot
-      title: Differences in randomized means
+      title: Differences in bootstrap means
       type: Image
       description: a plot showing the distribution of the differences in proportions
       renderFun: .bootPlot
@@ -86,20 +86,23 @@ items:
       height: 350
       clearWith:
           - group
-          - hypothesis
+          - vars
+          - confLevel
+          - ciType
           - reps
           - rngSeed
           - seedBool
           - dotHist
 
     - name: CITable
-      title: Difference in Means - Confidence Interval
+      title: Simulation Results
       description: a table containing the CI results
       type: Table
       rows: (vars)
       clearWith:
         - group
-        - hypothesis
+        - confLevel
+        - ciType
         - rngSeed
         - seedBool
         - reps
@@ -111,15 +114,23 @@ items:
           type: text
           combineBelow: true
 
-        - name: md
-          title: Observed difference
-          type: number
-
         - name: reps
           title: Reps
           type: integer
 
-        - name: p
-          title: p
+        - name: obsDiff
+          title: Observed Difference
           type: number
-          format: zto,pvalue
+          format: zto
+
+        - name: cil
+          title: Lower
+          superTitle: Confidence Interval
+          type: number
+          format: zto
+
+        - name: ciu
+          title: Upper
+          superTitle: Confidence Interval
+          type: number
+          format: zto

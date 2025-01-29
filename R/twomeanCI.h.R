@@ -209,13 +209,15 @@ twomeanCIResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
             self$add(jmvcore::Image$new(
                 options=options,
                 name="simplot",
-                title="Differences in randomized means",
+                title="Differences in bootstrap means",
                 renderFun=".bootPlot",
                 width=400,
                 height=350,
                 clearWith=list(
                     "group",
-                    "hypothesis",
+                    "vars",
+                    "confLevel",
+                    "ciType",
                     "reps",
                     "rngSeed",
                     "seedBool",
@@ -223,11 +225,12 @@ twomeanCIResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
             self$add(jmvcore::Table$new(
                 options=options,
                 name="CITable",
-                title="Difference in Means - Confidence Interval",
+                title="Simulation Results",
                 rows="(vars)",
                 clearWith=list(
                     "group",
-                    "hypothesis",
+                    "confLevel",
+                    "ciType",
                     "rngSeed",
                     "seedBool",
                     "reps"),
@@ -239,18 +242,26 @@ twomeanCIResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
                         `type`="text", 
                         `combineBelow`=TRUE),
                     list(
-                        `name`="md", 
-                        `title`="Observed difference", 
-                        `type`="number"),
-                    list(
                         `name`="reps", 
                         `title`="Reps", 
                         `type`="integer"),
                     list(
-                        `name`="p", 
-                        `title`="p", 
+                        `name`="obsDiff", 
+                        `title`="Observed Difference", 
                         `type`="number", 
-                        `format`="zto,pvalue"))))}))
+                        `format`="zto"),
+                    list(
+                        `name`="cil", 
+                        `title`="Lower", 
+                        `superTitle`="Confidence Interval", 
+                        `type`="number", 
+                        `format`="zto"),
+                    list(
+                        `name`="ciu", 
+                        `title`="Upper", 
+                        `superTitle`="Confidence Interval", 
+                        `type`="number", 
+                        `format`="zto"))))}))
 
 twomeanCIBase <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
     "twomeanCIBase",

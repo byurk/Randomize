@@ -208,6 +208,7 @@ twomeanhtestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
                 height=350,
                 clearWith=list(
                     "group",
+                    "vars",
                     "hypothesis",
                     "reps",
                     "rngSeed",

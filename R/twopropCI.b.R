@@ -86,6 +86,7 @@ TwoPropCIClass <- R6::R6Class(
             if ( ! is.null(lor)) {
 
                 boots <- private$.computeBoots(mat)
+                boots <- tidyr::drop_na(boots)
                 simres <- private$.computeCI(boots, dp$dp)
 
                 private$.populateSimTable(simres)

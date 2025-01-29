@@ -246,7 +246,7 @@ TwoPropCIResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
                         `type`="integer"),
                     list(
                         `name`="obsDiff", 
-                        `title`="Proportion", 
+                        `title`="Observed Difference", 
                         `type`="number", 
                         `format`="zto"),
                     list(

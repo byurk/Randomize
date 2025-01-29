@@ -361,8 +361,8 @@ twomeanhtestClass <- R6::R6Class(
                     ggforce::geom_ellipse(aes(x0 = x.bin, y0 = y, a = bw/3, b = 0.5, angle = 0, fill = extreme, color = extreme),
                                           show.legend = FALSE) +
                     ggplot2::geom_vline(xintercept = dm, linetype = "dashed", color = "red") +
-                    ggplot2::scale_fill_manual(values = c("black", "#ff8c8c")) +
-                    ggplot2::scale_color_manual(values = c("black", "#ff8c8c")) +
+                    ggplot2::scale_fill_manual(values = c("FALSE" = "black", "TRUE" = "#ff8c8c")) +
+                    ggplot2::scale_color_manual(values = c("FALSE" = "black", "TRUE" = "#ff8c8c")) +
                     ggplot2::annotate("text", x = dm, y = lab_ht, label = "Observed\nDifference", color = "red") +
                     ggplot2::theme_minimal() +
                     ggplot2::ylab("count") +
@@ -386,7 +386,7 @@ twomeanhtestClass <- R6::R6Class(
                 p <- ggplot2::ggplot(data=df, aes(x=stat, fill = extreme)) +
                     ggplot2::geom_histogram(boundary = dm, closed = closed, show.legend = FALSE) +
                     ggplot2::geom_vline(xintercept=obs_stat, linetype='dashed', color = "red") +
-                    ggplot2::scale_fill_manual(values = c("black", "#ff8c8c")) +
+                    ggplot2::scale_fill_manual(values = c("FALSE" = "black", "TRUE" = "#ff8c8c")) +
                     ggplot2::theme_minimal() +
                     ggplot2::xlab("difference (group 1 - group 2)") +
                     ggplot2::ylab("count") +

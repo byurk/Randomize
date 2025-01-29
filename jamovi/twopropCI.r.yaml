@@ -80,7 +80,7 @@ items:
             type: integer
 
           - name: obsDiff
-            title: Proportion
+            title: Observed Difference
             type: number
             format: zto
 
