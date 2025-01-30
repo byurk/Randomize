@@ -68,6 +68,13 @@ analyses:
     menuTitle: Paired Means - Hypothesis Test
     description: |
       Permutation test for paired means.
+  - title: Paired Means - Confidence Interval
+    name: pairedmeanCI
+    ns: Randomize
+    menuGroup: Randomize
+    menuTitle: Paired Means - Confidence Interval
+    description: |
+      Bootstrap CI for difference in paired means.
 usesNative: true
 minApp: 1.0.8
 

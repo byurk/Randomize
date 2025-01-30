@@ -1,0 +1,96 @@
+name:  pairedmeanCI
+title: Paired Means - Confidence Interval
+jus:   '2.0'
+compilerMode: tame
+children:
+  - type: VariableSupplier
+    suggested:
+      - continuous
+    permitted:
+      - numeric
+    persistentItems: true
+    stretchFactor: 1
+    children:
+      - type: TargetLayoutBox
+        children:
+          - type: VariablesListBox
+            name: pairs
+            isTarget: true
+            fullRowSelect: true
+            itemDropBehaviour: overwrite
+            columns:
+              - name: i1
+                stretchFactor: 1
+                template:
+                  type: VariableLabel
+              - name: i2
+                stretchFactor: 1
+                template:
+                  type: VariableLabel
+  - type: LayoutBox
+    margin: large
+    stretchFactor: 1
+    children:
+      - type: LayoutBox
+        cell:
+            column: 0
+            row: 0
+        stretchFactor: 1
+        children:
+          - type: Label
+            label: Confidence Interval
+            children:
+              - type: LayoutBox
+                margin: large
+                children:
+                  - type: TextBox
+                    name: confLevel
+                    format: number
+                    suffix: "%"
+              - type: LayoutBox
+                margin: large
+                children:
+                  - type: ComboBox
+                    name: ciType
+
+          - type: Label
+            label: Simulations
+            children:
+              - type: LayoutBox
+                margin: large
+                children:
+                - type: TextBox
+                  name: reps
+                  format: number
+          - type: LayoutBox
+            margin: large
+            children:
+              - type: ComboBox
+                name: dotHist
+          - type: LayoutBox
+            margin: large
+            children:
+              - type: CheckBox
+                name: seedBool
+                children:
+                  - type: TextBox
+                    name: rngSeed
+                    format: number
+                    enable: (seedBool)
+
+      - type: LayoutBox
+        cell:
+            column: 1
+            row: 0
+        stretchFactor: 1
+        children:
+          - type: Label
+            label: Descriptive Statistics
+            children:
+              - type: CheckBox
+                name: desc
+                label: Descriptives
+
+              - type: CheckBox
+                name: plots
+                label: Descriptives plots

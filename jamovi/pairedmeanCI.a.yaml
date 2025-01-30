@@ -1,0 +1,107 @@
+---
+name: pairedmeanCI
+title: Paired Means - Confidence Interval
+menuGroup: Randomize
+version: '1.0.0'
+jas: '1.2'
+
+description:
+    main: |
+        Bootstrap CI for difference in paired means.
+    R:
+        dontrun: false
+        usage: blah
+
+completeWhenFilled: true
+
+options:
+    - name: data
+      type: Data
+      description:
+          R: the data as a data frame
+
+    - name: pairs
+      title: Paired Variables
+      type: Pairs
+      suggested:
+        - continuous
+      permitted:
+        - numeric
+      description:
+          ui: >
+            a pair of measurements
+          R: >
+            a list sepcifying the pairs of measurements in the data
+
+    - name: confLevel
+      title: Confidence level
+      type: Number
+      default: 95
+      description:
+          R: >
+            a number (default: 95), the confidence level
+
+    - name: ciType
+      title: CI type
+      type: List
+      options:
+        - title: bootstrap percentile
+          name:  bootperc
+        - title: bootstrap SE
+          name:  bootse
+      default: bootperc
+
+    - name: desc
+      title: Descriptives Table
+      type: Bool
+      default: false
+      description:
+          ui: >
+            provide descriptives for each group.
+          R: >
+            `TRUE` or `FALSE` (default), provide descriptive statistics
+
+    - name: plots
+      title: Descriptives Plots
+      type: Bool
+      default: false
+      description:
+          ui: >
+            provide descriptives plots.
+          R: >
+            `TRUE` or `FALSE` (default), provide descriptive plots
+
+    - name: reps
+      title: Number of simulated samples
+      type: Number
+      default: 100
+      description:
+          R: >
+            a number (default: 100), the number of parametric bootstraps
+
+    - name: dotHist
+      title: Plot differences in means
+      type: List
+      options:
+        - title: Dot plot
+          name:  dotplot
+        - title: Histogram
+          name:  histogram
+      default: dotplot
+
+    - name: seedBool
+      title: Seed random number generator
+      type: Bool
+      default: false
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), whether to seed the random number generator
+
+    - name: rngSeed
+      title: Seed
+      type: Number
+      default: 8675309
+      description:
+          R: >
+            a number (default: 8675309), for seeding the random number generator
+...
