@@ -75,6 +75,13 @@ analyses:
     menuTitle: Paired Means - Confidence Interval
     description: |
       Bootstrap CI for difference in paired means.
+  - title: Multiple Means - Hypothesis Test
+    name: multimeanhtest
+    ns: Randomize
+    menuGroup: Randomize
+    menuTitle: Multiple Means - Hypothesis Test
+    description: |
+      Permutation (F) test for three or more means-independent samples.
 usesNative: true
 minApp: 1.0.8
 

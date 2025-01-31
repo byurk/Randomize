@@ -1,0 +1,128 @@
+---
+name: multimeanhtest
+title: Multiple Means - Hypothesis Test
+menuGroup: Randomize
+version: '1.0.0'
+jas: '1.2'
+
+description:
+    main: |
+        Permutation (F) test for three or more means-independent samples.
+    R:
+        dontrun: false
+        usage: |
+            data('ToothGrowth')
+
+            ttestIS(formula = len ~ supp, data = ToothGrowth)
+
+            #
+            #  INDEPENDENT SAMPLES T-TEST
+            #
+            #  Independent Samples T-Test
+            #  ────────────────────────────────────────────────────
+            #                          statistic    df      p
+            #  ────────────────────────────────────────────────────
+            #    len    Student's t         1.92    58.0    0.060
+            #  ────────────────────────────────────────────────────
+            #
+
+completeWhenFilled: true
+
+formula:
+    vars:
+        from: lhs
+        required: true
+    group:
+        from: rhs
+        subset: 1
+
+options:
+    - name: data
+      type: Data
+      description:
+          R: the data as a data frame
+
+    - name: vars
+      title: Dependent Variable
+      type: Variable
+      suggested:
+        - continuous
+      permitted:
+        - numeric
+      rejectInf: false
+      description:
+          ui: >
+            the dependent variable
+          R: >
+            the dependent variable (not necessary when using a formula, see
+            the examples)
+
+    - name: group
+      title: Grouping Variable
+      type: Variable
+      suggested:
+        - nominal
+        - ordinal
+      permitted:
+        - factor
+      description:
+          ui: >
+            the variable specifying the groups; must have 3 or more levels.
+          R: >
+            the grouping variable with three or more levels (not necessary when
+            using a formula, see the examples)
+
+    - name: desc
+      title: Descriptives Table
+      type: Bool
+      default: false
+      description:
+          ui: >
+            provide descriptives for each group.
+          R: >
+            `TRUE` or `FALSE` (default), provide descriptive statistics
+
+    - name: plots
+      title: Descriptives Plots
+      type: Bool
+      default: false
+      description:
+          ui: >
+            provide descriptives plots.
+          R: >
+            `TRUE` or `FALSE` (default), provide descriptive plots
+
+    - name: reps
+      title: Number of simulated samples
+      type: Number
+      default: 100
+      description:
+          R: >
+            a number (default: 100), the number of parametric bootstraps
+
+    - name: dotHist
+      title: Plot F statistics
+      type: List
+      options:
+        - title: Dot plot
+          name:  dotplot
+        - title: Histogram
+          name:  histogram
+      default: dotplot
+
+    - name: seedBool
+      title: Seed random number generator
+      type: Bool
+      default: false
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), whether to seed the random number generator
+
+    - name: rngSeed
+      title: Seed
+      type: Number
+      default: 8675309
+      description:
+          R: >
+            a number (default: 8675309), for seeding the random number generator
+...
