@@ -82,6 +82,13 @@ analyses:
     menuTitle: Multiple Means - Hypothesis Test
     description: |
       Permutation (F) test for three or more means-independent samples.
+  - title: Slope (SLR) - Hypothesis Test
+    name: slopehtest
+    ns: Randomize
+    menuGroup: Randomize
+    menuTitle: Slope (SLR) - Hypothesis Test
+    description: |
+      Permutation test for slope.
 usesNative: true
 minApp: 1.0.8
 

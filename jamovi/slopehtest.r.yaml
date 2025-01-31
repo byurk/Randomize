@@ -1,0 +1,102 @@
+---
+name: slopehtest
+title: Slope (SLR) - Hypothesis Test
+jrs: '1.0'
+
+items:
+    - name: coef
+      title: Model Coefficients
+      type: Table
+      description: a table containing the model coefficients
+      visible: (coef)
+      rows: 0
+      clearWith:
+        - indep
+
+      columns:
+        - name: term
+          title: "Predictor"
+          type: text
+
+        - name: est
+          title: Estimate
+          type: number
+
+    - name: modelfit
+      title: Correlation, R²
+      type: Table
+      description: a table containing the correlation and R^2
+      visible: (modelfit)
+      rows: (dep)
+      clearWith:
+        - indep
+
+      columns:
+        - name: r
+          title: r
+          type: number
+
+        - name: r2
+          title: R²
+          type: number         
+
+    - name: linplot
+      title: Scatter plot with regression line
+      type: Array
+      description: an array of groups of plots
+      items: (dep)
+      clearWith:
+        - indep
+      template:
+          title: $key
+          type: Group
+          items:
+            - name: lp
+              type: Image
+              description: plot
+              visible: (plots)
+              renderFun: .linplot
+              clearWith: []
+
+    - name: simplot
+      title: Randomized slopes
+      type: Image
+      description: a plot showing the distribution of slopes
+      renderFun: .permPlot
+      width: 400
+      height: 350
+      clearWith:
+          - dep
+          - indep
+          - hypothesis
+          - reps
+          - rngSeed
+          - seedBool
+          - dotHist
+
+    - name: htest
+      title: Slope - Hypothesis Test
+      description: a table containing the permutation test results
+      type: Table
+      rows: (dep)
+      clearWith:
+        - indep
+        - hypothesis
+        - rngSeed
+        - seedBool
+        - reps
+
+      columns:
+
+        - name: b
+          title: Observed slope
+          type: number
+
+        - name: reps
+          title: Reps
+          type: integer
+
+        - name: p
+          title: p
+          type: number
+          format: zto,pvalue
