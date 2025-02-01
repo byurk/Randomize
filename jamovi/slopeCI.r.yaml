@@ -1,6 +1,6 @@
 ---
-name: slopehtest
-title: Slope (SLR) - Hypothesis Test
+name: slopeCI
+title: Slope (SLR) - Confidence Interval
 jrs: '1.0'
 
 items:
@@ -59,44 +59,50 @@ items:
               clearWith: []
 
     - name: simplot
-      title: Randomized slopes
+      title: Bootstrap slopes
       type: Image
       description: a plot showing the distribution of slopes
-      renderFun: .permPlot
+      renderFun: .bootPlot
       width: 400
       height: 350
       clearWith:
           - dep
           - indep
-          - hypothesis
+          - confLevel
+          - ciType
           - reps
           - rngSeed
           - seedBool
           - dotHist
 
-    - name: htest
-      title: Slope - Hypothesis Test
-      description: a table containing the permutation test results
+    - name: CITable
+      title: Slope - Bootstrap CI
+      description: a table containing the CI results
       type: Table
       rows: (dep)
       clearWith:
         - indep
-        - hypothesis
+        - confLevel
+        - ciType
         - rngSeed
         - seedBool
         - reps
 
       columns:
+        - name: reps
+          title: Reps
+          type: integer      
 
         - name: b
           title: Observed slope
           type: number
 
-        - name: reps
-          title: Reps
-          type: integer
-
-        - name: p
-          title: p
+        - name: cil
+          title: Lower
+          superTitle: Confidence Interval
           type: number
-          format: zto,pvalue
+
+        - name: ciu
+          title: Upper
+          superTitle: Confidence Interval
+          type: number

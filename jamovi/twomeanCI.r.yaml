@@ -121,16 +121,13 @@ items:
         - name: obsDiff
           title: Observed Difference
           type: number
-          format: zto
 
         - name: cil
           title: Lower
           superTitle: Confidence Interval
           type: number
-          format: zto
 
         - name: ciu
           title: Upper
           superTitle: Confidence Interval
           type: number
-          format: zto

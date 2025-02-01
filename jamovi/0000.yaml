@@ -89,6 +89,13 @@ analyses:
     menuTitle: Slope (SLR) - Hypothesis Test
     description: |
       Permutation test for slope.
+  - title: Slope (SLR) - Confidence Interval
+    name: slopeCI
+    ns: Randomize
+    menuGroup: Randomize
+    menuTitle: Slope (SLR) - Confidence Interval
+    description: |
+      Bootstrap CI for slope.
 usesNative: true
 minApp: 1.0.8
 

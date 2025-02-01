@@ -248,20 +248,17 @@ twomeanCIResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
                     list(
                         `name`="obsDiff", 
                         `title`="Observed Difference", 
-                        `type`="number", 
-                        `format`="zto"),
+                        `type`="number"),
                     list(
                         `name`="cil", 
                         `title`="Lower", 
                         `superTitle`="Confidence Interval", 
-                        `type`="number", 
-                        `format`="zto"),
+                        `type`="number"),
                     list(
                         `name`="ciu", 
                         `title`="Upper", 
                         `superTitle`="Confidence Interval", 
-                        `type`="number", 
-                        `format`="zto"))))}))
+                        `type`="number"))))}))
 
 twomeanCIBase <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
     "twomeanCIBase",

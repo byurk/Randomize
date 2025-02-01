@@ -82,12 +82,12 @@ slopehtestClass <- R6::R6Class(
             
             if (self$options$coef) {
               
-              coefTable$addRow(rowKey="Intercept", list(
+              coefTable$setRow(rowKey="1", list(
                 "term"="Intercept",
                 "est"=as.numeric(coef[1])
               ))
 
-              coefTable$addRow(rowKey="Slope", list(
+              coefTable$setRow(rowKey="2", list(
                 "term"=indepVarName,
                 "est"=as.numeric(coef[2])
               ))

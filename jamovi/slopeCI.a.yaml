@@ -1,13 +1,13 @@
 ---
-name: slopehtest
-title: Slope (SLR) - Hypothesis Test
+name: slopeCI
+title: Slope (SLR) - Confidence Interval
 menuGroup: Randomize
 version: '1.0.0'
 jas: '1.2'
 
 description:
     main: |
-        Permutation test for slope.
+        Bootstrap CI for slope.
     R:
         dontrun: false
         usage: |
@@ -71,23 +71,23 @@ options:
             the independent variable (not necessary when
             using a formula, see the examples)
 
-    - name: hypothesis
-      title: Alternative hypothesis
+    - name: confLevel
+      title: Confidence level
+      type: Number
+      default: 95
+      description:
+          R: >
+            a number (default: 95), the confidence level
+
+    - name: ciType
+      title: CI type
       type: List
       options:
-        - name: notequal
-          title: "β ≠ 0"
-        - name: greater
-          title: "β > 0"
-        - name: less
-          title: "β < 0"
-      default: notequal
-      description:
-          ui: >
-            the alternative hypothesis.
-          R: >
-            `'notequal'` (default), `'greater'` or
-            `'less'`, the alternative hypothesis; slope not equal to 0, slope greater than 0, or slope less than 0
+        - title: bootstrap percentile
+          name:  bootperc
+        - title: bootstrap SE
+          name:  bootse
+      default: bootperc
 
     - name: coef
       title: Model Coefficients
