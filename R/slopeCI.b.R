@@ -134,38 +134,12 @@ slopeCIClass <- R6::R6Class(
           .computeCI = function(boots, b) {
 
             reps <- self$options$reps
-            confLevel <- self$options$confLevel/100
+            confLevel <- self$options$confLevel
             ciType <- self$options$ciType
 
-            obs_stat <- b
+            ci <- compute_boot_ci(boots, b, confLevel, ciType)
 
-            if(ciType == "bootperc"){
-
-                ci <- boots %>%
-                    dplyr::summarize(cil = quantile(stat, (1 - confLevel)/2, na.rm=TRUE),
-                                     ciu = quantile(stat, 1 - (1 - confLevel)/2, na.rm=TRUE))
-
-                se <- NULL
-                zcrit <- NULL
-
-            } else {
-
-                zcrit <- qnorm(1 - (1 - confLevel)/2)
-
-                se <- boots %>%
-                    dplyr::summarize(se = sd(stat, na.rm=TRUE)) %>%
-                    dplyr::pull()
-
-                ci <- tibble::tibble(cil = obs_stat - zcrit * se,
-                                     ciu = obs_stat + zcrit * se)
-
-            }
-
-
-            cil <- ci %>% dplyr::pull(cil)
-            ciu <- ci %>% dplyr::pull(ciu)
-
-            simres <- list(reps = reps, b = b, cil = cil, ciu = ciu, se = se, zcrit = zcrit)
+            simres <- c(list(reps = reps, b = b), ci)
             return(simres)
         },
 
@@ -226,118 +200,13 @@ slopeCIClass <- R6::R6Class(
           if (is.null(image$state))
               return(FALSE)
 
-          df <- image$state[["df"]]
-
-          obs_stat = image$state[["obs_stat"]]
-
-          dotHist = image$state[["dotHist"]]
-
-          confLevel <- image$state[["confLevel"]]
-
-          ciType <- image$state[["ciType"]]
-
-          b <- obs_stat
-
-          boot <- df
-
-          # We've already computed these, but it's fast anyway
-          ciList <- private$.computeCI(boot, b)
-          cil <- ciList$cil
-          ciu <- ciList$ciu
-
-          if(ciType == "bootperc"){
-
-              caption <- paste0("CI limits (dashed) are ",
-                                round((100-confLevel)/2,1),
-                                "% and ",
-                                round(100 - (100-confLevel)/2,1),
-                                "%",
-                                "\n percentiles of bootstrap slopes")
-
-          } else {
-
-              se <- ciList$se
-              zcrit <- ciList$zcrit
-
-              caption <- paste0("CI (dashed) is calculated using SE of bootstrap slopes",
-                                "\n (SE = ",
-                                round(se, 3),
-                                ", z* = ",
-                                round(zcrit, 3),
-                                ")")
-
-          }
-
-
-          if(dotHist == "dotplot"){
-
-              ndist <- dplyr::n_distinct(boot$stat)
-
-              # bin width, also used for scaling dots when not binning
-              bw <- boot %>%
-                  dplyr::summarize(min = min(stat), max = max(stat)) %>%
-                  dplyr::mutate(bw = (max - min) / 30 ) %>%
-                  dplyr::pull(bw)
-
-
-              if (ndist <= 30){ # don't bin unless there are more than 30 unique values
-
-                  boot <- boot %>%
-                      dplyr::mutate(x.bin = stat)
-
-                  # no adjustment to position of ci on plot
-                  cila <- cil
-                  ciua <- ciu
-
-              } else {
-
-                  boot <- boot %>%
-                      dplyr::mutate(x.bin = b + ( (stat - bw/2 - b) %/% bw ) * bw)
-
-                  # adjust limits of CI (round) just like we did with other x positions
-                  cila <- b + ( (cil - bw/2 - b) %/% bw ) * bw
-                  ciua <- b + ( (ciu - bw/2 - b) %/% bw ) * bw
-
-
-              }
-
-              boot <- boot %>%
-                  dplyr::group_by(x.bin) %>%
-                  dplyr::mutate(y = seq_along(x.bin))
-
-              p <- ggplot2::ggplot(boot) +
-                  ggforce::geom_ellipse(aes(x0 = x.bin, y0 = y, a = bw/3, b = 0.5, angle = 0),
-                                        show.legend = FALSE) +
-                  ggplot2::geom_vline(xintercept = cila, linetype = "dashed", color = "red") +
-                  ggplot2::geom_vline(xintercept = ciua, linetype = "dashed", color = "red") +
-                  ggplot2::theme_minimal() +
-                  ggplot2::ylab("count") +
-                  ggplot2::xlab("slope") +
-                  ggplot2::coord_equal(ratio = bw*2/3) +
-                  ggplot2::labs(caption = caption) +
-                  ggplot2::theme(text = element_text(size = 14),
-                                 plot.caption = element_text(color = "red", hjust = 0))
-
-
-
-          } else {
-
-              p <- ggplot2::ggplot(data=boot, aes(x=stat)) +
-                  ggplot2::geom_histogram(center = b, show.legend = FALSE) +
-                  ggplot2::geom_vline(xintercept = cil, linetype = "dashed", color = "red") +
-                  ggplot2::geom_vline(xintercept = ciu, linetype = "dashed", color = "red") +
-                  ggplot2::theme_minimal() +
-                  ggplot2::xlab("slope") +
-                  ggplot2::ylab("count") +
-                  ggplot2::labs(caption = caption) +
-                  ggplot2::theme(text = element_text(size = 14),
-                                 plot.caption = element_text(color = "red", hjust = 0))
-
-          }
-
-
+          st <- image$state
+          p <- plot_boot_dist(st$df, st$obs_stat, st$confLevel, st$ciType,
+                              st$dotHist,
+                              xlab = "slope",
+                              stat_label = "bootstrap slopes")
           return(p)
-        },   
+        },
           
         .formula=function() {
             jmvcore:::composeFormula(self$options$dep, self$options$indep)
