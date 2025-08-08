@@ -17,36 +17,43 @@ analyses:
     ns: Randomize
     menuGroup: Randomize
     menuTitle: Single Proportion - Hypothesis Test
+    category: analyses
   - title: Single Proportion - Confidence Interval
     name: SinglePropCI
     ns: Randomize
     menuGroup: Randomize
     menuTitle: Single Proportion - Confidence Interval
+    category: analyses
   - title: Two Proportions - Hypothesis Test
     name: TwoPropHTest
     ns: Randomize
     menuGroup: Randomize
     menuTitle: Two Proportions - Hypothesis Test
+    category: analyses
   - title: Two Proportions - Confidence Interval
     name: TwoPropCI
     ns: Randomize
     menuGroup: Randomize
     menuTitle: Two Proportions - Confidence Interval
+    category: analyses
   - title: Contingency Table - Hypothesis Test
     name: ContTabHTest
     ns: Randomize
     menuGroup: Randomize
     menuTitle: Contingency Table - Hypothesis Test
+    category: analyses
   - title: Single Mean - Confidence Interval
     name: SingleMeanCI
     ns: Randomize
     menuGroup: Randomize
     menuTitle: Single Mean - Confidence Interval
+    category: analyses
   - title: Model-Based Inference
     name: modelBased
     ns: Randomize
     menuGroup: Randomize
     menuTitle: Model-Based Inference
+    category: analyses
   - title: Two Means - Hypothesis Test
     name: twomeanhtest
     ns: Randomize
@@ -54,6 +61,7 @@ analyses:
     menuTitle: Two Means - Hypothesis Test
     description: |
       Permutation test for two means-independent samples.
+    category: analyses
   - title: Two Means - Confidence Interval
     name: twomeanCI
     ns: Randomize
@@ -61,6 +69,7 @@ analyses:
     menuTitle: Two Means - Confidence Interval
     description: |
       Bootstrap CI for difference in means means-independent samples.
+    category: analyses
   - title: Paired Means - Hypothesis Test
     name: pairedmeanhtest
     ns: Randomize
@@ -68,6 +77,7 @@ analyses:
     menuTitle: Paired Means - Hypothesis Test
     description: |
       Permutation test for paired means.
+    category: analyses
   - title: Paired Means - Confidence Interval
     name: pairedmeanCI
     ns: Randomize
@@ -75,6 +85,7 @@ analyses:
     menuTitle: Paired Means - Confidence Interval
     description: |
       Bootstrap CI for difference in paired means.
+    category: analyses
   - title: Multiple Means - Hypothesis Test
     name: multimeanhtest
     ns: Randomize
@@ -82,6 +93,7 @@ analyses:
     menuTitle: Multiple Means - Hypothesis Test
     description: |
       Permutation (F) test for three or more means-independent samples.
+    category: analyses
   - title: Slope (SLR) - Hypothesis Test
     name: slopehtest
     ns: Randomize
@@ -89,6 +101,7 @@ analyses:
     menuTitle: Slope (SLR) - Hypothesis Test
     description: |
       Permutation test for slope.
+    category: analyses
   - title: Slope (SLR) - Confidence Interval
     name: slopeCI
     ns: Randomize
@@ -96,6 +109,7 @@ analyses:
     menuTitle: Slope (SLR) - Confidence Interval
     description: |
       Bootstrap CI for slope.
+    category: analyses
 usesNative: true
 minApp: 1.0.8
 
