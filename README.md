@@ -1,0 +1,199 @@
+# Randomize
+
+A [Jamovi](https://www.jamovi.org/) module and R package for teaching
+randomization-based statistical inference in introductory statistics courses.
+
+## What it does
+
+Randomize provides **permutation tests** and **bootstrap confidence intervals**
+for the most common introductory scenarios, plus a model-based (t/normal)
+calculator:
+
+| Analysis | CI | Hypothesis test |
+|---|---|---|
+| Single mean | `SingleMeanCI` | — |
+| Difference in means (independent) | `twomeanCI` | `twomeanhtest` |
+| Difference in means (paired) | `pairedmeanCI` | `pairedmeanhtest` |
+| Multiple means (ANOVA) | — | `multimeanhtest` |
+| Slope (simple linear regression) | `slopeCI` | `slopehtest` |
+| Single proportion | `SinglePropCI` | `SinglePropHTest` |
+| Difference in proportions | `TwoPropCI` | `TwoPropHTest` |
+| Contingency table (Chi-square) | — | `ContTabHTest` |
+| Model-based (t / normal) | — | `modelBased` |
+
+Every analysis produces:
+
+- **Simulation plots** — dotplot or histogram of the bootstrap/permutation
+  distribution with CI bounds or p-value tail shading
+- **Results tables** — observed statistics, confidence intervals or p-values
+- **Descriptive statistics** — sample sizes, means, medians, SDs by group
+
+## Installation
+
+### In Jamovi
+
+Install the `.jmo` file from the Jamovi module library, or build from source:
+
+```r
+# Requires jmvtools
+install.packages("jmvtools", repos = c("https://repo.jamovi.org", "https://cran.r-project.org"))
+jmvtools::install()
+```
+
+### As an R package
+
+```r
+# Install from GitHub (requires devtools)
+devtools::install_github("byurk/Randomization")
+```
+
+## Usage from R
+
+Every analysis can be called directly from R — useful for generating output
+in Quarto slides, R Markdown labs, or any other R-based workflow.
+
+### Quick example
+
+```r
+library(Randomize)
+
+# Create some data
+d <- data.frame(
+    score = c(rnorm(25, 10, 2), rnorm(25, 12, 2)),
+    group = factor(rep(c("Control", "Treatment"), each = 25))
+)
+
+# Two-sample permutation test
+r <- twomeanhtest(
+    data = d,
+    vars = "score",
+    group = "group",
+    hypothesis = "different",
+    reps = 1000,
+    dotHist = "dotplot",
+    seedBool = TRUE,
+    rngSeed = 42
+)
+
+# Print the results table
+r
+
+# Show the permutation distribution
+plot(r)
+
+# Extract results as a data frame
+results_table(r)
+```
+
+### Extracting plots
+
+Use `plot()` to extract ggplot objects from any analysis result:
+
+```r
+plot(r)              # simulation/bootstrap distribution (all analyses)
+plot(r, "desc")      # descriptive means/medians plot (mean-comparison analyses)
+plot(r, "line")      # regression scatterplot (slope analyses)
+```
+
+Since these return standard ggplot objects, you can modify them:
+
+```r
+plot(r) + ggplot2::ggtitle("Permutation Test Results")
+```
+
+### Extracting tables
+
+```r
+results_table(r)     # main results (p-value, CI bounds, etc.)
+desc_table(r)        # descriptive statistics (n, mean, median, sd)
+```
+
+These return data frames, so they work with `knitr::kable()`,
+`gt::gt()`, or any other table-formatting package.
+
+### Common options
+
+All simulation-based analyses share these options:
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `reps` | Number of bootstrap/permutation replicates | 1000 |
+| `dotHist` | Plot type: `"dotplot"` or `"histogram"` | `"dotplot"` |
+| `seedBool` | Use a fixed random seed? | `FALSE` |
+| `rngSeed` | The seed value (when `seedBool = TRUE`) | 8675309 |
+
+Bootstrap CI analyses also accept:
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `confLevel` | Confidence level (percentage) | 95 |
+| `ciType` | `"bootperc"` (percentile) or `"bootse"` (SE method) | `"bootperc"` |
+
+Hypothesis test analyses accept:
+
+| Option | Description |
+|--------|-------------|
+| `hypothesis` | `"different"`, `"oneGreater"`, `"twoGreater"` (two-sample); `"notequal"`, `"greater"`, `"less"` (slope/proportion) |
+
+### Analysis examples
+
+#### Bootstrap CI for a single mean
+
+```r
+r <- SingleMeanCI(data = d, resp = "score",
+                  reps = 1000, confLevel = 95, ciType = "bootperc",
+                  dotHist = "histogram", seedBool = TRUE, rngSeed = 42)
+plot(r)
+results_table(r)
+```
+
+#### Paired means permutation test
+
+```r
+r <- pairedmeanhtest(data = d,
+                     pairs = list(list(i1 = "pretest", i2 = "posttest")),
+                     hypothesis = "different", reps = 1000,
+                     dotHist = "dotplot", seedBool = TRUE, rngSeed = 42)
+plot(r)
+```
+
+#### Slope hypothesis test
+
+```r
+r <- slopehtest(data = d, dep = "y", indep = "x",
+                hypothesis = "notequal", reps = 1000,
+                dotHist = "dotplot", seedBool = TRUE, rngSeed = 42,
+                plots = TRUE)
+plot(r)          # permutation distribution for slope
+plot(r, "line")  # scatterplot with regression line
+```
+
+#### Chi-square contingency table test
+
+```r
+r <- ContTabHTest(data = d, rows = "treatment", cols = "outcome",
+                  reps = 1000, dotHist = "histogram",
+                  seedBool = TRUE, rngSeed = 42, compare = "rows")
+plot(r)
+```
+
+## Development
+
+```bash
+# Clone the repo
+git clone git@github.com:byurk/Randomization.git
+cd Randomization
+
+# Load for development (without installing)
+Rscript -e "devtools::load_all('.')"
+
+# Build and install the Jamovi module
+Rscript -e "jmvtools::install()"
+
+# Run tests
+Rscript tests/test_analyses.R
+```
+
+## License
+
+GPL (>= 3)

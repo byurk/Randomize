@@ -1,14 +1,37 @@
 #' Bootstrap helper utilities
 #'
-#' Functions used across analyses for computing bootstrap confidence intervals
-#' and for plotting bootstrap distributions.
+#' Shared functions for computing bootstrap confidence intervals and
+#' plotting bootstrap distributions. Used internally by all bootstrap
+#' CI analyses (SingleMeanCI, SinglePropCI, twomeanCI, pairedmeanCI,
+#' slopeCI, TwoPropCI).
 #'
+#' @name bootstrap_utils
 #' @import ggplot2
 #' @import ggforce
 #' @import dplyr
 #' @import tibble
 NULL
 
+#' Compute a bootstrap confidence interval
+#'
+#' Calculates either a percentile CI or a bootstrap-SE CI from a
+#' bootstrap distribution produced by the \pkg{infer} package.
+#'
+#' @param boot A data frame with a \code{stat} column containing
+#'   bootstrap replicate statistics (as produced by \code{infer::calculate()}).
+#' @param obs_stat The observed sample statistic.
+#' @param conf_level Confidence level. Values > 1 are treated as percentages
+#'   (e.g. 95 is converted to 0.95).
+#' @param ci_type Either \code{"bootperc"} for the percentile method or
+#'   \code{"bootse"} for the bootstrap-SE method.
+#' @param clamp Optional length-2 numeric vector giving lower and upper bounds
+#'   for the CI (e.g. \code{c(0, 1)} for proportions).
+#'
+#' @return A list with components \code{cil}, \code{ciu}, \code{se}, and
+#'   \code{zcrit}. For the percentile method, \code{se} and \code{zcrit}
+#'   are \code{NULL}.
+#'
+#' @keywords internal
 compute_boot_ci <- function(boot, obs_stat, conf_level, ci_type,
                             clamp = NULL) {
     if (conf_level > 1)
@@ -41,14 +64,24 @@ compute_boot_ci <- function(boot, obs_stat, conf_level, ci_type,
         ciu <- min(ciu, clamp[2])
     }
 
-    list(
-        cil = cil,
-        ciu = ciu,
-        se = se,
-        zcrit = zcrit
-    )
+    list(cil = cil, ciu = ciu, se = se, zcrit = zcrit)
 }
 
+#' Plot a bootstrap distribution with confidence interval
+#'
+#' Creates either a dotplot or histogram of bootstrap replicate statistics
+#' with dashed vertical lines showing the CI bounds and an explanatory
+#' caption describing how the CI was constructed.
+#'
+#' @inheritParams compute_boot_ci
+#' @param dotHist Either \code{"dotplot"} or \code{"histogram"}.
+#' @param xlab Label for the x-axis (e.g. \code{"mean"}, \code{"slope"}).
+#' @param stat_label Descriptive label for the caption (e.g.
+#'   \code{"bootstrap means"}).
+#'
+#' @return A \code{ggplot} object.
+#'
+#' @keywords internal
 plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
                            dotHist = c("dotplot", "histogram"),
                            xlab = "statistic",

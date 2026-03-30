@@ -1,18 +1,26 @@
-#' Shared helper utilities
+#' Null distribution helper utilities
 #'
-#' Functions used across analyses for seed handling, computing p-values
-#' from permutation (or draw-based) null distributions, and plotting
-#' those distributions.
+#' Shared functions for seed handling, computing p-values from permutation
+#' (or draw-based) null distributions, and plotting those distributions.
+#' Used internally by all hypothesis test analyses.
 #'
+#' @name perm_utils
 #' @import ggplot2
 #' @import ggforce
 #' @import dplyr
 NULL
 
-#' Set the RNG seed based on Jamovi options
+#' Set the RNG seed conditionally
 #'
-#' Every analysis has a seedBool checkbox and rngSeed input.
-#' This helper consolidates the repeated 5-line pattern.
+#' Consolidates the seed-setting pattern used by every analysis.
+#' When \code{seedBool} is \code{TRUE}, sets a fixed seed for
+#' reproducibility; otherwise resets to random seeding.
+#'
+#' @param seedBool Logical; whether to use a fixed seed.
+#' @param rngSeed Integer seed value (used only when \code{seedBool} is
+#'   \code{TRUE}).
+#'
+#' @keywords internal
 set_seed_if <- function(seedBool, rngSeed) {
     if (seedBool) {
         set.seed(rngSeed)
@@ -23,9 +31,17 @@ set_seed_if <- function(seedBool, rngSeed) {
 
 #' Map Jamovi hypothesis option strings to infer direction strings
 #'
-#' Handles the two naming conventions used across the module:
-#'   - twomean/pairedmean/twoprop style: "oneGreater"/"twoGreater"/"different"
-#'   - slope/singleprop style: "greater"/"less"/"notequal"
+#' Translates the various hypothesis option names used across the module's
+#' analyses into the direction strings expected by
+#' \code{\link[infer]{get_p_value}}.
+#'
+#' @param hypothesis A string from the Jamovi UI: \code{"oneGreater"},
+#'   \code{"twoGreater"}, \code{"different"}, \code{"greater"},
+#'   \code{"less"}, or \code{"notequal"}.
+#'
+#' @return One of \code{"greater"}, \code{"less"}, or \code{"two_sided"}.
+#'
+#' @keywords internal
 map_direction <- function(hypothesis) {
     switch(hypothesis,
         "oneGreater" = "greater",
@@ -36,12 +52,43 @@ map_direction <- function(hypothesis) {
     )
 }
 
+#' Compute a p-value from a null distribution
+#'
+#' Wrapper around \code{\link[infer]{get_p_value}} that extracts
+#' the numeric p-value from the result tibble.
+#'
+#' @param perms A data frame with a \code{stat} column containing
+#'   simulated statistics under the null hypothesis (as produced by
+#'   \code{infer::calculate()}).
+#' @param obs_stat The observed test statistic.
+#' @param direction One of \code{"greater"}, \code{"less"}, or
+#'   \code{"two_sided"}.
+#'
+#' @return A single numeric p-value.
+#'
+#' @keywords internal
 compute_null_pval <- function(perms, obs_stat, direction) {
     perms |>
         infer::get_p_value(obs_stat = obs_stat, direction = direction) |>
         dplyr::pull()
 }
 
+#' Plot a null distribution with p-value shading
+#'
+#' Creates either a dotplot or histogram of simulated null-distribution
+#' statistics with the observed statistic marked by a red dashed line.
+#' The tail used for the p-value is shaded in red, with a caption
+#' explaining the calculation.
+#'
+#' @inheritParams compute_null_pval
+#' @param dotHist Either \code{"dotplot"} or \code{"histogram"}.
+#' @param xlab Label for the x-axis (e.g. \code{"difference (group 1 - group 2)"}).
+#' @param obs_label Annotation text placed at the observed statistic line
+#'   (e.g. \code{"Observed\\nDifference"}).
+#'
+#' @return A \code{ggplot} object.
+#'
+#' @keywords internal
 plot_null_dist <- function(perms, obs_stat, direction,
                            dotHist = c("dotplot", "histogram"),
                            xlab = "statistic",
@@ -97,14 +144,13 @@ plot_null_dist <- function(perms, obs_stat, direction,
         bigx <- max(perms$x.bin)
         littlex <- min(perms$x.bin)
 
-        # Determine x range for plot - include observed stat but limit distortion
+        # Determine x range: include observed stat but limit distortion
         x_lo <- min(littlex - bw, obs_stat - bw)
         x_hi <- max(bigx + bw, obs_stat + bw)
         x_range <- x_hi - x_lo
         dist_range <- bigx - littlex + 2 * bw
 
-        # If observed stat would stretch the plot more than 3x the distribution
-        # width, cap the range to avoid extreme aspect ratio distortion
+        # Cap range when observed stat is far from null distribution
         if (x_range > 3 * dist_range && dist_range > 0) {
             if (obs_stat < littlex) {
                 x_lo <- littlex - 3 * dist_range
