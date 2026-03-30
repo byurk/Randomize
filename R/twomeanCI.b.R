@@ -55,10 +55,6 @@ twomeanCIClass <- R6::R6Class(
       else if (any(is.infinite(dataCI$dep)))
       res <- createError(.('Variable contains infinite values'))
       else
-      #res <- try(t.test(dep ~ group, data=dataCI, var.equal=TRUE,
-      #                  alternative=Ha, conf.level=confInt), silent=TRUE)
-      #res <- try(t.test(dep ~ group, data=dataCI, var.equal=TRUE,
-      #  alternative=Ha), silent=TRUE)
       boots <- private$.computeBoots(dataCI)
       boots <- tidyr::drop_na(boots)
       res <- private$.computeCI(boots, m[1]-m[2])

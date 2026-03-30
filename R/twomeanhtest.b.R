@@ -63,10 +63,6 @@ twomeanhtestClass <- R6::R6Class(
       else if (any(is.infinite(dataHTest$dep)))
       res <- createError(.('Variable contains infinite values'))
       else
-      #res <- try(t.test(dep ~ group, data=dataHTest, var.equal=TRUE,
-      #                  alternative=Ha, conf.level=confInt), silent=TRUE)
-      #res <- try(t.test(dep ~ group, data=dataHTest, var.equal=TRUE,
-      #  alternative=Ha), silent=TRUE)
       perms <- private$.computePerms(dataHTest)
       res <- private$.computePval(perms, m[1]-m[2])
       private$.preparePlot(perms, m[1]-m[2], res$direction)
@@ -86,7 +82,6 @@ twomeanhtestClass <- R6::R6Class(
             
             htestTable$setRow(rowKey=depVarName, list(
               "reps"=self$options$reps,
-              #"md"=res$estimate[1]-res$estimate[2],
               "md"=m[1]-m[2],
               "p"=res$pval))
             }

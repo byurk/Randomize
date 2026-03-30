@@ -65,27 +65,21 @@ ContTabHTestClass <- R6::R6Class(
             suppressWarnings({
 
                 x2 <- NULL
-                #lor <- NULL
 
                 #if (all(dim(mat) == 2) && all(rowSums(mat) > 0) && all(colSums(mat) > 0)) {
                 if (all(rowSums(mat) > 0) && all(colSums(mat) > 0)) {
                     x2 <- private$.computeX2(mat)
-                    #lor <- vcd::loddsratio(mat) # need this? e.g., is it doing some sort of indirect check?
                 }
 
             }) # suppressWarnings
 
             private$.populateX2table(mat, x2) #, lor) # fill in the difference in proportion table
 
-            #if ( ! is.null(lor)) {
-
             perms <- private$.computePerms(mat)
             simres <- private$.computePval(perms, x2$x2)
 
             private$.populateSimTable(simres)
             private$.preparePlot(perms, x2$x2)
-
-            #}
 
         },
 
@@ -214,25 +208,6 @@ ContTabHTestClass <- R6::R6Class(
             x2tab <- self$results$x2tab
 
             x2tab$setRow(rowNo=1, list(`v[x2]`=x2$x2))
-
-            # I think lor is just being used to check if this is a 2 by 2 contingency table
-            # shouln't be needed here
-            # othRowNo <- 1
-            #
-            # if ( ! is.null(lor)) {
-            #     diffProp$setRow(rowNo=othRowNo, list(
-            #         `v[dp]`=dp$dp
-            #     ))
-            #
-            #     footnote <- `if`(self$options$compare == 'rows', .('Rows compared'), .('Columns compared'))
-            #     diffProp$addFootnote(rowNo=othRowNo, 'v[dp]', footnote)
-            #
-            #
-            # } else {
-            #     diffProp$setRow(rowNo=othRowNo, list(
-            #         `v[dp]`=NaN))
-            #     diffProp$addFootnote(rowNo=othRowNo, 'v[dp]', .('Available for 2x2 tables only'))
-            # }
 
         },
 

@@ -75,7 +75,6 @@ slopehtestClass <- R6::R6Class(
             
             htestTable$setRow(rowKey=depVarName, list(
               "reps"=self$options$reps,
-              #"md"=res$estimate[1]-res$estimate[2],
               "b"=b,
               "p"=res$pval))
             }

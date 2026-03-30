@@ -56,10 +56,6 @@ pairedmeanhtestClass <- R6::R6Class(
           else if (any(is.infinite(column1)) | any(is.infinite(column2)))
           res <- createError(.('One or both variables contain infinite values'))
           else
-          #res <- try(t.test(dep ~ group, data=dataHTest, var.equal=TRUE,
-          #                  alternative=Ha, conf.level=confInt), silent=TRUE)
-          #res <- try(t.test(dep ~ group, data=dataHTest, var.equal=TRUE,
-          #  alternative=Ha), silent=TRUE)
           perms <- private$.computePerms(dataHTest)
           res <- private$.computePval(perms, m1-m2)
           private$.preparePlot(perms, m1-m2, res$direction)
@@ -79,7 +75,6 @@ pairedmeanhtestClass <- R6::R6Class(
               
               htestTable$setRow(rowKey=pair, list(
                 "reps"=self$options$reps,
-                #"md"=res$estimate[1]-res$estimate[2],
                 "md"=m1-m2,
                 "p"=res$pval))
               }

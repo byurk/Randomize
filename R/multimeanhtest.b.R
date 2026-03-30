@@ -55,11 +55,6 @@ multimeanhtestClass <- R6::R6Class(
       else if (any(is.infinite(dataHTest$dep)))
       res <- createError(.('Variable contains infinite values'))
       else
-      #res <- try(t.test(dep ~ group, data=dataHTest, var.equal=TRUE,
-      #                  alternative=Ha, conf.level=confInt), silent=TRUE)
-      #res <- try(t.test(dep ~ group, data=dataHTest, var.equal=TRUE,
-      #  alternative=Ha), silent=TRUE)
-
       Fobs <- dataHTest %>%
         infer::specify(dep ~ group) %>%
         infer::hypothesize(null = "independence") %>%
@@ -85,7 +80,6 @@ multimeanhtestClass <- R6::R6Class(
             
             htestTable$setRow(rowKey=depVarName, list(
               "reps"=self$options$reps,
-              #"md"=res$estimate[1]-res$estimate[2],
               "oF"=Fobs,
               "p"=res$pval))
             }
@@ -133,14 +127,6 @@ multimeanhtestClass <- R6::R6Class(
             
             groupName <- self$options$group
             
-            #groups <- NULL
-            #if ( ! is.null(groupName))
-            #groups <- base::levels(self$data[[groupName]])
-            #if (length(groups) != 2)
-            #groups <- c('Group 1', 'Group 2')
-            
-            #table <- self$results$htest
-
             table <- self$results$desc
 
             group <- self$options$group

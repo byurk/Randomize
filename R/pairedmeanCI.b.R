@@ -46,10 +46,6 @@ pairedmeanCIClass <- R6::R6Class(
           else if (any(is.infinite(column1)) | any(is.infinite(column2)))
           res <- createError(.('One or both variables contain infinite values'))
           else
-          #res <- try(t.test(dep ~ group, data=dataCI, var.equal=TRUE,
-          #                  alternative=Ha, conf.level=confInt), silent=TRUE)
-          #res <- try(t.test(dep ~ group, data=dataCI, var.equal=TRUE,
-          #  alternative=Ha), silent=TRUE)
           boots <- private$.computeBoots(dataCI)
           boots <- tidyr::drop_na(boots)
           res <- private$.computeCI(boots, m1-m2)
@@ -72,7 +68,6 @@ pairedmeanCIClass <- R6::R6Class(
               
               CITable$setRow(rowKey=pair, list(
                 "reps"=self$options$reps,
-                #"md"=res$estimate[1]-res$estimate[2],
                 "obsDiff"=m1-m2,
                 "cil"=res$cil,
                 "ciu"=res$ciu))
