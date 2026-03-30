@@ -1,12 +1,40 @@
-#' Null distribution helper utilities
+#' Shared helper utilities
 #'
-#' Functions used across analyses for computing p-values from permutation
-#' (or draw-based) null distributions and for plotting those distributions.
+#' Functions used across analyses for seed handling, computing p-values
+#' from permutation (or draw-based) null distributions, and plotting
+#' those distributions.
 #'
 #' @import ggplot2
 #' @import ggforce
 #' @import dplyr
 NULL
+
+#' Set the RNG seed based on Jamovi options
+#'
+#' Every analysis has a seedBool checkbox and rngSeed input.
+#' This helper consolidates the repeated 5-line pattern.
+set_seed_if <- function(seedBool, rngSeed) {
+    if (seedBool) {
+        set.seed(rngSeed)
+    } else {
+        set.seed(NULL)
+    }
+}
+
+#' Map Jamovi hypothesis option strings to infer direction strings
+#'
+#' Handles the two naming conventions used across the module:
+#'   - twomean/pairedmean/twoprop style: "oneGreater"/"twoGreater"/"different"
+#'   - slope/singleprop style: "greater"/"less"/"different"
+map_direction <- function(hypothesis) {
+    switch(hypothesis,
+        "oneGreater" = "greater",
+        "greater"    = "greater",
+        "twoGreater" = "less",
+        "less"       = "less",
+        "two_sided"
+    )
+}
 
 compute_null_pval <- function(perms, obs_stat, direction) {
     perms |>
