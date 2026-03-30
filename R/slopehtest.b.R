@@ -58,7 +58,7 @@ slopehtestClass <- R6::R6Class(
       
       perms <- private$.computePerms(dataHTest)
       res <- private$.computePval(perms, b)
-      private$.preparePlot(perms, b)
+      private$.preparePlot(perms, b, res$direction)
         
         if (isError(res)) {
           
@@ -130,33 +130,16 @@ slopehtestClass <- R6::R6Class(
 
           },
           .computePval = function(perms, b) {
-
             reps <- self$options$reps
-            alt <- self$options$hypothesis
-
-            if (alt == "greater")
-                direction <- "greater"
-            else if (alt == "less")
-                direction <- "less"
-            else
-                direction <- "two_sided"
-
-            pval <- perms %>%
-                infer::get_p_value(obs_stat = b, direction = direction) %>%
-                dplyr::pull()
-
-            simres <- list(reps = reps, pval = pval)
-            return(simres)
+            direction <- map_direction(self$options$hypothesis)
+            pval <- compute_null_pval(perms, b, direction)
+            list(reps = reps, pval = pval, direction = direction)
           },
           .computePerms = function(dataHTest){
 
             reps <- self$options$reps
 
-            if(self$options$seedBool){
-                set.seed(self$options$rngSeed)
-            } else {
-                set.seed(NULL)
-            }
+            set_seed_if(self$options$seedBool, self$options$rngSeed)
 
             perms <- dataHTest %>%
                 infer::specify(dep ~ indep) %>%
@@ -188,160 +171,19 @@ slopehtestClass <- R6::R6Class(
             return('')
             super$.sourcifyOption(option)
           },
-          .preparePlot = function(perms, b) {
-
+          .preparePlot = function(perms, b, direction) {
             permplot <- self$results$simplot
             dotHist <- self$options$dotHist
-            alt <- self$options$hypothesis
-
-            permplot$setState(list(df=perms, obs_stat=b, alt = alt, dotHist=dotHist))
-
-        },
+            permplot$setState(list(df=perms, obs_stat=b, direction=direction, dotHist=dotHist))
+          },
           .permPlot = function(image, ggtheme, theme, ...) {
-
             if (is.null(image$state))
                 return(FALSE)
-
-            df <- image$state[["df"]]
-
-            obs_stat = image$state[["obs_stat"]]
-
-            dotHist = image$state[["dotHist"]]
-
-            alt <- image$state[["alt"]]
-
-            b <- obs_stat
-
-            # which tail of the distro should be used to calculate a p-val?
-            if (alt == "less"){
-                ptail <- "lt"
-                caption <- "One-sided: p-val is proportion of\n results \u2264 observed value"
-            } else if (alt == "greater"){
-                ptail <- "rt"
-                caption <- "One-sided: p-val is proportion of\n results \u2265 observed value"
-            } else {
-                ptail <- df %>%
-                    dplyr::summarize(lt = mean(stat < b), rt = mean(stat > b)) %>%
-                    dplyr::mutate(pt = dplyr::if_else(rt < lt, "rt", "lt")) %>%
-                    dplyr::pull(pt)
-                if (ptail == "lt")
-                    caption <- "Two-sided: p-val is 2\u00D7 proportion of\n results \u2264 observed value"
-                else
-                    caption <- "Two-sided: p-val is 2\u00D7 proportion of\n results \u2265 observed value"
-            }
-
-            if(dotHist == "dotplot"){
-
-                ndist <- dplyr::n_distinct(df$stat)
-
-                # bin width, also used for scaling dots when not binning
-                bw <- df %>%
-                    dplyr::summarize(min = min(stat), max = max(stat)) %>%
-                    #mutate(bw = (max - min) / 30 * (1 + 3*.Machine$double.eps)) %>%
-                    dplyr::mutate(bw = (max - min) / 30 ) %>%
-                    dplyr::pull(bw)
-
-
-                if (ndist <= 30){ # don't bin unless there are more than 30 unique values
-
-                    df <- df %>%
-                        dplyr::mutate(x.bin = stat)
-
-                } else {
-
-                    if(ptail == "lt"){
-
-                        df <- df %>%
-                            dplyr::mutate(x.bin = b - ( (b - stat) %/% bw ) * bw)
-
-                    } else {
-
-                        df <- df %>%
-                            dplyr::mutate(x.bin = b + ( (stat - b) %/% bw ) * bw)
-
-                    }
-
-
-                }
-
-
-                # color the dots in the tail that will be used to calculate the p-val
-                # put vertical line at value of b
-
-                df <- df %>%
-                    dplyr::mutate(extreme = (ptail == "lt" & stat <= b) | (ptail == "rt" & stat >= b))
-
-
-                # dotplot based on tjebo answer from:
-                # https://stackoverflow.com/questions/53697235/ggplot-dotplot-what-is-the-proper-use-of-geom-dotplot
-
-
-                df <- df %>%
-                    dplyr::group_by(x.bin) %>%
-                    dplyr::mutate(y = seq_along(x.bin))
-
-                labht <- df %>%
-                    dplyr::ungroup() %>%
-                    dplyr::summarize(labht = max(y)) %>%
-                    dplyr::pull()
-
-                lab_ht <- max(labht - 1, 3)
-
-                bigx <- df %>%
-                    dplyr::ungroup() %>%
-                    dplyr::summarize(bigx = max(x.bin)) %>%
-                    dplyr::pull()
-
-                littlex <- df %>%
-                    dplyr::ungroup() %>%
-                    dplyr::summarize(littlex = min(x.bin)) %>%
-                    dplyr::pull()
-
-                # do not show legend
-                p <- ggplot2::ggplot(df) +
-                    ggforce::geom_ellipse(aes(x0 = x.bin, y0 = y, a = bw/3, b = 0.5, angle = 0, fill = extreme, color = extreme),
-                                          show.legend = FALSE) +
-                    ggplot2::geom_vline(xintercept = b, linetype = "dashed", color = "red") +
-                    ggplot2::scale_fill_manual(values = c("FALSE" = "black", "TRUE" = "#ff8c8c")) +
-                    ggplot2::scale_color_manual(values = c("FALSE" = "black", "TRUE" = "#ff8c8c")) +
-                    ggplot2::annotate("text", x = b, y = lab_ht, label = "Observed\nSlope", color = "red") +
-                    ggplot2::theme_minimal() +
-                    ggplot2::ylab("count") +
-                    ggplot2::xlab("slope") +
-                    ggplot2::ylim(0, lab_ht + 3) +
-                    ggplot2::xlim(min(littlex - bw, b - bw), max(bigx + bw, b + bw)) +
-                    ggplot2::coord_equal(ratio = bw*2/3) +
-                    ggplot2::labs(caption = caption) +
-                    ggplot2::theme(text = element_text(size = 14),
-                                   plot.caption = element_text(color = "red", hjust = 0))
-
-
-
-            } else {
-
-                closed <- dplyr::if_else(ptail == "lt", "right", "left")
-
-                df <- df %>%
-                    dplyr::mutate(extreme = (ptail == "lt" & stat <= b) | (ptail == "rt" & stat >= b))
-
-                p <- ggplot2::ggplot(data=df, aes(x=stat, fill = extreme)) +
-                    ggplot2::geom_histogram(boundary = b, closed = closed, show.legend = FALSE) +
-                    ggplot2::geom_vline(xintercept=obs_stat, linetype='dashed', color = "red") +
-                    ggplot2::scale_fill_manual(values = c("FALSE" = "black", "TRUE" = "#ff8c8c")) +
-                    ggplot2::theme_minimal() +
-                    ggplot2::xlab("slope") +
-                    ggplot2::ylab("count") +
-                    ggplot2::labs(caption = caption) +
-                    ggplot2::theme(text = element_text(size = 14),
-                                   plot.caption = element_text(color = "red", hjust = 0))
-
-                yMax <- ggplot2::layer_scales(p)$y$range$range[2]  # upper y-limit
-                p <- p + ggplot2::annotate("text", x = b, y = yMax, vjust = "top", label = "Observed\nSlope", color = "red")
-            }
-
-
-            return(p)
-        },
+            st <- image$state
+            plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
+                           xlab = "slope",
+                           obs_label = "Observed\nSlope")
+          },
           .formula=function() {
             jmvcore:::composeFormula(self$options$dep, self$options$indep)
           }

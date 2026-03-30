@@ -110,16 +110,9 @@ ContTabHTestClass <- R6::R6Class(
         },
 
         .computePval = function(perms, x2) {
-
             reps <- self$options$reps
-
-            pval <- perms %>%
-                infer::get_p_value(obs_stat = x2, direction = "greater") %>%
-                dplyr::pull()
-
-
-            simres <- list(reps = reps, pval = pval)
-            return(simres)
+            pval <- compute_null_pval(perms, x2, "greater")
+            list(reps = reps, pval = pval)
         },
 
         .computePerms = function(mat){
@@ -137,12 +130,7 @@ ContTabHTestClass <- R6::R6Class(
 
             reps <- self$options$reps
 
-            if(self$options$seedBool){
-                set.seed(self$options$rngSeed)
-            } else {
-                set.seed(NULL)
-            }
-
+            set_seed_if(self$options$seedBool, self$options$rngSeed)
 
             if(dims[2] == 2){
 
@@ -497,120 +485,17 @@ ContTabHTestClass <- R6::R6Class(
         #### Plot functions ----
 
         .preparePlot = function(perms, x2) {
-
             permplot <- self$results$Plot
             dotHist <- self$options$dotHist
-
-            permplot$setState(list(df=perms, obs_stat=x2, dotHist=dotHist))
-
+            permplot$setState(list(df=perms, obs_stat=x2, direction="greater", dotHist=dotHist))
         },
         .permPlot = function(image, ggtheme, theme, ...) {
-
             if (is.null(image$state))
                 return(FALSE)
-
-            df <- image$state[["df"]]
-
-            obs_stat = image$state[["obs_stat"]]
-
-            dotHist = image$state[["dotHist"]]
-
-            x2 <- obs_stat
-
-            if(dotHist == "dotplot"){
-
-                ndist <- dplyr::n_distinct(df$stat)
-
-                # bin width, also used for scaling dots when not binning
-                bw <- df %>%
-                    dplyr::summarize(min = min(stat), max = max(stat)) %>%
-                    dplyr::mutate(bw = (max - min) / 30 ) %>%
-                    dplyr::pull(bw)
-
-
-                if (ndist <= 30){ # don't bin unless there are more than 30 unique values
-
-                    df <- df %>%
-                        dplyr::mutate(x.bin = stat)
-
-                } else {
-
-                    df <- df %>%
-                        dplyr::mutate(x.bin = x2 + ( (stat - x2) %/% bw ) * bw)
-
-                }
-
-
-                # color the dots in the tail that will be used to calculate the p-val
-                # put vertical line at value of x2
-
-                df <- df %>%
-                    dplyr::mutate(extreme = stat >= x2)
-
-
-                # dotplot based on tjebo answer from:
-                # https://stackoverflow.com/questions/53697235/ggplot-dotplot-what-is-the-proper-use-of-geom-dotplot
-
-
-                df <- df %>%
-                    dplyr::group_by(x.bin) %>%
-                    dplyr::mutate(y = seq_along(x.bin))
-
-                labht <- df %>%
-                    dplyr::ungroup() %>%
-                    dplyr::summarize(labht = max(y)) %>%
-                    dplyr::pull()
-
-                lab_ht <- max(labht - 1, 3)
-
-                bigx <- df %>%
-                    dplyr::ungroup() %>%
-                    dplyr::summarize(bigx = max(x.bin)) %>%
-                    dplyr::pull()
-
-                littlex <- df %>%
-                    dplyr::ungroup() %>%
-                    dplyr::summarize(littlex = min(x.bin)) %>%
-                    dplyr::pull()
-
-                # do not show legend
-                p <- ggplot2::ggplot(df) +
-                    ggforce::geom_ellipse(aes(x0 = x.bin, y0 = y, a = bw/3, b = 0.5, angle = 0, fill = extreme, color = extreme),
-                                          show.legend = FALSE) +
-                    ggplot2::geom_vline(xintercept = x2, linetype = "dashed", color = "red") +
-                    ggplot2::scale_fill_manual(values = c("black", "#ff8c8c")) +
-                    ggplot2::scale_color_manual(values = c("black", "#ff8c8c")) +
-                    ggplot2::annotate("text", x = x2, y = lab_ht, label = "Observed\nX\u00B2", color = "red") +
-                    ggplot2::theme_minimal() +
-                    ggplot2::ylab("count") +
-                    ggplot2::xlab("X\u00B2") +
-                    ggplot2::ylim(0, lab_ht + 3) +
-                    ggplot2::xlim(min(littlex - bw, x2 - bw), max(bigx + bw, x2 + bw)) +
-                    ggplot2::coord_equal(ratio = bw*2/3) +
-                    ggplot2::theme(text = element_text(size = 14))
-
-
-
-            } else {
-
-                df <- df %>%
-                    dplyr::mutate(extreme = stat >= x2)
-
-                p <- ggplot2::ggplot(data=df, aes(x=stat, fill = extreme)) +
-                    ggplot2::geom_histogram(boundary = x2, closed = "left", show.legend = FALSE) +
-                    ggplot2::geom_vline(xintercept=obs_stat, linetype='dashed', color = "red") +
-                    ggplot2::scale_fill_manual(values = c("black", "#ff8c8c")) +
-                    ggplot2::theme_minimal() +
-                    ggplot2::xlab("X\u00B2") +
-                    ggplot2::ylab("count") +
-                    ggplot2::theme(text = element_text(size = 14))
-
-                yMax <- ggplot2::layer_scales(p)$y$range$range[2]  # upper y-limit
-                p <- p + ggplot2::annotate("text", x = x2, y = yMax, vjust = "top", label = "Observed\nX\u00B2", color = "red")
-            }
-
-
-            return(p)
+            st <- image$state
+            plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
+                           xlab = "X\u00B2",
+                           obs_label = "Observed\nX\u00B2")
         },
 
         #### Helper functions ----

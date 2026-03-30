@@ -89,7 +89,7 @@ TwoPropHTestClass <- R6::R6Class(
                 simres <- private$.computePval(perms, dp$dp)
 
                 private$.populateSimTable(simres)
-                private$.preparePlot(perms, dp$dp)
+                private$.preparePlot(perms, dp$dp, simres$direction)
 
             }
 
@@ -122,24 +122,10 @@ TwoPropHTestClass <- R6::R6Class(
         },
 
         .computePval = function(perms, dp) {
-
             reps <- self$options$reps
-            alt <- self$options$hypothesis
-
-            if (alt == "oneGreater")
-                direction <- "greater"
-            else if (alt == "twoGreater")
-                direction <- "less"
-            else
-                direction <- "two_sided"
-
-            pval <- perms %>%
-                infer::get_p_value(obs_stat = dp, direction = direction) %>%
-                dplyr::pull()
-
-
-            simres <- list(reps = reps, pval = pval)
-            return(simres)
+            direction <- map_direction(self$options$hypothesis)
+            pval <- compute_null_pval(perms, dp, direction)
+            list(reps = reps, pval = pval, direction = direction)
         },
 
         .computePerms = function(mat){
@@ -155,12 +141,7 @@ TwoPropHTestClass <- R6::R6Class(
 
             reps <- self$options$reps
 
-            if(self$options$seedBool){
-                set.seed(self$options$rngSeed)
-            } else {
-                set.seed(NULL)
-            }
-
+            set_seed_if(self$options$seedBool, self$options$rngSeed)
 
             perms <- df %>%
                 infer::specify(Outcome ~ Group, success = "O1") %>%
@@ -513,159 +494,18 @@ TwoPropHTestClass <- R6::R6Class(
 
         #### Plot functions ----
 
-        .preparePlot = function(perms, dp) {
-
+        .preparePlot = function(perms, dp, direction) {
             permplot <- self$results$Plot
             dotHist <- self$options$dotHist
-            alt <- self$options$hypothesis
-
-            permplot$setState(list(df=perms, obs_stat=dp, alt = alt, dotHist=dotHist))
-
+            permplot$setState(list(df=perms, obs_stat=dp, direction=direction, dotHist=dotHist))
         },
         .permPlot = function(image, ggtheme, theme, ...) {
-
             if (is.null(image$state))
                 return(FALSE)
-
-            df <- image$state[["df"]]
-
-            obs_stat = image$state[["obs_stat"]]
-
-            dotHist = image$state[["dotHist"]]
-
-            alt <- image$state[["alt"]]
-
-            dp <- obs_stat
-
-            # which tail of the distro should be used to calculate a p-val?
-            if (alt == "twoGreater"){
-                ptail <- "lt"
-                caption <- "One-sided: p-val is proportion of\n results \u2264 observed value"
-            } else if (alt == "oneGreater"){
-                ptail <- "rt"
-                caption <- "One-sided: p-val is proportion of\n results \u2265 observed value"
-            } else {
-                ptail <- df %>%
-                    dplyr::summarize(lt = mean(stat < dp), rt = mean(stat > dp)) %>%
-                    dplyr::mutate(pt = dplyr::if_else(rt < lt, "rt", "lt")) %>%
-                    dplyr::pull(pt)
-                if (ptail == "lt")
-                    caption <- "Two-sided: p-val is 2\u00D7 proportion of\n results \u2264 observed value"
-                else
-                    caption <- "Two-sided: p-val is 2\u00D7 proportion of\n results \u2265 observed value"
-            }
-
-            if(dotHist == "dotplot"){
-
-                ndist <- dplyr::n_distinct(df$stat)
-
-                # bin width, also used for scaling dots when not binning
-                bw <- df %>%
-                    dplyr::summarize(min = min(stat), max = max(stat)) %>%
-                    #mutate(bw = (max - min) / 30 * (1 + 3*.Machine$double.eps)) %>%
-                    dplyr::mutate(bw = (max - min) / 30 ) %>%
-                    dplyr::pull(bw)
-
-
-                if (ndist <= 30){ # don't bin unless there are more than 30 unique values
-
-                    df <- df %>%
-                        dplyr::mutate(x.bin = stat)
-
-                } else {
-
-                    if(ptail == "lt"){
-
-                        df <- df %>%
-                            dplyr::mutate(x.bin = dp - ( (dp - stat) %/% bw ) * bw)
-
-                    } else {
-
-                        df <- df %>%
-                            dplyr::mutate(x.bin = dp + ( (stat - dp) %/% bw ) * bw)
-
-                    }
-
-
-                }
-
-
-                # color the dots in the tail that will be used to calculate the p-val
-                # put vertical line at value of dp
-
-                df <- df %>%
-                    dplyr::mutate(extreme = (ptail == "lt" & stat <= dp) | (ptail == "rt" & stat >= dp))
-
-
-                # dotplot based on tjebo answer from:
-                # https://stackoverflow.com/questions/53697235/ggplot-dotplot-what-is-the-proper-use-of-geom-dotplot
-
-
-                df <- df %>%
-                    dplyr::group_by(x.bin) %>%
-                    dplyr::mutate(y = seq_along(x.bin))
-
-                labht <- df %>%
-                    dplyr::ungroup() %>%
-                    dplyr::summarize(labht = max(y)) %>%
-                    dplyr::pull()
-
-                lab_ht <- max(labht - 1, 3)
-
-                bigx <- df %>%
-                    dplyr::ungroup() %>%
-                    dplyr::summarize(bigx = max(x.bin)) %>%
-                    dplyr::pull()
-
-                littlex <- df %>%
-                    dplyr::ungroup() %>%
-                    dplyr::summarize(littlex = min(x.bin)) %>%
-                    dplyr::pull()
-
-                # do not show legend
-                p <- ggplot2::ggplot(df) +
-                    ggforce::geom_ellipse(aes(x0 = x.bin, y0 = y, a = bw/3, b = 0.5, angle = 0, fill = extreme, color = extreme),
-                                          show.legend = FALSE) +
-                    ggplot2::geom_vline(xintercept = dp, linetype = "dashed", color = "red") +
-                    ggplot2::scale_fill_manual(values = c("FALSE" = "black", "TRUE" = "#ff8c8c")) +
-                    ggplot2::scale_color_manual(values = c("FALSE" = "black", "TRUE" = "#ff8c8c")) +
-                    ggplot2::annotate("text", x = dp, y = lab_ht, label = "Observed\nDifference", color = "red") +
-                    ggplot2::theme_minimal() +
-                    ggplot2::ylab("count") +
-                    ggplot2::xlab("difference (group 1 - group 2)") +
-                    ggplot2::ylim(0, lab_ht + 3) +
-                    ggplot2::xlim(min(littlex - bw, dp - bw), max(bigx + bw, dp + bw)) +
-                    ggplot2::coord_equal(ratio = bw*2/3) +
-                    ggplot2::labs(caption = caption) +
-                    ggplot2::theme(text = element_text(size = 14),
-                                   plot.caption = element_text(color = "red", hjust = 0))
-
-
-
-            } else {
-
-                closed <- dplyr::if_else(ptail == "lt", "right", "left")
-
-                df <- df %>%
-                    dplyr::mutate(extreme = (ptail == "lt" & stat <= dp) | (ptail == "rt" & stat >= dp))
-
-                p <- ggplot2::ggplot(data=df, aes(x=stat, fill = extreme)) +
-                    ggplot2::geom_histogram(boundary = dp, closed = closed, show.legend = FALSE) +
-                    ggplot2::geom_vline(xintercept=obs_stat, linetype='dashed', color = "red") +
-                    ggplot2::scale_fill_manual(values = c("FALSE" = "black", "TRUE" = "#ff8c8c")) +
-                    ggplot2::theme_minimal() +
-                    ggplot2::xlab("difference (group 1 - group 2)") +
-                    ggplot2::ylab("count") +
-                    ggplot2::labs(caption = caption) +
-                    ggplot2::theme(text = element_text(size = 14),
-                                   plot.caption = element_text(color = "red", hjust = 0))
-
-                yMax <- ggplot2::layer_scales(p)$y$range$range[2]  # upper y-limit
-                p <- p + ggplot2::annotate("text", x = dp, y = yMax, vjust = "top", label = "Observed\nDifference", color = "red")
-            }
-
-
-            return(p)
+            st <- image$state
+            plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
+                           xlab = "difference (group 1 - group 2)",
+                           obs_label = "Observed\nDifference")
         },
 
         #### Helper functions ----
