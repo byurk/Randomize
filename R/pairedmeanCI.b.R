@@ -103,40 +103,14 @@ pairedmeanCIClass <- R6::R6Class(
                   }
                   
                   if (self$options$plots) {
-                    
                     image <- self$results$descplot$get(key=pair)$desc
-                    
                     if (nrow(dataCI) > 0) {
-                      
-                      #ciWidth <- self$options$ciWidth
-                      #tail <- qnorm(1 - (100 - ciWidth) / 200)
-                      
-                      means <- c(tryNaN(mean(column1)), tryNaN(mean(column2)))
-                      #cies  <- aggregate(dataCI$dep, by=list(dataCI$group),
-                      #                   function(x) { tail * tryNaN(sd(x)) / sqrt(length(x)) }, simplify=FALSE)
-                      medians <- c(tryNaN(median(column1)), tryNaN(median(column2)))
-                      
-                      meanPlotData <- data.frame(group=c(name1, name2))
-                      meanPlotData <- cbind(meanPlotData, stat=means)
-                      #meanPlotData <- cbind(meanPlotData, cie=unlist(cies$x))
-                      meanPlotData <- cbind(meanPlotData, cie=NA)
-                      meanPlotData <- cbind(meanPlotData, type='mean')
-                      
-                      medianPlotData <- data.frame(group=c(name1, name2))
-                      medianPlotData <- cbind(medianPlotData, stat=medians)
-                      medianPlotData <- cbind(medianPlotData, cie=NA)
-                      medianPlotData <- cbind(medianPlotData, type='median')
-                      
-                      plotData <- rbind(meanPlotData, medianPlotData)
-                      plotData$group <- factor(plotData$group, levels=unique(plotData$group))
-                      
+                      plotData <- build_paired_desc_plot_data(column1, column2, name1, name2)
                       if (all(is.na(plotData$stat)))
-                      image$setState(NULL)
+                          image$setState(NULL)
                       else
-                      image$setState(plotData)
-                      
+                          image$setState(plotData)
                     } else {
-                      
                       image$setState(NULL)
                     }
                   }
@@ -218,38 +192,10 @@ pairedmeanCIClass <- R6::R6Class(
             },
 
               .descplot=function(image, ggtheme, theme, ...) {
-                
                 if (is.null(image$state))
-                return(FALSE)
-                
-                groupName <- self$options$get('group')
-                
-                #ciw <- self$options$ciWidth
-                
-                pd <- position_dodge(0.2)
-                
-                plot <- ggplot(data=image$state, aes(x=group, y=stat, shape=type)) +
-                #geom_errorbar(aes(x=group, ymin=stat-cie, ymax=stat+cie, width=.1),
-                #              size=.8, colour=theme$color[2], position=pd) +
-                geom_point(aes(x=group, y=stat, shape=type), color=theme$color[1],
-                fill=theme$fill[1], size=3, position=pd) +
-                labs(x=groupName, y=NULL) +
-                scale_shape_manual(
-                  name='',
-                  values=c(mean=21, median=22),
-                  labels=c(
-                    #mean=jmvcore::format(.('Mean ({ciWidth}% CI)'), ciWidth=ciw),
-                    mean=.('Mean'),
-                    median=.('Median')
-                  )
-                ) +
-                ggtheme +
-                theme(
-                  plot.title=ggplot2::element_text(margin=ggplot2::margin(b = 5.5 * 1.2)),
-                  plot.margin = ggplot2::margin(5.5, 5.5, 5.5, 5.5)
-                )
-                
-                return(plot)
+                    return(FALSE)
+                plot_desc_stats(image$state, xlab = NULL, ylab = NULL,
+                                ggtheme = ggtheme, theme = theme)
               },
               .preparePlot = function(boots, dm) {
                 

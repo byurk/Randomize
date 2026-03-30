@@ -117,41 +117,14 @@ multimeanhtestClass <- R6::R6Class(
             }
             
             if (self$options$plots) {
-              
               image <- self$results$descplot$get(key=depVarName)$desc
-              
               if (nrow(dataHTest) > 0) {
-                
-                #ciWidth <- self$options$ciWidth
-                #tail <- qnorm(1 - (100 - ciWidth) / 200)
-                
-                means <- aggregate(dataHTest$dep, by=list(dataHTest$group),
-                function(x) tryNaN(mean(x)), simplify=FALSE)
-                #cies  <- aggregate(dataHTest$dep, by=list(dataHTest$group),
-                #                   function(x) { tail * tryNaN(sd(x)) / sqrt(length(x)) }, simplify=FALSE)
-                medians <- aggregate(dataHTest$dep, by=list(dataHTest$group),
-                function(x) tryNaN(median(x)), simplify=FALSE)
-                
-                meanPlotData <- data.frame(group=means$Group.1)
-                meanPlotData <- cbind(meanPlotData, stat=unlist(means$x))
-                #meanPlotData <- cbind(meanPlotData, cie=unlist(cies$x))
-                meanPlotData <- cbind(meanPlotData, cie=NA)
-                meanPlotData <- cbind(meanPlotData, type='mean')
-                
-                medianPlotData <- data.frame(group=medians$Group.1)
-                medianPlotData <- cbind(medianPlotData, stat=unlist(medians$x))
-                medianPlotData <- cbind(medianPlotData, cie=NA)
-                medianPlotData <- cbind(medianPlotData, type='median')
-                
-                plotData <- rbind(meanPlotData, medianPlotData)
-                
+                plotData <- build_desc_plot_data(dataHTest$dep, dataHTest$group)
                 if (all(is.na(plotData$stat)))
-                image$setState(NULL)
+                    image$setState(NULL)
                 else
-                image$setState(plotData)
-                
+                    image$setState(plotData)
               } else {
-                
                 image$setState(NULL)
               }
             }
@@ -211,38 +184,11 @@ multimeanhtestClass <- R6::R6Class(
 
         },
           .descplot=function(image, ggtheme, theme, ...) {
-            
             if (is.null(image$state))
-            return(FALSE)
-            
+                return(FALSE)
             groupName <- self$options$group
-            
-            #ciw <- self$options$ciWidth
-            
-            pd <- position_dodge(0.2)
-            
-            plot <- ggplot(data=image$state, aes(x=group, y=stat, shape=type)) +
-            #geom_errorbar(aes(x=group, ymin=stat-cie, ymax=stat+cie, width=.1),
-            #              size=.8, colour=theme$color[2], position=pd) +
-            geom_point(aes(x=group, y=stat, shape=type), color=theme$color[1],
-            fill=theme$fill[1], size=3, position=pd) +
-            labs(x=groupName, y=image$key) +
-            scale_shape_manual(
-              name='',
-              values=c(mean=21, median=22),
-              labels=c(
-                #mean=jmvcore::format(.('Mean ({ciWidth}% CI)'), ciWidth=ciw),
-                mean=.('Mean'),
-                median=.('Median')
-              )
-            ) +
-            ggtheme +
-            theme(
-              plot.title=ggplot2::element_text(margin=ggplot2::margin(b = 5.5 * 1.2)),
-              plot.margin = ggplot2::margin(5.5, 5.5, 5.5, 5.5)
-            )
-            
-            return(plot)
+            plot_desc_stats(image$state, xlab = groupName, ylab = image$key,
+                            ggtheme = ggtheme, theme = theme)
           },
           .sourcifyOption = function(option) {
             if (option$name %in% c('deps', 'group'))
