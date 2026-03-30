@@ -55,58 +55,56 @@ slopeCIClass <- R6::R6Class(
       }
         
         if (isError(res)) {
-          
+
           CITable$setRow(rowKey=depVarName, list(
             "reps"='',
             "b"='',
             "cil"='',
             "ciu"=''))
-            
+
             message <- extractErrorMessage(res)
-            
+
             CITable$addFootnote(rowKey=depVarName, 'b', message)
-            
+
           } else {
-            
+
             CITable$setRow(rowKey=depVarName, res)
-            }
-            
+
             if (self$options$coef) {
-              
-              #coefTable$addRow(rowKey="Intercept", list(
+
               coefTable$setRow(rowKey="1", list(
                 "term"="Intercept",
                 "est"=as.numeric(coef[1])
               ))
 
-              #coefTable$addRow(rowKey="Slope", list(
               coefTable$setRow(rowKey="2", list(
                 "term"=indepVarName,
                 "est"=as.numeric(coef[2])
               ))
             }
-      
+
             if (self$options$modelfit) {
-              
+
               modelfitTable$setRow(rowKey=depVarName, list(
                 "r"=r,
                 "r2"=r2
               ))
             }
-            
+
             if (self$options$plots) {
-              
+
               image <- self$results$linplot$get(key=depVarName)$lp
-              
+
               if (nrow(dataCI) > 0) {
-                      
+
                 image$setState(dataCI)
-                
+
               } else {
-                
+
                 image$setState(NULL)
               }
             }
+          }
     },
           .init=function() {
             

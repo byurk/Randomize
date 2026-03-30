@@ -18,7 +18,7 @@ items:
       clearWith:
           - distro
           - dF
-          - hypTestBool
+          - areaBool
           - obsStat
           - tail
 
@@ -29,7 +29,7 @@ items:
       clearWith:
           - distro
           - dF
-          - hypTestBool
+          - areaBool
           - obsStat
           - tail
 

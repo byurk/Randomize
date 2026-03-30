@@ -10,7 +10,7 @@ items:
       description: a table containing the descriptives
       visible: (desc)
       clearWith:
-          - miss
+          - pairs
 
       columns:
         - name: name
