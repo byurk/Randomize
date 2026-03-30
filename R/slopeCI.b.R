@@ -14,7 +14,7 @@ slopeCIClass <- R6::R6Class(
       if (is.null(indepVarName) || is.null(depVarName))
       return()
       
-      data <- select(self$data, varNames)
+      data <- dplyr::select(self$data, dplyr::all_of(varNames))
       
       data[[depVarName]] <- jmvcore::toNumeric(data[[depVarName]])
       data[[indepVarName]] <- jmvcore::toNumeric(data[[indepVarName]])

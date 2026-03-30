@@ -62,21 +62,16 @@ TwoPropCIClass <- R6::R6Class(
 
             private$.populateContTable(mat) # fill in contingency table
 
-            suppressWarnings({
+            dp <- NULL
+            is_2x2 <- all(dim(mat) == 2) && all(rowSums(mat) > 0) && all(colSums(mat) > 0)
 
-                dp <- NULL
-                lor <- NULL
+            if (is_2x2) {
+                dp <- private$.diffProp(mat)
+            }
 
-                if (all(dim(mat) == 2) && all(rowSums(mat) > 0) && all(colSums(mat) > 0)) {
-                    dp <- private$.diffProp(mat)
-                    lor <- vcd::loddsratio(mat) # need this? e.g., is it doing some sort of indirect check?
-                }
+            private$.populateDPtable(mat, dp, is_2x2) # fill in the difference in proportion table
 
-            }) # suppressWarnings
-
-            private$.populateDPtable(mat, dp, lor) # fill in the difference in proportion table
-
-            if ( ! is.null(lor)) {
+            if (is_2x2) {
 
                 boots <- private$.computeBoots(mat)
                 boots <- tidyr::drop_na(boots)
@@ -229,13 +224,13 @@ TwoPropCIClass <- R6::R6Class(
                                        attr(self$data, "jmv-weights"))
             conttab_populate(self$results$freqs, mat, data, self$options$rows, self$options$cols)
         },
-        .populateDPtable = function(mat, dp, lor) {
+        .populateDPtable = function(mat, dp, is_2x2) {
 
             diffProp <- self$results$diffProp
 
             othRowNo <- 1
 
-            if ( ! is.null(lor)) {
+            if (is_2x2) {
                 diffProp$setRow(rowNo=othRowNo, list(
                     `v[dp]`=dp$dp
                 ))

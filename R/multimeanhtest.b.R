@@ -13,7 +13,7 @@ multimeanhtestClass <- R6::R6Class(
       if (is.null(groupVarName) || is.null(depVarName))
       return()
       
-      data <- select(self$data, varNames)
+      data <- dplyr::select(self$data, dplyr::all_of(varNames))
       
       data[[depVarName]] <- jmvcore::toNumeric(data[[depVarName]])
       data[[groupVarName]] <- droplevels(as.factor(data[[groupVarName]]))

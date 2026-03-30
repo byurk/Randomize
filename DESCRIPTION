@@ -13,8 +13,8 @@ Description: A Jamovi module and R package for teaching randomization-based
     functions for extracting plots and tables into Quarto, R Markdown,
     or other documents.
 License: GPL (>= 3)
-URL: https://github.com/byurk/Randomization
-BugReports: https://github.com/byurk/Randomization/issues
+URL: https://github.com/byurk/Randomize
+BugReports: https://github.com/byurk/Randomize/issues
 Encoding: UTF-8
 LazyData: true
 Depends: R (>= 4.1.0)

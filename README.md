@@ -44,7 +44,7 @@ jmvtools::install()
 
 ```r
 # Install from GitHub (requires devtools)
-devtools::install_github("byurk/Randomization")
+devtools::install_github("byurk/Randomize")
 ```
 
 ## Usage from R
@@ -181,7 +181,7 @@ plot(r)
 
 ```bash
 # Clone the repo
-git clone git@github.com:byurk/Randomization.git
+git clone git@github.com:byurk/Randomize.git
 cd Randomization
 
 # Load for development (without installing)
