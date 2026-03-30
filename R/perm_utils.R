@@ -25,7 +25,7 @@ set_seed_if <- function(seedBool, rngSeed) {
 #'
 #' Handles the two naming conventions used across the module:
 #'   - twomean/pairedmean/twoprop style: "oneGreater"/"twoGreater"/"different"
-#'   - slope/singleprop style: "greater"/"less"/"different"
+#'   - slope/singleprop style: "greater"/"less"/"notequal"
 map_direction <- function(hypothesis) {
     switch(hypothesis,
         "oneGreater" = "greater",
