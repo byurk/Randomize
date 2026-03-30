@@ -43,7 +43,8 @@ twomeanhtestClass <- R6::R6Class(
       Ha <- "two.sided"
       
       dataHTest <- data.frame(dep=data[[depVarName]], group=data[[groupVarName]])
-      
+      dataHTest <- tidyr::drop_na(dataHTest)
+
       groupLevels <- base::levels(dataHTest$group)
       v <- tapply(dataHTest$dep, dataHTest$group, function(x) tryNaN(var(x)))
       n <- tapply(dataHTest$dep, dataHTest$group, length)

@@ -35,7 +35,8 @@ twomeanCIClass <- R6::R6Class(
       code="grouping_var_must_have_2_levels", a=groupVarName)
       
       dataCI <- data.frame(dep=data[[depVarName]], group=data[[groupVarName]])
-      
+      dataCI <- tidyr::drop_na(dataCI)
+
       groupLevels <- base::levels(dataCI$group)
       v <- tapply(dataCI$dep, dataCI$group, function(x) tryNaN(var(x)))
       n <- tapply(dataCI$dep, dataCI$group, length)

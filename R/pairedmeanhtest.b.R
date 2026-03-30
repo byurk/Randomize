@@ -35,12 +35,12 @@ pairedmeanhtestClass <- R6::R6Class(
           
           data[[name1]] <- jmvcore::toNumeric(data[[name1]])
           data[[name2]] <- jmvcore::toNumeric(data[[name2]])
-          
-          column1 <- data[[name1]]
-          column2 <- data[[name2]]
-          
-          var1 <- tryNaN(var(column1))
-          var2 <- tryNaN(var(column2))
+
+          # Remove rows where either variable has NA before computing stats
+          complete <- complete.cases(data[[name1]], data[[name2]])
+          column1 <- data[[name1]][complete]
+          column2 <- data[[name2]][complete]
+
           n    <- length(column1)
           m1   <- tryNaN(mean(column1))
           m2   <- tryNaN(mean(column2))
@@ -48,14 +48,13 @@ pairedmeanhtestClass <- R6::R6Class(
           med2 <- tryNaN(median(column2))
           sd1  <- tryNaN(stats::sd(column1))
           sd2  <- tryNaN(stats::sd(column2))
-          
+
           dataHTest <- data.frame(dif = column1 - column2)
-          dataHTest <- tidyr::drop_na(dataHTest)
-          
+
           if (is.factor(column1) | is.factor(column2))
           res <- createError(.('One or both variables are not numeric'))
           else if (any(is.infinite(column1)) | any(is.infinite(column2)))
-          res <- createError(.('ne or both variables contain infinite values'))
+          res <- createError(.('One or both variables contain infinite values'))
           else
           #res <- try(t.test(dep ~ group, data=dataHTest, var.equal=TRUE,
           #                  alternative=Ha, conf.level=confInt), silent=TRUE)
