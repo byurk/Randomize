@@ -10,7 +10,10 @@ description:
         Bootstrap CI for difference in paired means.
     R:
         dontrun: false
-        usage: blah
+        usage: |
+            data('sleep')
+
+            pairedmeanCI(pairs = list(list(i1 = 'extra', i2 = 'group')), data = sleep)
 
 completeWhenFilled: true
 

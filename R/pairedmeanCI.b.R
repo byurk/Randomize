@@ -41,16 +41,17 @@ pairedmeanCIClass <- R6::R6Class(
 
           dataCI <- data.frame(dif = column1 - column2)
 
-          if (is.factor(column1) | is.factor(column2))
-          res <- createError(.('One or both variables are not numeric'))
-          else if (any(is.infinite(column1)) | any(is.infinite(column2)))
-          res <- createError(.('One or both variables contain infinite values'))
-          else
-          boots <- private$.computeBoots(dataCI)
-          boots <- tidyr::drop_na(boots)
-          res <- private$.computeCI(boots, m1-m2)
-          res <- within(res, rm(se, zcrit))
-          private$.preparePlot(boots, m1-m2)
+          if (is.factor(column1) | is.factor(column2)) {
+            res <- createError(.('One or both variables are not numeric'))
+          } else if (any(is.infinite(column1)) | any(is.infinite(column2))) {
+            res <- createError(.('One or both variables contain infinite values'))
+          } else {
+            boots <- private$.computeBoots(dataCI)
+            boots <- tidyr::drop_na(boots)
+            res <- private$.computeCI(boots, m1-m2)
+            res <- within(res, rm(se, zcrit))
+            private$.preparePlot(boots, m1-m2)
+          }
           
           if (isError(res)) {
             
@@ -213,9 +214,6 @@ pairedmeanCIClass <- R6::R6Class(
                                     st$dotHist,
                                     xlab = "mean difference",
                                     stat_label = "bootstrap differences")
-                return(p)
-    
-    
                 return(p)
               }
             )

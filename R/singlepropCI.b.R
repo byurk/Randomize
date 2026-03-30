@@ -251,8 +251,6 @@ SinglePropCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
         },
         .counts = function(var) {
 
-            initing <- nrow(self$data) == 0
-
             varData <- jmvcore::naOmit(self$data[[var]])
 
             if (self$options$areCounts) {

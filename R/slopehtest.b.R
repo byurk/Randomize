@@ -30,35 +30,27 @@ slopehtestClass <- R6::R6Class(
       # exclude rows with missings
       data <- data %>% tidyr::drop_na()
       
-      ## Hypothesis options checking
-      if (self$options$hypothesis == 'greater')
-      Ha <- "greater"
-      else if (self$options$hypothesis == 'less')
-      Ha <- "less"
-      else
-      Ha <- "two.sided"
-      
       dataHTest <- data.frame(dep=data[[depVarName]], indep=data[[indepVarName]])
 
-      if (is.factor(dataHTest$dep))
-      res <- createError(.('Dependent variable is not numeric'))
-      else if (any(is.infinite(dataHTest$dep)))
-      res <- createError(.('Dependent variable contains infinite values'))
-      else if (is.factor(dataHTest$indep))
-      res <- createError(.('Independent variable is not numeric'))
-      else if (any(is.infinite(dataHTest$indep)))
-      res <- createError(.('Independent variable contains infinite values'))
-      else
-        
-      lm1 <- lm(dep ~ indep, data=dataHTest)
-      coef <- lm1$coefficients
-      b <- as.numeric(coef[2])
-      r2 <- summary(lm1)$r.squared
-      r <- cor(dataHTest$indep, dataHTest$dep)
-      
-      perms <- private$.computePerms(dataHTest)
-      res <- private$.computePval(perms, b)
-      private$.preparePlot(perms, b, res$direction)
+      if (is.factor(dataHTest$dep)) {
+        res <- createError(.('Dependent variable is not numeric'))
+      } else if (any(is.infinite(dataHTest$dep))) {
+        res <- createError(.('Dependent variable contains infinite values'))
+      } else if (is.factor(dataHTest$indep)) {
+        res <- createError(.('Independent variable is not numeric'))
+      } else if (any(is.infinite(dataHTest$indep))) {
+        res <- createError(.('Independent variable contains infinite values'))
+      } else {
+        lm1 <- lm(dep ~ indep, data=dataHTest)
+        coef <- lm1$coefficients
+        b <- as.numeric(coef[2])
+        r2 <- summary(lm1)$r.squared
+        r <- cor(dataHTest$indep, dataHTest$dep)
+
+        perms <- private$.computePerms(dataHTest)
+        res <- private$.computePval(perms, b)
+        private$.preparePlot(perms, b, res$direction)
+      }
         
         if (isError(res)) {
           

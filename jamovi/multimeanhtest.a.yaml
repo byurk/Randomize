@@ -11,20 +11,9 @@ description:
     R:
         dontrun: false
         usage: |
-            data('ToothGrowth')
+            data('iris')
 
-            ttestIS(formula = len ~ supp, data = ToothGrowth)
-
-            #
-            #  INDEPENDENT SAMPLES T-TEST
-            #
-            #  Independent Samples T-Test
-            #  ────────────────────────────────────────────────────
-            #                          statistic    df      p
-            #  ────────────────────────────────────────────────────
-            #    len    Student's t         1.92    58.0    0.060
-            #  ────────────────────────────────────────────────────
-            #
+            multimeanhtest(formula = Sepal.Length ~ Species, data = iris)
 
 completeWhenFilled: true
 

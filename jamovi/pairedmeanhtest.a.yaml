@@ -10,7 +10,10 @@ description:
         Permutation test for paired means.
     R:
         dontrun: false
-        usage: blah
+        usage: |
+            data('sleep')
+
+            pairedmeanhtest(pairs = list(list(i1 = 'extra', i2 = 'group')), data = sleep)
 
 completeWhenFilled: true
 

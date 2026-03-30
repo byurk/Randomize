@@ -34,14 +34,6 @@ twomeanhtestClass <- R6::R6Class(
       jmvcore::reject(.("Grouping variable '{a}' must have exactly 2 levels"),
       code="grouping_var_must_have_2_levels", a=groupVarName)
       
-      ## Hypothesis options checking
-      if (self$options$hypothesis == 'oneGreater')
-      Ha <- "greater"
-      else if (self$options$hypothesis == 'twoGreater')
-      Ha <- "less"
-      else
-      Ha <- "two.sided"
-      
       dataHTest <- data.frame(dep=data[[depVarName]], group=data[[groupVarName]])
       dataHTest <- tidyr::drop_na(dataHTest)
 
@@ -58,14 +50,15 @@ twomeanhtestClass <- R6::R6Class(
       sd[is.na(sd)] <- NaN
       
       
-      if (is.factor(dataHTest$dep))
-      res <- createError(.('Variable is not numeric'))
-      else if (any(is.infinite(dataHTest$dep)))
-      res <- createError(.('Variable contains infinite values'))
-      else
-      perms <- private$.computePerms(dataHTest)
-      res <- private$.computePval(perms, m[1]-m[2])
-      private$.preparePlot(perms, m[1]-m[2], res$direction)
+      if (is.factor(dataHTest$dep)) {
+        res <- createError(.('Variable is not numeric'))
+      } else if (any(is.infinite(dataHTest$dep))) {
+        res <- createError(.('Variable contains infinite values'))
+      } else {
+        perms <- private$.computePerms(dataHTest)
+        res <- private$.computePval(perms, m[1]-m[2])
+        private$.preparePlot(perms, m[1]-m[2], res$direction)
+      }
         
         if (isError(res)) {
           

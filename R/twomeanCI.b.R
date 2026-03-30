@@ -50,16 +50,17 @@ twomeanCIClass <- R6::R6Class(
       sd[is.na(sd)] <- NaN
       
       
-      if (is.factor(dataCI$dep))
-      res <- createError(.('Variable is not numeric'))
-      else if (any(is.infinite(dataCI$dep)))
-      res <- createError(.('Variable contains infinite values'))
-      else
-      boots <- private$.computeBoots(dataCI)
-      boots <- tidyr::drop_na(boots)
-      res <- private$.computeCI(boots, m[1]-m[2])
-      res <- within(res, rm(se, zcrit))
-      private$.preparePlot(boots, m[1]-m[2])
+      if (is.factor(dataCI$dep)) {
+        res <- createError(.('Variable is not numeric'))
+      } else if (any(is.infinite(dataCI$dep))) {
+        res <- createError(.('Variable contains infinite values'))
+      } else {
+        boots <- private$.computeBoots(dataCI)
+        boots <- tidyr::drop_na(boots)
+        res <- private$.computeCI(boots, m[1]-m[2])
+        res <- within(res, rm(se, zcrit))
+        private$.preparePlot(boots, m[1]-m[2])
+      }
         
         if (isError(res)) {
           
@@ -71,7 +72,7 @@ twomeanCIClass <- R6::R6Class(
             
             message <- extractErrorMessage(res)
             
-            CITable$addFootnote(rowKey=depVarName, 'md', message)
+            CITable$addFootnote(rowKey=depVarName, 'obsDiff', message)
             
           } else {
             

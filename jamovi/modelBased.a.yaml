@@ -59,7 +59,7 @@ options:
       default: false
       description:
           R: >
-            `TRUE` or `FALSE` (default), whether to calculate p-value
+            `TRUE` or `FALSE` (default), whether to calculate CI multiplier
 
     - name: confLevel
       title: Confidence level

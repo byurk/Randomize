@@ -20,14 +20,6 @@ pairedmeanhtestClass <- R6::R6Class(
         
         if(!any(sapply(pair,length)== 0)){
           
-          ## Hypothesis options checking
-          if (self$options$hypothesis == 'oneGreater')
-          Ha <- "greater"
-          else if (self$options$hypothesis == 'twoGreater')
-          Ha <- "less"
-          else
-          Ha <- "two.sided"
-          
           name1 <- pair$i1
           name2 <- pair$i2
           
@@ -51,14 +43,15 @@ pairedmeanhtestClass <- R6::R6Class(
 
           dataHTest <- data.frame(dif = column1 - column2)
 
-          if (is.factor(column1) | is.factor(column2))
-          res <- createError(.('One or both variables are not numeric'))
-          else if (any(is.infinite(column1)) | any(is.infinite(column2)))
-          res <- createError(.('One or both variables contain infinite values'))
-          else
-          perms <- private$.computePerms(dataHTest)
-          res <- private$.computePval(perms, m1-m2)
-          private$.preparePlot(perms, m1-m2, res$direction)
+          if (is.factor(column1) | is.factor(column2)) {
+            res <- createError(.('One or both variables are not numeric'))
+          } else if (any(is.infinite(column1)) | any(is.infinite(column2))) {
+            res <- createError(.('One or both variables contain infinite values'))
+          } else {
+            perms <- private$.computePerms(dataHTest)
+            res <- private$.computePval(perms, m1-m2)
+            private$.preparePlot(perms, m1-m2, res$direction)
+          }
           
           if (isError(res)) {
             

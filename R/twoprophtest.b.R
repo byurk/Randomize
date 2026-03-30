@@ -57,7 +57,7 @@ TwoPropHTestClass <- R6::R6Class(
                     jmvcore::reject(.('Counts may not be infinite'))
             }
 
-            mats <- conttab_matrices(data) # counts arranged as in a contingency table with stanardized formatting
+            mats <- conttab_matrices(data) # counts arranged as in a contingency table with standardized formatting
             mat <- mats[[1]]
 
             private$.populateContTable(mat) # fill in contingency table

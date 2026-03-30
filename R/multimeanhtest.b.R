@@ -50,20 +50,21 @@ multimeanhtestClass <- R6::R6Class(
       sd[is.na(sd)] <- NaN
       
       
-      if (is.factor(dataHTest$dep))
-      res <- createError(.('Variable is not numeric'))
-      else if (any(is.infinite(dataHTest$dep)))
-      res <- createError(.('Variable contains infinite values'))
-      else
-      Fobs <- dataHTest %>%
-        infer::specify(dep ~ group) %>%
-        infer::hypothesize(null = "independence") %>%
-        infer::calculate("F") %>%
-        pull()
+      if (is.factor(dataHTest$dep)) {
+        res <- createError(.('Variable is not numeric'))
+      } else if (any(is.infinite(dataHTest$dep))) {
+        res <- createError(.('Variable contains infinite values'))
+      } else {
+        Fobs <- dataHTest %>%
+          infer::specify(dep ~ group) %>%
+          infer::hypothesize(null = "independence") %>%
+          infer::calculate("F") %>%
+          dplyr::pull()
 
-      perms <- private$.computePerms(dataHTest)
-      res <- private$.computePval(perms, Fobs)
-      private$.preparePlot(perms, Fobs)
+        perms <- private$.computePerms(dataHTest)
+        res <- private$.computePval(perms, Fobs)
+        private$.preparePlot(perms, Fobs)
+      }
         
         if (isError(res)) {
           

@@ -32,27 +32,27 @@ slopeCIClass <- R6::R6Class(
       
       dataCI <- data.frame(dep=data[[depVarName]], indep=data[[indepVarName]])
 
-      if (is.factor(dataCI$dep))
-      res <- createError(.('Dependent variable is not numeric'))
-      else if (any(is.infinite(dataCI$dep)))
-      res <- createError(.('Dependent variable contains infinite values'))
-      else if (is.factor(dataCI$indep))
-      res <- createError(.('Independent variable is not numeric'))
-      else if (any(is.infinite(dataCI$indep)))
-      res <- createError(.('Independent variable contains infinite values'))
-      else
-        
-      lm1 <- lm(dep ~ indep, data=dataCI)
-      coef <- lm1$coefficients
-      b <- as.numeric(coef[2])
-      r2 <- summary(lm1)$r.squared
-      r <- cor(dataCI$indep, dataCI$dep)
-      
-      boots <- private$.computeBoots(dataCI)
-      boots <- tidyr::drop_na(boots)
-      res <- private$.computeCI(boots, b)
-      res <- within(res, rm(se, zcrit))
-      private$.preparePlot(boots, b)
+      if (is.factor(dataCI$dep)) {
+        res <- createError(.('Dependent variable is not numeric'))
+      } else if (any(is.infinite(dataCI$dep))) {
+        res <- createError(.('Dependent variable contains infinite values'))
+      } else if (is.factor(dataCI$indep)) {
+        res <- createError(.('Independent variable is not numeric'))
+      } else if (any(is.infinite(dataCI$indep))) {
+        res <- createError(.('Independent variable contains infinite values'))
+      } else {
+        lm1 <- lm(dep ~ indep, data=dataCI)
+        coef <- lm1$coefficients
+        b <- as.numeric(coef[2])
+        r2 <- summary(lm1)$r.squared
+        r <- cor(dataCI$indep, dataCI$dep)
+
+        boots <- private$.computeBoots(dataCI)
+        boots <- tidyr::drop_na(boots)
+        res <- private$.computeCI(boots, b)
+        res <- within(res, rm(se, zcrit))
+        private$.preparePlot(boots, b)
+      }
         
         if (isError(res)) {
           
