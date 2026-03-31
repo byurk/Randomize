@@ -182,7 +182,7 @@ plot(r)
 ```bash
 # Clone the repo
 git clone git@github.com:byurk/Randomize.git
-cd Randomization
+cd Randomize
 
 # Load for development (without installing)
 Rscript -e "devtools::load_all('.')"
