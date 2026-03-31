@@ -75,11 +75,13 @@ ContTabHTestClass <- R6::R6Class(
 
             private$.populateX2table(mat, x2) #, lor) # fill in the difference in proportion table
 
-            perms <- private$.computePerms(mat)
-            simres <- private$.computePval(perms, x2$x2)
+            if (!is.null(x2)) {
+                perms <- private$.computePerms(mat)
+                simres <- private$.computePval(perms, x2$x2)
 
-            private$.populateSimTable(simres)
-            private$.preparePlot(perms, x2$x2)
+                private$.populateSimTable(simres)
+                private$.preparePlot(perms, x2$x2)
+            }
 
         },
 

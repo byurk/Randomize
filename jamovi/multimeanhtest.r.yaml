@@ -80,7 +80,7 @@ items:
       rows: (vars)
       clearWith:
         - group
-        - hypothesis
+        - vars
         - rngSeed
         - seedBool
         - reps
