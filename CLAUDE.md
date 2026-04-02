@@ -48,8 +48,11 @@ Shared logic lives in utility files:
 - The `dplyr::select` vs `jmvcore::select` import warning is benign (we use explicit `dplyr::select()`).
 - All analyses use the `infer` package for bootstrap/permutation resampling.
 
-## Known issues
-- **Contingency table plot fails for certain large datasets (pre-existing)**: With `yrbss.csv` using strength_ind vs sleep_ind (N=12,219, 3x3 table, X²=121.3), the null distribution plot never renders (spins) even though `.init()`, `.run()`, `.preparePlot()`, and `.permPlot()` all complete successfully. Debug logging confirmed the plot is built, printed, and returned without error, but Jamovi's rendering pipeline does not display it. Even a hardcoded trivial test plot (5 points scatter) fails for this variable combination. Other 3x3 tables work (e.g., helmet_ind vs text_ind with N=5,395). This is a **pre-existing Jamovi framework bug** — not caused by the refactor.
+## Known issues (pre-existing, not caused by refactor)
+- **Contingency table rendering fails for large/many-level tables**: Two related Jamovi framework bugs:
+  1. **Many row levels (8+)**: Using raw variables like `strength_training_7d` (8 levels) as rows causes ALL output to spin — contingency table, X² table, plot, and sim results. Happens regardless of column variable (even 8×2). The R computation completes in <0.2 sec; this is a Jamovi rendering issue.
+  2. **Large N with 3×3 table**: With recoded 3-level variables from yrbss (N=12,219, X²=121.3), tables populate correctly but the plot never renders. Debug logging confirmed `.init()`, `.run()`, `.preparePlot()`, and `.permPlot()` all complete without error. Even a hardcoded trivial test plot fails for this variable combination. Other 3×3 tables work (e.g., helmet_ind × text_ind with N=5,395).
+  - **Testing note**: Tested extensively with debug logging in Jamovi 2.6.45. All R code paths complete successfully. The issue is in Jamovi's JavaScript/HTML results rendering pipeline.
 
 ## Refactor branch status (as of 2026-04-02)
 Fixes applied on `refactor` beyond the original refactoring:
