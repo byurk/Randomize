@@ -162,6 +162,7 @@ SinglePropHTestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
                     "alt",
                     "reps",
                     "rngSeed",
+                    "seedBool",
                     "dotHist")))
             self$add(jmvcore::Table$new(
                 options=options,
@@ -173,7 +174,8 @@ SinglePropHTestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
                     "testValue",
                     "alt",
                     "reps",
-                    "rngSeed"),
+                    "rngSeed",
+                    "seedBool"),
                 columns=list(
                     list(
                         `name`="reps", 

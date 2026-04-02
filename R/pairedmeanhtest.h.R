@@ -114,7 +114,7 @@ pairedmeanhtestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
                 title="Descriptives",
                 visible="(desc)",
                 clearWith=list(
-                    "miss"),
+                    "pairs"),
                 columns=list(
                     list(
                         `name`="name", 
@@ -235,7 +235,10 @@ pairedmeanhtestBase <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
 #' 
 #'
 #' @examples
-#' blah
+#' data('sleep')
+#'
+#' pairedmeanhtest(pairs = list(list(i1 = 'extra', i2 = 'group')), data = sleep)
+#'
 #' @param data the data as a data frame
 #' @param pairs a list sepcifying the pairs of measurements in the data
 #' @param hypothesis \code{'different'} (default), \code{'oneGreater'} or

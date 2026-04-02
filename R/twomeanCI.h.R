@@ -289,18 +289,7 @@ twomeanCIBase <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
 #' @examples
 #' data('ToothGrowth')
 #'
-#' ttestIS(formula = len ~ supp, data = ToothGrowth)
-#'
-#' #
-#' #  INDEPENDENT SAMPLES T-TEST
-#' #
-#' #  Independent Samples T-Test
-#' #  ----------------------------------------------------
-#' #                          statistic    df      p
-#' #  ----------------------------------------------------
-#' #    len    Student's t         1.92    58.0    0.060
-#' #  ----------------------------------------------------
-#' #
+#' twomeanCI(formula = len ~ supp, data = ToothGrowth)
 #'
 #' @param data the data as a data frame
 #' @param vars the dependent variable (not necessary when using a formula, see

@@ -117,7 +117,7 @@ multimeanhtestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Cl
                 visible="(desc)",
                 clearWith=list(
                     "group",
-                    "miss"),
+                    "vars"),
                 columns=list(
                     list(
                         `name`="dep", 
@@ -178,7 +178,6 @@ multimeanhtestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Cl
                 clearWith=list(
                     "group",
                     "vars",
-                    "hypothesis",
                     "reps",
                     "rngSeed",
                     "seedBool",
@@ -190,7 +189,7 @@ multimeanhtestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Cl
                 rows="(vars)",
                 clearWith=list(
                     "group",
-                    "hypothesis",
+                    "vars",
                     "rngSeed",
                     "seedBool",
                     "reps"),
@@ -242,20 +241,9 @@ multimeanhtestBase <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class
 #' 
 #'
 #' @examples
-#' data('ToothGrowth')
+#' data('iris')
 #'
-#' ttestIS(formula = len ~ supp, data = ToothGrowth)
-#'
-#' #
-#' #  INDEPENDENT SAMPLES T-TEST
-#' #
-#' #  Independent Samples T-Test
-#' #  ----------------------------------------------------
-#' #                          statistic    df      p
-#' #  ----------------------------------------------------
-#' #    len    Student's t         1.92    58.0    0.060
-#' #  ----------------------------------------------------
-#' #
+#' multimeanhtest(formula = Sepal.Length ~ Species, data = iris)
 #'
 #' @param data the data as a data frame
 #' @param vars the dependent variable (not necessary when using a formula, see

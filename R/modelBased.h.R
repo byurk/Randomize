@@ -114,7 +114,7 @@ modelBasedResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
                 clearWith=list(
                     "distro",
                     "dF",
-                    "hypTestBool",
+                    "areaBool",
                     "obsStat",
                     "tail")))
             self$add(jmvcore::Table$new(
@@ -124,7 +124,7 @@ modelBasedResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
                 clearWith=list(
                     "distro",
                     "dF",
-                    "hypTestBool",
+                    "areaBool",
                     "obsStat",
                     "tail"),
                 columns=list(
@@ -192,7 +192,7 @@ modelBasedBase <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
 #' @param obsStat a number (default: 0.0), the observed value of Z or T
 #' @param tail .
 #' @param CIBool \code{TRUE} or \code{FALSE} (default), whether to calculate
-#'   p-value
+#'   CI multiplier
 #' @param confLevel a number (default: 95), the confidence level
 #' @return A results object containing:
 #' \tabular{llllll}{
