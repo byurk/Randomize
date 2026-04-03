@@ -77,7 +77,7 @@ items:
             title: Reps
             type: integer
 
-          - name: pval
+          - name: p
             title: p-value
             type: number
             format: zto,pvalue

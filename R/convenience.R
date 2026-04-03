@@ -100,16 +100,40 @@ plot.Group <- function(x, which = c("sim", "desc", "line"), ...) {
 #' Returns the primary results table (hypothesis test results or
 #' confidence interval bounds) from any Randomize analysis.
 #'
+#' The columns vary by analysis type:
+#'
+#' \strong{Hypothesis tests} (all include \code{reps} and \code{p}):
+#' \itemize{
+#'   \item \code{twomeanhtest}: \code{md} (observed mean difference), \code{reps}, \code{p}
+#'   \item \code{pairedmeanhtest}: \code{md} (observed mean difference), \code{reps}, \code{p}
+#'   \item \code{multimeanhtest}: \code{oF} (observed F statistic), \code{reps}, \code{p}
+#'   \item \code{slopehtest}: \code{b} (observed slope), \code{reps}, \code{p}
+#'   \item \code{SinglePropHTest}: \code{reps}, \code{p}
+#'   \item \code{TwoPropHTest}: \code{reps}, \code{p}
+#'   \item \code{ContTabHTest}: \code{x2} (observed X\eqn{^2}), \code{reps}, \code{p}
+#' }
+#'
+#' \strong{Confidence intervals} (all include \code{reps}, \code{cil}, \code{ciu}):
+#' \itemize{
+#'   \item \code{SingleMeanCI}: \code{reps}, \code{obsMean}, \code{cil}, \code{ciu}
+#'   \item \code{twomeanCI}: \code{reps}, \code{obsDiff}, \code{cil}, \code{ciu}
+#'   \item \code{pairedmeanCI}: \code{reps}, \code{obsDiff}, \code{cil}, \code{ciu}
+#'   \item \code{slopeCI}: \code{reps}, \code{b} (observed slope), \code{cil}, \code{ciu}
+#'   \item \code{SinglePropCI}: \code{reps}, \code{obsProp}, \code{cil}, \code{ciu}
+#'   \item \code{TwoPropCI}: \code{reps}, \code{obsDiff}, \code{cil}, \code{ciu}
+#' }
+#'
 #' @param x A result object from any Randomize analysis function
-#' @return A data frame
+#' @return A data frame with columns specific to the analysis type (see Details)
 #'
 #' @examples
 #' \dontrun{
 #' r <- twomeanhtest(data = d, vars = "score", group = "group",
 #'                   hypothesis = "different", reps = 1000,
-#'                   dotHist = "histogram", seedBool = TRUE, rngSeed = 42)
-#' results_table(r)
-#' # Returns data frame with columns: var, md, reps, p
+#'                   seedBool = TRUE, rngSeed = 42)
+#' rt <- results_table(r)
+#' rt$p    # the p-value
+#' rt$md   # the observed mean difference
 #' }
 #'
 #' @export
@@ -127,19 +151,43 @@ results_table <- function(x) {
 
 #' Extract descriptive statistics as a data frame
 #'
-#' Returns the descriptive statistics table (n, mean, median, sd)
-#' from analyses that provide group-level summaries.
+#' Returns the descriptive statistics table from analyses that provide
+#' group-level summaries.  Bracket-indexed column names from Jamovi
+#' (e.g. \code{mean[1]}) are cleaned to R-friendly names (e.g.
+#' \code{mean1}).
+#'
+#' \strong{Important}: For two-sample and paired analyses, descriptive
+#' statistics are only computed when \code{desc = TRUE} is passed to
+#' the analysis function.  If the table contains all \code{NA} values,
+#' re-run the analysis with \code{desc = TRUE}.
+#'
+#' Columns vary by analysis type:
+#' \itemize{
+#'   \item \code{twomeanCI}, \code{twomeanhtest}: \code{dep}, \code{group1},
+#'     \code{num1}, \code{mean1}, \code{med1}, \code{sd1}, \code{group2},
+#'     \code{num2}, \code{mean2}, \code{med2}, \code{sd2}
+#'   \item \code{pairedmeanCI}, \code{pairedmeanhtest}: \code{name},
+#'     \code{num}, \code{m} (mean), \code{med}, \code{sd}
+#'   \item \code{multimeanhtest}: \code{dep}, \code{group}, \code{num},
+#'     \code{mean}, \code{median}, \code{sd}
+#'   \item \code{SingleMeanCI}: \code{var}, \code{num}, \code{mean},
+#'     \code{med}, \code{sd}
+#'   \item \code{SinglePropCI}, \code{SinglePropHTest}: \code{var},
+#'     \code{level}, \code{count}, \code{total}, \code{prop}
+#' }
 #'
 #' @param x A result object from any Randomize analysis function
-#' @return A data frame
+#' @return A data frame with cleaned column names (see Details)
 #'
 #' @examples
 #' \dontrun{
 #' r <- twomeanhtest(data = d, vars = "score", group = "group",
 #'                   hypothesis = "different", reps = 1000,
-#'                   dotHist = "histogram", seedBool = TRUE, rngSeed = 42,
-#'                   desc = TRUE)
-#' desc_table(r)
+#'                   seedBool = TRUE, rngSeed = 42, desc = TRUE)
+#' dt <- desc_table(r)
+#' dt$mean1   # mean of group 1
+#' dt$mean2   # mean of group 2
+#' dt$num1    # n of group 1
 #' }
 #'
 #' @export
@@ -148,9 +196,19 @@ desc_table <- function(x) {
     for (nm in c("desc", "summtable", "freqs")) {
         tbl <- x[[nm]]
         if (!is.null(tbl) && inherits(tbl, "Table")) {
-            return(tbl$asDF)
+            df <- tbl$asDF
+            # Check for all-NA content (desc=TRUE was not set)
+            data_cols <- setdiff(names(df), c("name", "var", "dep"))
+            if (nrow(df) > 0 && all(is.na(df[, data_cols, drop = FALSE]))) {
+                stop("Descriptive statistics table is empty. ",
+                     "Re-run the analysis with desc=TRUE to populate it.")
+            }
+            # Clean bracket-indexed column names: mean[1] -> mean1
+            names(df) <- gsub("\\[([0-9]+)\\]", "\\1", names(df))
+            return(df)
         }
     }
     stop("No descriptive statistics table found. ",
-         "Re-run the analysis with desc=TRUE if available.")
+         "This analysis type may not provide descriptive statistics, ",
+         "or re-run with desc=TRUE if available.")
 }

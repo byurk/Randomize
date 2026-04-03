@@ -217,8 +217,8 @@ test("two-sided", {
                          testValue = 0.5, alt = "notequal", reps = 500,
                          dotHist = "histogram", seedBool = TRUE, rngSeed = 123)
     tbl <- r$simtable$asDF
-    assert_not_na(tbl$pval, "p-value")
-    stopifnot(tbl$pval >= 0 && tbl$pval <= 1)
+    assert_not_na(tbl$p, "p-value")
+    stopifnot(tbl$p >= 0 && tbl$p <= 1)
 })
 
 cat("\n=== Testing MultiMeanHTest ===\n")
@@ -249,8 +249,8 @@ test("two-sided", {
                       dotHist = "histogram", seedBool = TRUE, rngSeed = 123,
                       compare = "rows")
     tbl <- r$simtable$asDF
-    assert_not_na(tbl$pval, "p-value")
-    stopifnot(tbl$pval >= 0 && tbl$pval <= 1)
+    assert_not_na(tbl$p, "p-value")
+    stopifnot(tbl$p >= 0 && tbl$p <= 1)
 })
 
 cat("\n=== Testing ContTabHTest ===\n")
@@ -259,8 +259,8 @@ test("clean data", {
                       reps = 500, dotHist = "histogram",
                       seedBool = TRUE, rngSeed = 123, compare = "rows")
     tbl <- r$simtable$asDF
-    assert_not_na(tbl$pval, "p-value")
-    stopifnot(tbl$pval >= 0 && tbl$pval <= 1)
+    assert_not_na(tbl$p, "p-value")
+    stopifnot(tbl$p >= 0 && tbl$p <= 1)
 })
 
 cat("\n\n============================\n")

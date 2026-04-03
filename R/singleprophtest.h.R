@@ -182,7 +182,7 @@ SinglePropHTestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
                         `title`="Reps", 
                         `type`="integer"),
                     list(
-                        `name`="pval", 
+                        `name`="p", 
                         `title`="p-value", 
                         `type`="number", 
                         `format`="zto,pvalue"))))}))

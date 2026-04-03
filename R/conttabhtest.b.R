@@ -101,7 +101,7 @@ ContTabHTestClass <- R6::R6Class(
         .computePval = function(perms, x2) {
             reps <- self$options$reps
             pval <- compute_null_pval(perms, x2, "greater")
-            list(reps = reps, pval = pval)
+            list(x2 = as.numeric(x2), reps = reps, p = pval)
         },
 
         .computePerms = function(mat){

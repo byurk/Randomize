@@ -236,7 +236,7 @@ TwoPropHTestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
                         `title`="Reps", 
                         `type`="integer"),
                     list(
-                        `name`="pval", 
+                        `name`="p", 
                         `title`="p-value", 
                         `type`="number", 
                         `format`="zto,pvalue"))))}))
