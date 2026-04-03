@@ -58,6 +58,7 @@ items:
           - alt
           - reps
           - rngSeed
+          - seedBool
           - dotHist
 
     - name: simtable
@@ -71,14 +72,20 @@ items:
           - alt
           - reps
           - rngSeed
+          - seedBool
 
 
       columns:
+          - name: obsProp
+            title: Proportion
+            type: number
+            format: zto
+
           - name: reps
             title: Reps
             type: integer
 
-          - name: pval
+          - name: p
             title: p-value
             type: number
             format: zto,pvalue

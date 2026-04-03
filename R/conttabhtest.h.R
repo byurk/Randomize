@@ -218,11 +218,15 @@ ContTabHTestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
                     "seedBool"),
                 columns=list(
                     list(
+                        `name`="x2", 
+                        `title`="X\u00B2", 
+                        `type`="number"),
+                    list(
                         `name`="reps", 
                         `title`="Reps", 
                         `type`="integer"),
                     list(
-                        `name`="pval", 
+                        `name`="p", 
                         `title`="p-value", 
                         `type`="number", 
                         `format`="zto,pvalue"))))}))

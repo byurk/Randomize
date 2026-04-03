@@ -162,6 +162,7 @@ SinglePropHTestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
                     "alt",
                     "reps",
                     "rngSeed",
+                    "seedBool",
                     "dotHist")))
             self$add(jmvcore::Table$new(
                 options=options,
@@ -173,14 +174,20 @@ SinglePropHTestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
                     "testValue",
                     "alt",
                     "reps",
-                    "rngSeed"),
+                    "rngSeed",
+                    "seedBool"),
                 columns=list(
+                    list(
+                        `name`="obsProp", 
+                        `title`="Proportion", 
+                        `type`="number", 
+                        `format`="zto"),
                     list(
                         `name`="reps", 
                         `title`="Reps", 
                         `type`="integer"),
                     list(
-                        `name`="pval", 
+                        `name`="p", 
                         `title`="p-value", 
                         `type`="number", 
                         `format`="zto,pvalue"))))}))

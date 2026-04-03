@@ -121,7 +121,7 @@ pairedmeanCIResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
                 title="Descriptives",
                 visible="(desc)",
                 clearWith=list(
-                    "miss"),
+                    "pairs"),
                 columns=list(
                     list(
                         `name`="name", 
@@ -251,7 +251,10 @@ pairedmeanCIBase <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
 #' 
 #'
 #' @examples
-#' blah
+#' data('sleep')
+#'
+#' pairedmeanCI(pairs = list(list(i1 = 'extra', i2 = 'group')), data = sleep)
+#'
 #' @param data the data as a data frame
 #' @param pairs a list sepcifying the pairs of measurements in the data
 #' @param confLevel a number (default: 95), the confidence level

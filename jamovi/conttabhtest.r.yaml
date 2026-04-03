@@ -71,11 +71,15 @@ items:
 
 
       columns:
+          - name: x2
+            title: X²
+            type: number
+
           - name: reps
             title: Reps
             type: integer
 
-          - name: pval
+          - name: p
             title: p-value
             type: number
             format: zto,pvalue

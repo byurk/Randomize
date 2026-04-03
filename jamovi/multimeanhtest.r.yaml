@@ -12,7 +12,7 @@ items:
       visible: (desc)
       clearWith:
         - group
-        - miss
+        - vars
 
       columns:
         - name: dep
@@ -68,7 +68,6 @@ items:
       clearWith:
           - group
           - vars
-          - hypothesis
           - reps
           - rngSeed
           - seedBool
@@ -81,7 +80,7 @@ items:
       rows: (vars)
       clearWith:
         - group
-        - hypothesis
+        - vars
         - rngSeed
         - seedBool
         - reps

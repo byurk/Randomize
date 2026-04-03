@@ -26,7 +26,7 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
                 private$.populateSummTable(results)
                 private$.populateSimTable(simres)
 
-                private$.preparePlot(boot)
+                private$.preparePlot(boot, simres$direction)
 
             }
         },
@@ -71,11 +71,7 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
             df <- tibble::tibble(level=levels, count=counts) %>%
                 tidyr::uncount(count)
 
-            if(self$options$seedBool){
-                set.seed(self$options$rngSeed)
-            } else {
-                set.seed(NULL)
-            }
+            set_seed_if(self$options$seedBool, self$options$rngSeed)
 
             boot <- df %>%
                 infer::specify(response = level, success = levels[1]) %>%
@@ -90,28 +86,17 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
 
             resp <- self$options$resp
             reps <- self$options$reps
-            alt <- self$options$alt
 
-            if (alt == "greater")
-                direction <- "greater"
-            else if (alt == "less")
-                direction <- "less"
-            else
-                direction <- "two_sided"
+            direction <- map_direction(self$options$alt)
 
             results <- private$.counts(resp)
 
             counts <- results$counts
             total  <- results$total
-            levels <- results$levels
 
-            pval <- boot %>%
-                infer::get_p_value(obs_stat = counts[1] / total, direction = direction) %>%
-                dplyr::pull()
+            pval <- compute_null_pval(boot, counts[1] / total, direction)
 
-
-            simres <- list(reps = reps, pval = pval)
-            return(simres)
+            list(obsProp = counts[1] / total, reps = reps, p = pval, direction = direction)
         },
 
         #### Init tables/plots functions ----
@@ -203,175 +188,27 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
             table <- self$results$get('simtable')
             table$deleteRows()
 
-            table$addRow(rowKey=1, values=simres)
+            # Only pass table-defined columns (not direction)
+            table$addRow(rowKey=1, values=simres[c("obsProp", "reps", "p")])
 
         },
 
         #### Plot functions ----
-        .preparePlot = function(boot) {
-
+        .preparePlot = function(boot, direction) {
             bootplot <- self$results$Plot
             dotHist <- self$options$dotHist
-            alt <- self$options$alt
-
             resp <- self$options$resp
             results <- private$.counts(resp)
-
-            counts <- results$counts
-            total  <- results$total
-            levels <- results$levels
-
-            obs_stat <- counts[1] / total
-
-            bootplot$setState(list(df=boot, obs_stat=obs_stat, alt = alt, dotHist=dotHist))
-
+            obs_stat <- results$counts[1] / results$total
+            bootplot$setState(list(df=strip_infer(boot), obs_stat=obs_stat, direction=direction, dotHist=dotHist))
         },
         .bootPlot = function(image, ggtheme, theme, ...) {
-
             if (is.null(image$state))
                 return(FALSE)
-
-            df <- image$state[["df"]]
-
-            obs_stat = image$state[["obs_stat"]]
-
-            dotHist = image$state[["dotHist"]]
-
-            alt <- image$state[["alt"]]
-
-             phat <- obs_stat
-
-             boot <- df
-
-             # which tail of the distro should be used to calculate a p-val?
-             if (alt == "less"){
-                 ptail <- "lt"
-                 caption <- "One-sided: p-val is proportion of\n results \u2264 observed value"
-             } else if (alt == "greater"){
-                 ptail <- "rt"
-                 caption <- "One-sided: p-val is proportion of\n results \u2265 observed value"
-             } else {
-                 ptail <- boot %>%
-                     dplyr::summarize(lt = mean(stat < phat), rt = mean(stat > phat)) %>%
-                     dplyr::mutate(pt = dplyr::if_else(rt < lt, "rt", "lt")) %>%
-                     dplyr::pull(pt)
-                 if (ptail == "lt")
-                     caption <- "Two-sided: p-val is 2\u00D7 proportion of\n results \u2264 observed value"
-                 else
-                     caption <- "Two-sided: p-val is 2\u00D7 proportion of\n results \u2265 observed value"
-             }
-
-             if(dotHist == "dotplot"){
-
-                ndist <- dplyr::n_distinct(boot$stat)
-
-                # bin width, also used for scaling dots when not binning
-                bw <- boot %>%
-                    dplyr::summarize(min = min(stat), max = max(stat)) %>%
-                    #mutate(bw = (max - min) / 30 * (1 + 3*.Machine$double.eps)) %>%
-                    dplyr::mutate(bw = (max - min) / 30 ) %>%
-                    dplyr::pull(bw)
-
-
-                if (ndist <= 30){ # don't bin unless there are more than 30 unique values
-
-                    boot <- boot %>%
-                        dplyr::mutate(x.bin = stat)
-
-                } else {
-
-                    if(ptail == "lt"){
-
-                        boot <- boot %>%
-                            dplyr::mutate(x.bin = phat - ( (phat - stat) %/% bw ) * bw)
-
-                    } else {
-
-                        boot <- boot %>%
-                            dplyr::mutate(x.bin = phat + ( (stat - phat) %/% bw ) * bw)
-
-                    }
-
-
-                }
-
-
-                # color the dots in the tail that will be used to calculate the p-val
-                # put vertical line at value of phat
-
-                boot <- boot %>%
-                    dplyr::mutate(extreme = (ptail == "lt" & stat <= phat) | (ptail == "rt" & stat >= phat))
-
-
-                # dotplot based on tjebo answer from:
-                # https://stackoverflow.com/questions/53697235/ggplot-dotplot-what-is-the-proper-use-of-geom-dotplot
-
-
-                boot <- boot %>%
-                    dplyr::group_by(x.bin) %>%
-                    dplyr::mutate(y = seq_along(x.bin))
-
-                labht <- boot %>%
-                    dplyr::ungroup() %>%
-                    dplyr::summarize(labht = max(y)) %>%
-                    dplyr::pull()
-
-                lab_ht <- max(labht - 1, 3)
-
-                bigx <- boot %>%
-                    dplyr::ungroup() %>%
-                    dplyr::summarize(bigx = max(x.bin)) %>%
-                    dplyr::pull()
-
-                littlex <- boot %>%
-                    dplyr::ungroup() %>%
-                    dplyr::summarize(littlex = min(x.bin)) %>%
-                    dplyr::pull()
-
-                # do not show legend
-                p <- ggplot2::ggplot(boot) +
-                    ggforce::geom_ellipse(aes(x0 = x.bin, y0 = y, a = bw/3, b = 0.5, angle = 0, fill = extreme, color = extreme),
-                                          show.legend = FALSE) +
-                    ggplot2::geom_vline(xintercept = phat, linetype = "dashed", color = "red") +
-                    ggplot2::scale_fill_manual(values = c("black", "#ff8c8c")) +
-                    ggplot2::scale_color_manual(values = c("black", "#ff8c8c")) +
-                    ggplot2::annotate("text", x = phat, y = lab_ht, label = "Observed\nProportion", color = "red") +
-                    ggplot2::theme_minimal() +
-                    ggplot2::ylab("count") +
-                    ggplot2::xlab("proportion") +
-                    ggplot2::ylim(0, lab_ht + 3) +
-                    ggplot2::xlim(min(littlex - bw, phat - bw), max(bigx + bw, phat + bw)) +
-                    ggplot2::coord_equal(ratio = bw*2/3) +
-                    ggplot2::labs(caption = caption) +
-                    ggplot2::theme(text = element_text(size = 14),
-                          plot.caption = element_text(color = "red", hjust = 0))
-
-
-
-            } else {
-
-                closed <- dplyr::if_else(ptail == "lt", "right", "left")
-
-                boot <- boot %>%
-                    dplyr::mutate(extreme = (ptail == "lt" & stat <= phat) | (ptail == "rt" & stat >= phat))
-
-                p <- ggplot2::ggplot(data=boot, aes(x=stat, fill = extreme)) +
-                    ggplot2::geom_histogram(boundary = phat, closed = closed, show.legend = FALSE) +
-                    ggplot2::geom_vline(xintercept=obs_stat, linetype='dashed', color = "red") +
-                    ggplot2::scale_fill_manual(values = c("black", "#ff8c8c")) +
-                    ggplot2::theme_minimal() +
-                    ggplot2::xlab("proportion") +
-                    ggplot2::ylab("count") +
-                    ggplot2::labs(caption = caption) +
-                    ggplot2::theme(text = element_text(size = 14),
-                          plot.caption = element_text(color = "red", hjust = 0))
-
-                yMax <- ggplot2::layer_scales(p)$y$range$range[2]  # upper y-limit
-                p <- p + ggplot2::annotate("text", x = phat, y = yMax, vjust = "top", label = "Observed\nProportion", color = "red")
-            }
-
-
-            return(p)
+            st <- image$state
+            plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
+                           xlab = "proportion",
+                           obs_label = "Observed\nProportion")
         },
 
         #### Helper functions ----
@@ -393,8 +230,6 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
 
         },
         .counts = function(var) {
-
-            initing <- nrow(self$data) == 0
 
             varData <- jmvcore::naOmit(self$data[[var]])
 

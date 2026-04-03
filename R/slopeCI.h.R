@@ -269,20 +269,9 @@ slopeCIBase <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
 #' 
 #'
 #' @examples
-#' data('ToothGrowth')
+#' data('faithful')
 #'
-#' ttestIS(formula = len ~ supp, data = ToothGrowth)
-#'
-#' #
-#' #  INDEPENDENT SAMPLES T-TEST
-#' #
-#' #  Independent Samples T-Test
-#' #  ----------------------------------------------------
-#' #                          statistic    df      p
-#' #  ----------------------------------------------------
-#' #    len    Student's t         1.92    58.0    0.060
-#' #  ----------------------------------------------------
-#' #
+#' slopeCI(dep = eruptions, indep = waiting, data = faithful)
 #'
 #' @param data the data as a data frame
 #' @param dep the dependent variable (not necessary when using a formula, see
@@ -339,14 +328,14 @@ slopeCI <- function(
         stop("slopeCI requires jmvcore to be installed (restart may be required)")
 
     if ( ! missing(formula)) {
-        if (missing(vars))
-            vars <- jmvcore::marshalFormula(
+        if (missing(dep))
+            dep <- jmvcore::marshalFormula(
                 formula=formula,
                 data=`if`( ! missing(data), data, NULL),
                 from="lhs",
                 required=TRUE)
-        if (missing(group))
-            group <- jmvcore::marshalFormula(
+        if (missing(indep))
+            indep <- jmvcore::marshalFormula(
                 formula=formula,
                 data=`if`( ! missing(data), data, NULL),
                 from="rhs",

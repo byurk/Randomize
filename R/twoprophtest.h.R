@@ -232,11 +232,15 @@ TwoPropHTestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
                     "seedBool"),
                 columns=list(
                     list(
+                        `name`="obsDiff", 
+                        `title`="Observed Difference", 
+                        `type`="number"),
+                    list(
                         `name`="reps", 
                         `title`="Reps", 
                         `type`="integer"),
                     list(
-                        `name`="pval", 
+                        `name`="p", 
                         `title`="p-value", 
                         `type`="number", 
                         `format`="zto,pvalue"))))}))

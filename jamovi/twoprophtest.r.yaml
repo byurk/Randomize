@@ -73,11 +73,15 @@ items:
 
 
       columns:
+          - name: obsDiff
+            title: Observed Difference
+            type: number
+
           - name: reps
             title: Reps
             type: integer
 
-          - name: pval
+          - name: p
             title: p-value
             type: number
             format: zto,pvalue
