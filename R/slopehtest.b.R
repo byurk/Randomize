@@ -165,7 +165,7 @@ slopehtestClass <- R6::R6Class(
           .preparePlot = function(perms, b, direction) {
             permplot <- self$results$simplot
             dotHist <- self$options$dotHist
-            permplot$setState(list(df=perms, obs_stat=b, direction=direction, dotHist=dotHist))
+            permplot$setState(list(df=strip_infer(perms), obs_stat=b, direction=direction, dotHist=dotHist))
           },
           .permPlot = function(image, ggtheme, theme, ...) {
             if (is.null(image$state))

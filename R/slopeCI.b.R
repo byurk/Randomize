@@ -184,7 +184,7 @@ slopeCIClass <- R6::R6Class(
             confLevel <- self$options$confLevel
             ciType <- self$options$ciType
 
-            bootplot$setState(list(df=boots, obs_stat=b, confLevel = confLevel, ciType = ciType, dotHist=dotHist))
+            bootplot$setState(list(df=strip_infer(boots), obs_stat=b, confLevel = confLevel, ciType = ciType, dotHist=dotHist))
 
         },
 

@@ -246,7 +246,7 @@ TwoPropHTestClass <- R6::R6Class(
         .preparePlot = function(perms, dp, direction) {
             permplot <- self$results$Plot
             dotHist <- self$options$dotHist
-            permplot$setState(list(df=perms, obs_stat=dp, direction=direction, dotHist=dotHist))
+            permplot$setState(list(df=strip_infer(perms), obs_stat=dp, direction=direction, dotHist=dotHist))
         },
         .permPlot = function(image, ggtheme, theme, ...) {
             if (is.null(image$state))
