@@ -194,6 +194,13 @@ Rscript -e "jmvtools::install()"
 Rscript tests/test_analyses.R
 ```
 
+## Acknowledgments
+
+This package is built on the [Jamovi](https://www.jamovi.org/) module
+framework ([jmvcore](https://github.com/jamovi/jmvcore)). Contingency table
+data-handling code is adapted from the
+[jmv](https://github.com/jamovi/jmv) package. Both are licensed under GPL.
+
 ## License
 
 GPL (>= 3)

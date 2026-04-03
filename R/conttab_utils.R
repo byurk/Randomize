@@ -1,3 +1,7 @@
+# Contingency table data-cleaning patterns in this file are adapted from
+# the jmv package (https://github.com/jamovi/jmv), which is licensed under
+# GPL (>= 2). See jmv/R/conttables.b.R for the original implementation.
+
 #' Contingency table helper utilities
 #'
 #' Shared functions used by twopropCI, twoprophtest, and conttabhtest
