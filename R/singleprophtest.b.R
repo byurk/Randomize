@@ -96,8 +96,7 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
 
             pval <- compute_null_pval(boot, counts[1] / total, direction)
 
-            simres <- list(obsProp = counts[1] / total, reps = reps, p = pval, direction = direction)
-            return(simres)
+            list(obsProp = counts[1] / total, reps = reps, p = pval, direction = direction)
         },
 
         #### Init tables/plots functions ----
@@ -189,7 +188,8 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
             table <- self$results$get('simtable')
             table$deleteRows()
 
-            table$addRow(rowKey=1, values=simres)
+            # Only pass table-defined columns (not direction)
+            table$addRow(rowKey=1, values=simres[c("obsProp", "reps", "p")])
 
         },
 

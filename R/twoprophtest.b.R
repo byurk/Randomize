@@ -209,7 +209,8 @@ TwoPropHTestClass <- R6::R6Class(
             table <- self$results$get('simtable')
             table$deleteRows()
 
-            table$addRow(rowKey=1, values=simres)
+            # Only pass table-defined columns (not direction)
+            table$addRow(rowKey=1, values=simres[c("obsDiff", "reps", "p")])
 
         },
         .populateContTable = function(mat) {
