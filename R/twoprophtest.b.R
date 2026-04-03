@@ -113,7 +113,7 @@ TwoPropHTestClass <- R6::R6Class(
             reps <- self$options$reps
             direction <- map_direction(self$options$hypothesis)
             pval <- compute_null_pval(perms, dp, direction)
-            list(reps = reps, p = pval, direction = direction)
+            list(obsDiff = dp, reps = reps, p = pval, direction = direction)
         },
 
         .computePerms = function(mat){

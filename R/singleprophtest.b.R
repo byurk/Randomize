@@ -96,7 +96,7 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
 
             pval <- compute_null_pval(boot, counts[1] / total, direction)
 
-            simres <- list(reps = reps, p = pval, direction = direction)
+            simres <- list(obsProp = counts[1] / total, reps = reps, p = pval, direction = direction)
             return(simres)
         },
 

@@ -108,9 +108,14 @@ plot.Group <- function(x, which = c("sim", "desc", "line"), ...) {
 #'   \item \code{pairedmeanhtest}: \code{md} (observed mean difference), \code{reps}, \code{p}
 #'   \item \code{multimeanhtest}: \code{oF} (observed F statistic), \code{reps}, \code{p}
 #'   \item \code{slopehtest}: \code{b} (observed slope), \code{reps}, \code{p}
-#'   \item \code{SinglePropHTest}: \code{reps}, \code{p}
-#'   \item \code{TwoPropHTest}: \code{reps}, \code{p}
+#'   \item \code{SinglePropHTest}: \code{obsProp} (observed proportion), \code{reps}, \code{p}
+#'   \item \code{TwoPropHTest}: \code{obsDiff} (observed difference in proportions), \code{reps}, \code{p}
 #'   \item \code{ContTabHTest}: \code{x2} (observed X\eqn{^2}), \code{reps}, \code{p}
+#' }
+#'
+#' \strong{Model-based} (no simulation):
+#' \itemize{
+#'   \item \code{modelBased}: \code{obsStat}, \code{area} (tail area/p-value)
 #' }
 #'
 #' \strong{Confidence intervals} (all include \code{reps}, \code{cil}, \code{ciu}):
@@ -139,7 +144,7 @@ plot.Group <- function(x, which = c("sim", "desc", "line"), ...) {
 #' @export
 results_table <- function(x) {
     # Try result table names in priority order
-    for (nm in c("htest", "CITable", "simtable", "x2tab")) {
+    for (nm in c("htest", "CITable", "simtable", "x2tab", "areaTable")) {
         tbl <- x[[nm]]
         if (!is.null(tbl) && inherits(tbl, "Table")) {
             return(tbl$asDF)

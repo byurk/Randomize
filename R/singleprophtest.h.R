@@ -178,6 +178,11 @@ SinglePropHTestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
                     "seedBool"),
                 columns=list(
                     list(
+                        `name`="obsProp", 
+                        `title`="Proportion", 
+                        `type`="number", 
+                        `format`="zto"),
+                    list(
                         `name`="reps", 
                         `title`="Reps", 
                         `type`="integer"),

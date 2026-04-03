@@ -76,6 +76,11 @@ items:
 
 
       columns:
+          - name: obsProp
+            title: Proportion
+            type: number
+            format: zto
+
           - name: reps
             title: Reps
             type: integer
