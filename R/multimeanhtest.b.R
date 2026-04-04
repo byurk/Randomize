@@ -185,7 +185,8 @@ multimeanhtestClass <- R6::R6Class(
           .preparePlot = function(perms, oF) {
             permplot <- self$results$simplot
             dotHist <- self$options$dotHist
-            permplot$setState(list(df=strip_infer(perms), obs_stat=oF, direction="greater", dotHist=dotHist))
+            permplot$setState(list(df=strip_infer(perms), obs_stat=oF, direction="greater", dotHist=dotHist,
+                                          xlab="F", obs_label="Observed\nF"))
         },
           .permPlot = function(image, ggtheme, theme, ...) {
             if (is.null(image$state))

@@ -215,7 +215,8 @@ SinglePropCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
 
             obs_stat <- counts[1] / total
 
-            bootplot$setState(list(df=strip_infer(boot), obs_stat=obs_stat, confLevel = confLevel, ciType = ciType, dotHist=dotHist))
+            bootplot$setState(list(df=strip_infer(boot), obs_stat=obs_stat, confLevel = confLevel, ciType = ciType, dotHist=dotHist,
+                                          xlab="proportion", stat_label="bootstrap proportions", clamp=c(0, 1)))
 
         },
         .bootPlot = function(image, ggtheme, theme, ...) {

@@ -263,6 +263,106 @@ test("clean data", {
     stopifnot(tbl$p >= 0 && tbl$p <= 1)
 })
 
+# ============================================================
+# Plot display toggle tests
+# ============================================================
+
+assert_is_ggplot <- function(p) {
+    if (!inherits(p, "ggplot"))
+        stop(paste("Expected ggplot, got", paste(class(p), collapse = ", ")))
+}
+
+count_layers <- function(p, geom_class) {
+    sum(vapply(p$layers, function(l) inherits(l$geom, geom_class), logical(1)))
+}
+
+has_caption <- function(p) {
+    cap <- p$labels$caption
+    !is.null(cap) && nzchar(cap)
+}
+
+cat("\n=== Testing plot() display toggles (hypothesis test) ===\n")
+test("default plot returns ggplot", {
+    r <- twomeanhtest(data = clean_data, vars = "score", group = "group",
+                      hypothesis = "different", reps = 500,
+                      dotHist = "histogram", seedBool = TRUE, rngSeed = 123)
+    p <- plot(r)
+    assert_is_ggplot(p)
+    stopifnot(count_layers(p, "GeomVline") >= 1)
+    stopifnot(has_caption(p))
+})
+test("show_text = FALSE keeps lines and shading, removes text", {
+    r <- twomeanhtest(data = clean_data, vars = "score", group = "group",
+                      hypothesis = "different", reps = 500,
+                      dotHist = "histogram", seedBool = TRUE, rngSeed = 123)
+    p <- plot(r, show_text = FALSE)
+    assert_is_ggplot(p)
+    stopifnot(count_layers(p, "GeomVline") >= 1)
+    stopifnot(count_layers(p, "GeomText") == 0)
+    stopifnot(!has_caption(p))
+})
+test("show_lines = FALSE gives bare distribution", {
+    r <- twomeanhtest(data = clean_data, vars = "score", group = "group",
+                      hypothesis = "different", reps = 500,
+                      dotHist = "histogram", seedBool = TRUE, rngSeed = 123)
+    p <- plot(r, show_lines = FALSE)
+    assert_is_ggplot(p)
+    stopifnot(count_layers(p, "GeomVline") == 0)
+    stopifnot(count_layers(p, "GeomText") == 0)
+    stopifnot(!has_caption(p))
+})
+test("dotplot variant with toggles", {
+    r <- twomeanhtest(data = clean_data, vars = "score", group = "group",
+                      hypothesis = "different", reps = 500,
+                      dotHist = "dotplot", seedBool = TRUE, rngSeed = 123)
+    p_full <- plot(r)
+    p_bare <- plot(r, show_lines = FALSE)
+    assert_is_ggplot(p_full)
+    assert_is_ggplot(p_bare)
+    stopifnot(count_layers(p_full, "GeomVline") >= 1)
+    stopifnot(count_layers(p_bare, "GeomVline") == 0)
+})
+
+cat("\n=== Testing plot() display toggles (bootstrap CI) ===\n")
+test("default plot returns ggplot", {
+    r <- twomeanCI(data = clean_data, vars = "score", group = "group",
+                   reps = 500, confLevel = 95, ciType = "bootperc",
+                   dotHist = "histogram", seedBool = TRUE, rngSeed = 123)
+    p <- plot(r)
+    assert_is_ggplot(p)
+    stopifnot(count_layers(p, "GeomVline") >= 1)
+    stopifnot(has_caption(p))
+})
+test("show_lines = FALSE gives bare distribution", {
+    r <- twomeanCI(data = clean_data, vars = "score", group = "group",
+                   reps = 500, confLevel = 95, ciType = "bootperc",
+                   dotHist = "histogram", seedBool = TRUE, rngSeed = 123)
+    p <- plot(r, show_lines = FALSE)
+    assert_is_ggplot(p)
+    stopifnot(count_layers(p, "GeomVline") == 0)
+    stopifnot(!has_caption(p))
+})
+test("show_text = FALSE keeps lines, removes caption", {
+    r <- twomeanCI(data = clean_data, vars = "score", group = "group",
+                   reps = 500, confLevel = 95, ciType = "bootperc",
+                   dotHist = "histogram", seedBool = TRUE, rngSeed = 123)
+    p <- plot(r, show_text = FALSE)
+    assert_is_ggplot(p)
+    stopifnot(!has_caption(p))
+    stopifnot(count_layers(p, "GeomVline") >= 1)
+})
+test("dotplot variant with toggles", {
+    r <- twomeanCI(data = clean_data, vars = "score", group = "group",
+                   reps = 500, confLevel = 95, ciType = "bootperc",
+                   dotHist = "dotplot", seedBool = TRUE, rngSeed = 123)
+    p_full <- plot(r)
+    p_bare <- plot(r, show_lines = FALSE)
+    assert_is_ggplot(p_full)
+    assert_is_ggplot(p_bare)
+    stopifnot(count_layers(p_full, "GeomVline") >= 1)
+    stopifnot(count_layers(p_bare, "GeomVline") == 0)
+})
+
 cat("\n\n============================\n")
 cat("Results:", passed, "passed,", failed, "failed\n")
 cat("============================\n\n")

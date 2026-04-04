@@ -78,6 +78,10 @@ compute_boot_ci <- function(boot, obs_stat, conf_level, ci_type,
 #' @param xlab Label for the x-axis (e.g. \code{"mean"}, \code{"slope"}).
 #' @param stat_label Descriptive label for the caption (e.g.
 #'   \code{"bootstrap means"}).
+#' @param show_lines Logical; if \code{FALSE}, omit the dashed vertical lines
+#'   marking the CI bounds. Default \code{TRUE}.
+#' @param show_caption Logical; if \code{FALSE}, omit the caption explaining
+#'   how the CI was constructed. Default \code{TRUE}.
 #'
 #' @return A \code{ggplot} object.
 #'
@@ -86,7 +90,9 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
                            dotHist = c("dotplot", "histogram"),
                            xlab = "statistic",
                            stat_label = "bootstrap statistics",
-                           clamp = NULL) {
+                           clamp = NULL,
+                           show_lines = TRUE,
+                           show_caption = TRUE) {
     dotHist <- match.arg(dotHist)
     ci <- compute_boot_ci(boot, obs_stat, conf_level, ci_type, clamp)
     cil <- ci$cil
@@ -138,28 +144,30 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
         p <- ggplot2::ggplot(boot) +
             ggforce::geom_ellipse(ggplot2::aes(x0 = x.bin, y0 = y, a = bw / 3, b = 0.5, angle = 0),
                                   show.legend = FALSE) +
-            ggplot2::geom_vline(xintercept = c(cila, ciua), linetype = "dashed", color = "red") +
             ggplot2::theme_minimal() +
             ggplot2::ylab("count") +
             ggplot2::xlab(xlab) +
             ggplot2::coord_equal(ratio = bw * 2 / 3) +
-            ggplot2::labs(caption = caption) +
-            ggplot2::theme(
-                text = ggplot2::element_text(size = 14),
-                plot.caption = ggplot2::element_text(color = "red", hjust = 0)
-            )
+            ggplot2::theme(text = ggplot2::element_text(size = 14))
+
+        if (show_lines)
+            p <- p + ggplot2::geom_vline(xintercept = c(cila, ciua), linetype = "dashed", color = "red")
+        if (show_caption)
+            p <- p + ggplot2::labs(caption = caption) +
+                ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))
     } else {
         p <- ggplot2::ggplot(boot, ggplot2::aes(x = stat)) +
             ggplot2::geom_histogram(center = obs_stat, show.legend = FALSE) +
-            ggplot2::geom_vline(xintercept = c(cil, ciu), linetype = "dashed", color = "red") +
             ggplot2::theme_minimal() +
             ggplot2::xlab(xlab) +
             ggplot2::ylab("count") +
-            ggplot2::labs(caption = caption) +
-            ggplot2::theme(
-                text = ggplot2::element_text(size = 14),
-                plot.caption = ggplot2::element_text(color = "red", hjust = 0)
-            )
+            ggplot2::theme(text = ggplot2::element_text(size = 14))
+
+        if (show_lines)
+            p <- p + ggplot2::geom_vline(xintercept = c(cil, ciu), linetype = "dashed", color = "red")
+        if (show_caption)
+            p <- p + ggplot2::labs(caption = caption) +
+                ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))
     }
 
     p
