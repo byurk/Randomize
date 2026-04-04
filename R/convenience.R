@@ -113,7 +113,7 @@ plot.Group <- function(x, which = c("sim", "desc", "line"),
         plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                        xlab = st$xlab, obs_label = st$obs_label,
                        show_line = show_lines,
-                       show_label = show_text,
+                       show_label = show_lines && show_text,
                        show_caption = show_text)
     } else if (!is.null(st$confLevel)) {
         # Bootstrap distribution (CI)

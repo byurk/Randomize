@@ -291,13 +291,14 @@ test("default plot returns ggplot", {
     stopifnot(count_layers(p, "GeomVline") >= 1)
     stopifnot(has_caption(p))
 })
-test("show_lines = FALSE removes vline", {
+test("show_lines = FALSE removes vline and label", {
     r <- twomeanhtest(data = clean_data, vars = "score", group = "group",
                       hypothesis = "different", reps = 500,
                       dotHist = "histogram", seedBool = TRUE, rngSeed = 123)
     p <- plot(r, show_lines = FALSE)
     assert_is_ggplot(p)
     stopifnot(count_layers(p, "GeomVline") == 0)
+    stopifnot(count_layers(p, "GeomText") == 0)
     stopifnot(has_caption(p))
 })
 test("show_text = FALSE removes text and caption", {
