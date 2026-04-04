@@ -107,6 +107,8 @@ compute_null_pval <- function(perms, obs_stat, direction) {
 #'   labelling the observed statistic. Default \code{TRUE}.
 #' @param show_caption Logical; if \code{FALSE}, omit the caption explaining
 #'   how the p-value is calculated. Default \code{TRUE}.
+#' @param show_tail Logical; if \code{FALSE}, do not shade the tail region
+#'   used for the p-value calculation. Default \code{TRUE}.
 #'
 #' @return A \code{ggplot} object.
 #'
@@ -117,7 +119,8 @@ plot_null_dist <- function(perms, obs_stat, direction,
                            obs_label = "Observed\nStatistic",
                            show_line = TRUE,
                            show_label = TRUE,
-                           show_caption = TRUE) {
+                           show_caption = TRUE,
+                           show_tail = TRUE) {
     dotHist <- match.arg(dotHist)
 
     if (direction == "less") {
@@ -160,7 +163,7 @@ plot_null_dist <- function(perms, obs_stat, direction,
         }
 
         perms <- perms |>
-            dplyr::mutate(extreme = (ptail == "lt" & stat <= obs_stat) | (ptail == "rt" & stat >= obs_stat)) |>
+            dplyr::mutate(extreme = show_tail & ((ptail == "lt" & stat <= obs_stat) | (ptail == "rt" & stat >= obs_stat))) |>
             dplyr::group_by(x.bin) |>
             dplyr::mutate(y = seq_along(x.bin)) |>
             dplyr::ungroup()
@@ -196,7 +199,7 @@ plot_null_dist <- function(perms, obs_stat, direction,
     } else {
         closed <- ifelse(ptail == "lt", "right", "left")
         perms <- perms |>
-            dplyr::mutate(extreme = (ptail == "lt" & stat <= obs_stat) | (ptail == "rt" & stat >= obs_stat))
+            dplyr::mutate(extreme = show_tail & ((ptail == "lt" & stat <= obs_stat) | (ptail == "rt" & stat >= obs_stat)))
         p <- ggplot2::ggplot(perms, ggplot2::aes(x = stat, fill = extreme)) +
             ggplot2::geom_histogram(boundary = obs_stat, closed = closed, show.legend = FALSE) +
             ggplot2::scale_fill_manual(values = c("FALSE" = "black", "TRUE" = "#ff8c8c")) +

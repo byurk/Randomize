@@ -61,16 +61,16 @@ Shared logic lives in utility files:
 - **Tests**: 29 automated tests covering all 13 resampling analyses + plot display toggles
 
 ## Plot display toggles (feature/plot-display-toggles branch)
-When using Randomize as an R package for slides/assessments, `plot()` supports hiding elements so students can estimate values themselves:
+When using Randomize as an R package for slides/assessments, `plot()` supports three display modes so students can estimate values themselves:
 
 ```r
-plot(r)                                        # full plot (Jamovi default)
-plot(r, show_lines = FALSE)                    # hide dashed vertical lines
-plot(r, show_text = FALSE)                     # hide annotations + caption
-plot(r, show_lines = FALSE, show_text = FALSE) # bare distribution only
+plot(r)                     # full (Jamovi default): lines, text, shading
+plot(r, show_text = FALSE)  # lines + tail shading, no text/caption
+plot(r, show_lines = FALSE) # bare distribution only
 ```
 
-- `show_lines` controls dashed vertical lines (CI bounds on bootstrap plots, observed statistic on null distribution plots)
-- `show_text` controls text annotations (observed-value labels) and captions (p-value/CI hints)
+- **Full** (default): dashed lines, text labels, captions, and tail shading (null dist)
+- **No text** (`show_text = FALSE`): removes text annotations and captions; keeps dashed lines and tail shading
+- **Bare** (`show_lines = FALSE`): removes everything — lines, labels, captions, and tail shading
 - Jamovi module behavior is unchanged — toggles only apply when calling `plot()` from R
-- Underlying utility functions (`plot_null_dist()`, `plot_boot_dist()`) also accept fine-grained params (`show_line`, `show_label`, `show_caption` / `show_lines`, `show_caption`)
+- Underlying utility functions (`plot_null_dist()`, `plot_boot_dist()`) also accept fine-grained params (`show_line`, `show_label`, `show_caption`, `show_tail` / `show_lines`, `show_caption`)

@@ -53,11 +53,12 @@ find_image <- function(x, which) {
 #'   \code{"sim"} (default) for the simulation/bootstrap distribution,
 #'   \code{"desc"} for the descriptive means/medians plot,
 #'   \code{"line"} for the regression scatterplot
-#' @param show_lines Logical; if \code{FALSE}, omit dashed vertical lines
-#'   (CI bounds on bootstrap plots, observed statistic on null distribution
-#'   plots). Default \code{TRUE}. Only applies to \code{which = "sim"}.
+#' @param show_lines Logical; if \code{FALSE}, produce a bare distribution
+#'   with no dashed lines, no text, no captions, and (for null distributions)
+#'   no tail shading. Default \code{TRUE}. Only applies to
+#'   \code{which = "sim"}.
 #' @param show_text Logical; if \code{FALSE}, omit text annotations and
-#'   captions (observed-value labels and p-value/CI hints). Default
+#'   captions while keeping dashed lines and tail shading. Default
 #'   \code{TRUE}. Only applies to \code{which = "sim"}.
 #' @param ... Additional arguments (ignored)
 #'
@@ -69,10 +70,9 @@ find_image <- function(x, which) {
 #' r <- twomeanhtest(data = d, vars = "score", group = "group",
 #'                   hypothesis = "different", reps = 1000,
 #'                   dotHist = "histogram", seedBool = TRUE, rngSeed = 42)
-#' plot(r)                                        # full plot (default)
-#' plot(r, show_lines = FALSE)                    # hide observed stat line
-#' plot(r, show_text = FALSE)                     # hide label + caption
-#' plot(r, show_lines = FALSE, show_text = FALSE) # bare distribution
+#' plot(r)                     # full plot (default, same as Jamovi)
+#' plot(r, show_text = FALSE)  # lines + shading, no text/caption
+#' plot(r, show_lines = FALSE) # bare distribution only
 #' plot(r, "desc")      # means/medians by group (requires desc=TRUE, plots=TRUE)
 #' }
 #'
@@ -110,19 +110,22 @@ plot.Group <- function(x, which = c("sim", "desc", "line"),
 
     if (!is.null(st$direction)) {
         # Null distribution (hypothesis test)
+        # show_lines=FALSE triggers bare mode: no lines, label, caption, or tail
         plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                        xlab = st$xlab, obs_label = st$obs_label,
                        show_line = show_lines,
                        show_label = show_lines && show_text,
-                       show_caption = show_text)
+                       show_caption = show_lines && show_text,
+                       show_tail = show_lines)
     } else if (!is.null(st$confLevel)) {
         # Bootstrap distribution (CI)
+        # show_lines=FALSE triggers bare mode: no lines or caption
         plot_boot_dist(st$df, st$obs_stat, st$confLevel, st$ciType,
                        st$dotHist, xlab = st$xlab,
                        stat_label = st$stat_label,
                        clamp = st$clamp,
                        show_lines = show_lines,
-                       show_caption = show_text)
+                       show_caption = show_lines && show_text)
     } else {
         # Fallback to callback for unknown plot types
         img$plot$fun()
