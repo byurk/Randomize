@@ -58,7 +58,7 @@ Shared logic lives in utility files:
 - **`strip_infer()`**: Strips bloated `infer` tibble attributes (~240 KB formula environments) before `setState()` to prevent Jamovi's frontend from hanging
 - **Convenience API**: `results_table()`, `desc_table()`, `plot()` for programmatic R/Quarto use
 - **Consistent column names**: p-value is always `p`, CI bounds are `cil`/`ciu` across all analyses
-- **Tests**: 20 automated tests covering all 13 resampling analyses
+- **Tests**: 29 automated tests covering all 13 resampling analyses + plot display toggles
 
 ## Plot display toggles (feature/plot-display-toggles branch)
 When using Randomize as an R package for slides/assessments, `plot()` supports hiding elements so students can estimate values themselves:
