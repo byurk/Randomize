@@ -218,7 +218,8 @@ ContTabHTestClass <- R6::R6Class(
         .preparePlot = function(perms, x2) {
             permplot <- self$results$Plot
             dotHist <- self$options$dotHist
-            permplot$setState(list(df=strip_infer(perms), obs_stat=as.numeric(x2), direction="greater", dotHist=dotHist))
+            permplot$setState(list(df=strip_infer(perms), obs_stat=as.numeric(x2), direction="greater", dotHist=dotHist,
+                                          xlab="X\u00B2", obs_label="Observed\nX\u00B2"))
         },
         .permPlot = function(image, ggtheme, theme, ...) {
             if (is.null(image$state))

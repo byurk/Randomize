@@ -256,7 +256,8 @@ TwoPropCIClass <- R6::R6Class(
             confLevel <- self$options$confLevel
             ciType <- self$options$ciType
 
-            bootplot$setState(list(df=strip_infer(boots), obs_stat=dp, confLevel = confLevel, ciType = ciType, dotHist=dotHist))
+            bootplot$setState(list(df=strip_infer(boots), obs_stat=dp, confLevel = confLevel, ciType = ciType, dotHist=dotHist,
+                                          xlab="difference (group 1 - group 2)", stat_label="bootstrap differences"))
 
         },
         .bootPlot = function(image, ggtheme, theme, ...) {

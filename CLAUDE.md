@@ -16,7 +16,7 @@ A Jamovi module and R package for teaching randomization-based inference in intr
 - `R/*_utils.R` — shared utility functions (bootstrap, permutation, contingency table, descriptive plot)
 - `R/convenience.R` — plot(), results_table(), desc_table() for R/Quarto usage
 - `jamovi/*.yaml` — Jamovi UI definitions (.a.yaml = options, .r.yaml = results, .u.yaml = unit specs)
-- `tests/test_analyses.R` — 20 tests covering all 13 resampling analyses
+- `tests/test_analyses.R` — 29 tests covering all 13 resampling analyses + plot display toggles
 
 ## Build & test
 ```bash
@@ -59,3 +59,18 @@ Shared logic lives in utility files:
 - **Convenience API**: `results_table()`, `desc_table()`, `plot()` for programmatic R/Quarto use
 - **Consistent column names**: p-value is always `p`, CI bounds are `cil`/`ciu` across all analyses
 - **Tests**: 20 automated tests covering all 13 resampling analyses
+
+## Plot display toggles (feature/plot-display-toggles branch)
+When using Randomize as an R package for slides/assessments, `plot()` supports hiding elements so students can estimate values themselves:
+
+```r
+plot(r)                                        # full plot (Jamovi default)
+plot(r, show_lines = FALSE)                    # hide dashed vertical lines
+plot(r, show_text = FALSE)                     # hide annotations + caption
+plot(r, show_lines = FALSE, show_text = FALSE) # bare distribution only
+```
+
+- `show_lines` controls dashed vertical lines (CI bounds on bootstrap plots, observed statistic on null distribution plots)
+- `show_text` controls text annotations (observed-value labels) and captions (p-value/CI hints)
+- Jamovi module behavior is unchanged — toggles only apply when calling `plot()` from R
+- Underlying utility functions (`plot_null_dist()`, `plot_boot_dist()`) also accept fine-grained params (`show_line`, `show_label`, `show_caption` / `show_lines`, `show_caption`)

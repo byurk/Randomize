@@ -101,6 +101,12 @@ compute_null_pval <- function(perms, obs_stat, direction) {
 #' @param xlab Label for the x-axis (e.g. \code{"difference (group 1 - group 2)"}).
 #' @param obs_label Annotation text placed at the observed statistic line
 #'   (e.g. \code{"Observed\\nDifference"}).
+#' @param show_line Logical; if \code{FALSE}, omit the dashed vertical line
+#'   at the observed statistic. Default \code{TRUE}.
+#' @param show_label Logical; if \code{FALSE}, omit the text annotation
+#'   labelling the observed statistic. Default \code{TRUE}.
+#' @param show_caption Logical; if \code{FALSE}, omit the caption explaining
+#'   how the p-value is calculated. Default \code{TRUE}.
 #'
 #' @return A \code{ggplot} object.
 #'
@@ -108,7 +114,10 @@ compute_null_pval <- function(perms, obs_stat, direction) {
 plot_null_dist <- function(perms, obs_stat, direction,
                            dotHist = c("dotplot", "histogram"),
                            xlab = "statistic",
-                           obs_label = "Observed\nStatistic") {
+                           obs_label = "Observed\nStatistic",
+                           show_line = TRUE,
+                           show_label = TRUE,
+                           show_caption = TRUE) {
     dotHist <- match.arg(dotHist)
 
     if (direction == "less") {
@@ -167,39 +176,44 @@ plot_null_dist <- function(perms, obs_stat, direction,
             ggforce::geom_ellipse(ggplot2::aes(x0 = x.bin, y0 = y, a = bw / 3, b = 0.5, angle = 0,
                                                fill = extreme, color = extreme),
                                   show.legend = FALSE) +
-            ggplot2::geom_vline(xintercept = obs_stat, linetype = "dashed", color = "red") +
             ggplot2::scale_fill_manual(values = c("FALSE" = "black", "TRUE" = "#ff8c8c")) +
             ggplot2::scale_color_manual(values = c("FALSE" = "black", "TRUE" = "#ff8c8c")) +
-            ggplot2::annotate("text", x = obs_stat, y = lab_ht, label = obs_label, color = "red") +
             ggplot2::theme_minimal() +
             ggplot2::ylab("count") +
             ggplot2::xlab(xlab) +
             ggplot2::ylim(0, lab_ht + 3) +
             ggplot2::xlim(x_lo, x_hi) +
             ggplot2::coord_equal(ratio = bw * 2 / 3) +
-            ggplot2::labs(caption = caption) +
-            ggplot2::theme(
-                text = ggplot2::element_text(size = 14),
-                plot.caption = ggplot2::element_text(color = "red", hjust = 0)
-            )
+            ggplot2::theme(text = ggplot2::element_text(size = 14))
+
+        if (show_line)
+            p <- p + ggplot2::geom_vline(xintercept = obs_stat, linetype = "dashed", color = "red")
+        if (show_label)
+            p <- p + ggplot2::annotate("text", x = obs_stat, y = lab_ht, label = obs_label, color = "red")
+        if (show_caption)
+            p <- p + ggplot2::labs(caption = caption) +
+                ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))
     } else {
         closed <- ifelse(ptail == "lt", "right", "left")
         perms <- perms |>
             dplyr::mutate(extreme = (ptail == "lt" & stat <= obs_stat) | (ptail == "rt" & stat >= obs_stat))
         p <- ggplot2::ggplot(perms, ggplot2::aes(x = stat, fill = extreme)) +
             ggplot2::geom_histogram(boundary = obs_stat, closed = closed, show.legend = FALSE) +
-            ggplot2::geom_vline(xintercept = obs_stat, linetype = "dashed", color = "red") +
             ggplot2::scale_fill_manual(values = c("FALSE" = "black", "TRUE" = "#ff8c8c")) +
             ggplot2::theme_minimal() +
             ggplot2::xlab(xlab) +
             ggplot2::ylab("count") +
-            ggplot2::labs(caption = caption) +
-            ggplot2::theme(
-                text = ggplot2::element_text(size = 14),
-                plot.caption = ggplot2::element_text(color = "red", hjust = 0)
-            )
-        yMax <- ggplot2::layer_scales(p)$y$range$range[2]
-        p <- p + ggplot2::annotate("text", x = obs_stat, y = yMax, vjust = "top", label = obs_label, color = "red")
+            ggplot2::theme(text = ggplot2::element_text(size = 14))
+
+        if (show_line)
+            p <- p + ggplot2::geom_vline(xintercept = obs_stat, linetype = "dashed", color = "red")
+        if (show_caption)
+            p <- p + ggplot2::labs(caption = caption) +
+                ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))
+        if (show_label) {
+            yMax <- ggplot2::layer_scales(p)$y$range$range[2]
+            p <- p + ggplot2::annotate("text", x = obs_stat, y = yMax, vjust = "top", label = obs_label, color = "red")
+        }
     }
     p
 }

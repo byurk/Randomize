@@ -200,7 +200,8 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
             resp <- self$options$resp
             results <- private$.counts(resp)
             obs_stat <- results$counts[1] / results$total
-            bootplot$setState(list(df=strip_infer(boot), obs_stat=obs_stat, direction=direction, dotHist=dotHist))
+            bootplot$setState(list(df=strip_infer(boot), obs_stat=obs_stat, direction=direction, dotHist=dotHist,
+                                          xlab="proportion", obs_label="Observed\nProportion"))
         },
         .bootPlot = function(image, ggtheme, theme, ...) {
             if (is.null(image$state))

@@ -53,6 +53,12 @@ find_image <- function(x, which) {
 #'   \code{"sim"} (default) for the simulation/bootstrap distribution,
 #'   \code{"desc"} for the descriptive means/medians plot,
 #'   \code{"line"} for the regression scatterplot
+#' @param show_lines Logical; if \code{FALSE}, omit dashed vertical lines
+#'   (CI bounds on bootstrap plots, observed statistic on null distribution
+#'   plots). Default \code{TRUE}. Only applies to \code{which = "sim"}.
+#' @param show_text Logical; if \code{FALSE}, omit text annotations and
+#'   captions (observed-value labels and p-value/CI hints). Default
+#'   \code{TRUE}. Only applies to \code{which = "sim"}.
 #' @param ... Additional arguments (ignored)
 #'
 #' @return A ggplot object
@@ -63,12 +69,16 @@ find_image <- function(x, which) {
 #' r <- twomeanhtest(data = d, vars = "score", group = "group",
 #'                   hypothesis = "different", reps = 1000,
 #'                   dotHist = "histogram", seedBool = TRUE, rngSeed = 42)
-#' plot(r)              # permutation distribution
+#' plot(r)                                        # full plot (default)
+#' plot(r, show_lines = FALSE)                    # hide observed stat line
+#' plot(r, show_text = FALSE)                     # hide label + caption
+#' plot(r, show_lines = FALSE, show_text = FALSE) # bare distribution
 #' plot(r, "desc")      # means/medians by group (requires desc=TRUE, plots=TRUE)
 #' }
 #'
 #' @export
-plot.Group <- function(x, which = c("sim", "desc", "line"), ...) {
+plot.Group <- function(x, which = c("sim", "desc", "line"),
+                       show_lines = TRUE, show_text = TRUE, ...) {
     which <- match.arg(which)
     img <- find_image(x, which)
 
@@ -90,7 +100,33 @@ plot.Group <- function(x, which = c("sim", "desc", "line"), ...) {
              "For 'line' plots, re-run with plots=TRUE.")
     }
 
-    img$plot$fun()
+    # For non-sim plots, or when all defaults, use the existing callback
+    if (which != "sim" || (show_lines && show_text)) {
+        return(img$plot$fun())
+    }
+
+    # Call utility functions directly with display toggles
+    st <- img$state
+
+    if (!is.null(st$direction)) {
+        # Null distribution (hypothesis test)
+        plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
+                       xlab = st$xlab, obs_label = st$obs_label,
+                       show_line = show_lines,
+                       show_label = show_text,
+                       show_caption = show_text)
+    } else if (!is.null(st$confLevel)) {
+        # Bootstrap distribution (CI)
+        plot_boot_dist(st$df, st$obs_stat, st$confLevel, st$ciType,
+                       st$dotHist, xlab = st$xlab,
+                       stat_label = st$stat_label,
+                       clamp = st$clamp,
+                       show_lines = show_lines,
+                       show_caption = show_text)
+    } else {
+        # Fallback to callback for unknown plot types
+        img$plot$fun()
+    }
 }
 
 # ---- Table extraction helpers ----

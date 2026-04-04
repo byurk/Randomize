@@ -148,7 +148,8 @@ SingleMeanCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
 
             obs_stat <- xbar
 
-            bootplot$setState(list(df=strip_infer(boot), obs_stat=obs_stat, confLevel = confLevel, ciType = ciType, dotHist=dotHist))
+            bootplot$setState(list(df=strip_infer(boot), obs_stat=obs_stat, confLevel = confLevel, ciType = ciType, dotHist=dotHist,
+                                          xlab="mean", stat_label="bootstrap means"))
 
         },
         .bootPlot = function(image, ggtheme, theme, ...) {
