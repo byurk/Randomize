@@ -16,7 +16,9 @@ A Jamovi module and R package for teaching randomization-based inference in intr
 - `R/*_utils.R` — shared utility functions (bootstrap, permutation, contingency table, descriptive plot)
 - `R/convenience.R` — plot(), results_table(), desc_table() for R/Quarto usage
 - `jamovi/*.yaml` — Jamovi UI definitions (.a.yaml = options, .r.yaml = results, .u.yaml = unit specs)
-- `tests/test_analyses.R` — 29 tests covering all 13 resampling analyses + plot display toggles
+- `tests/test_analyses.R` — 28 tests covering all 13 resampling analyses + plot display toggles
+- `tests/test_plot_invariants.R` — 65 tests asserting the drawn plot geometry (via `ggplot_build`): side purity at the observed value, count conservation, toggle stability, CI lines never slicing bars
+- `tests/visual/` — visual regression harness; `Rscript tests/visual/generate_plots.R <tag>` renders every scenario to `tests/visual/out/<tag>/` (gitignored) for eyeball inspection
 
 ## Build & test
 ```bash
@@ -74,3 +76,27 @@ plot(r, show_lines = FALSE) # bare distribution only
 - **Bare** (`show_lines = FALSE`): removes everything — lines, labels, captions, and tail shading
 - Jamovi module behavior is unchanged — toggles only apply when calling `plot()` from R
 - Underlying utility functions (`plot_null_dist()`, `plot_boot_dist()`) also accept fine-grained params (`show_line`, `show_label`, `show_caption`, `show_tail` / `show_lines`, `show_caption`)
+
+## Plot binning rework (fix/plot-quality branch)
+Distribution plots previously produced histograms with irregular gaps/widths
+(binwidth aliasing against discrete statistics) and dotplots with a crushed
+x-axis (`coord_equal` vs tall stacks). Reworked in `R/binning_utils.R`:
+
+- **Discreteness-aware binwidth** (`choose_binning()`): detects when statistics
+  lie on a lattice (proportions = k/n) — robust to one-ulp floating-point
+  phantom duplicates — and snaps binwidth to an integer multiple of the lattice
+  spacing; occupancy + sawtooth heuristics widen bins for irregular discrete
+  stats (chi-square); target bin count scales with rep count (~2*sqrt(n), max 30).
+- **Pedagogical invariant enforced by construction**: bins are anchored with an
+  edge exactly at the observed statistic, and each simulation's extreme flag
+  (the same `>=`/`<=` comparison as the p-value) clamps it to its own side, so
+  no bar ever mixes extreme/non-extreme values and shaded bars sit entirely
+  beyond the observed-value line — regardless of floating-point edge cases.
+- Bars drawn manually (`geom_rect`) from computed bins; dotplots stack dots at
+  bin centers without `coord_equal` (dots auto-flatten for tall stacks instead
+  of squeezing the axis). Observed-value label justifies inward near panel edges.
+- Bootstrap bins are centered on the observed statistic; for lattice data the
+  drawn CI lines snap outward to the nearest bin edge so they never slice a bar
+  (display only — reported CI values unchanged).
+- Bare/no-text toggle modes draw bars at identical positions to the full plot
+  (verified by tests), so "estimate then reveal" slide sequences line up.

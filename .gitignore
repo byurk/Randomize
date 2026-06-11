@@ -60,3 +60,6 @@ npm-debug.log
 inst/doc
 tests/testthat/Rplots.pdf
 Rplots.pdf
+
+# visual test renders
+tests/visual/out/

@@ -96,6 +96,14 @@ compute_null_pval <- function(perms, obs_stat, direction) {
 #' The tail used for the p-value is shaded in red, with a caption
 #' explaining the calculation.
 #'
+#' Bins are anchored so that one bin edge falls exactly at the observed
+#' statistic and each simulated value is clamped to the bins on its own
+#' side, so no bar (or dot stack) ever mixes values that count toward the
+#' p-value with values that do not, and the shaded bars always lie
+#' entirely beyond the observed-value line.  The bin width adapts to the
+#' discreteness of the statistics (see \code{\link{choose_binning}}) so
+#' bars stay contiguous and evenly spaced.
+#'
 #' @inheritParams compute_null_pval
 #' @param dotHist Either \code{"dotplot"} or \code{"histogram"}.
 #' @param xlab Label for the x-axis (e.g. \code{"difference (group 1 - group 2)"}).
@@ -140,83 +148,87 @@ plot_null_dist <- function(perms, obs_stat, direction,
             caption <- "Two-sided: p-val is 2\u00D7 proportion of\n results \u2265 observed value"
     }
 
+    sgn <- if (ptail == "lt") -1 else 1
+
+    # Same comparison used for the p-value; this flag (not floating-point
+    # bin arithmetic) decides which side of the line a value is drawn on.
+    extreme <- if (ptail == "lt") perms$stat <= obs_stat else perms$stat >= obs_stat
+
+    b <- choose_binning(perms$stat, obs_stat, align = "edge", sign = sgn)
+    idx <- bin_index(perms$stat, obs_stat, b$bw, b$off, sgn, "edge")
+    idx[extreme] <- pmax(idx[extreme], 0L)
+    idx[!extreme] <- pmin(idx[!extreme], -1L)
+
+    fill <- extreme & show_tail
+
+    bars <- data.frame(idx = idx, fill = fill) |>
+        dplyr::count(idx, fill)
+    xr <- bin_xrange(bars$idx, obs_stat, b$bw, sgn, "edge")
+    bars$xmin <- xr$xmin
+    bars$xmax <- xr$xmax
+    bars$mid <- xr$mid
+
+    pad <- 0.03 * (max(bars$xmax, obs_stat) - min(bars$xmin, obs_stat))
+    xlims <- c(min(bars$xmin, obs_stat) - pad, max(bars$xmax, obs_stat) + pad)
+
+    fill_scale <- ggplot2::scale_fill_manual(
+        values = c("FALSE" = "black", "TRUE" = "#ff8c8c"), guide = "none")
+
     if (dotHist == "dotplot") {
-        ndist <- dplyr::n_distinct(perms$stat)
-        bw <- perms |>
-            dplyr::summarize(min = min(stat), max = max(stat)) |>
-            dplyr::mutate(bw = (max - min) / 30) |>
-            dplyr::pull(bw)
-
-        # Guard against zero bin width (all values identical)
-        if (bw == 0) bw <- abs(obs_stat) * 0.01 + 0.001
-
-        if (ndist <= 30) {
-            perms <- perms |> dplyr::mutate(x.bin = stat)
-        } else {
-            if (ptail == "lt") {
-                perms <- perms |>
-                    dplyr::mutate(x.bin = obs_stat - ((obs_stat - stat) %/% bw) * bw)
-            } else {
-                perms <- perms |>
-                    dplyr::mutate(x.bin = obs_stat + ((stat - obs_stat) %/% bw) * bw)
-            }
-        }
-
-        perms <- perms |>
-            dplyr::mutate(extreme = show_tail & ((ptail == "lt" & stat <= obs_stat) | (ptail == "rt" & stat >= obs_stat))) |>
-            dplyr::group_by(x.bin) |>
-            dplyr::mutate(y = seq_along(x.bin)) |>
+        dots <- data.frame(idx = idx, fill = fill) |>
+            dplyr::group_by(idx) |>
+            dplyr::mutate(y = dplyr::row_number()) |>
             dplyr::ungroup()
+        dots$x <- bin_xrange(dots$idx, obs_stat, b$bw, sgn, "edge")$mid
 
-        lab_ht <- max(max(perms$y) - 1, 3)
-        bigx <- max(perms$x.bin)
-        littlex <- min(perms$x.bin)
+        max_stack <- max(dots$y)
+        # At least 0.6 above the tallest stack so the top dot (semi-height
+        # up to 0.45) is never clipped by the y limit
+        y_top <- max(max_stack * (if (show_label) 1.3 else 1.06),
+                     max_stack + 0.6)
+        a <- 0.42 * b$bw
+        semi_h <- dot_semi_height(a, diff(xlims), y_top)
 
-        x_lo <- min(littlex - bw, obs_stat - bw)
-        x_hi <- max(bigx + bw, obs_stat + bw)
-
-        p <- ggplot2::ggplot(perms) +
-            ggforce::geom_ellipse(ggplot2::aes(x0 = x.bin, y0 = y, a = bw / 3, b = 0.5, angle = 0,
-                                               fill = extreme, color = extreme),
-                                  show.legend = FALSE) +
-            ggplot2::scale_fill_manual(values = c("FALSE" = "black", "TRUE" = "#ff8c8c")) +
-            ggplot2::scale_color_manual(values = c("FALSE" = "black", "TRUE" = "#ff8c8c")) +
+        p <- ggplot2::ggplot(dots) +
+            ggforce::geom_ellipse(
+                ggplot2::aes(x0 = x, y0 = y, a = a, b = semi_h, angle = 0, fill = fill),
+                color = NA, n = 36, show.legend = FALSE) +
+            fill_scale +
             ggplot2::theme_minimal() +
             ggplot2::ylab("count") +
             ggplot2::xlab(xlab) +
-            ggplot2::ylim(0, lab_ht + 3) +
-            ggplot2::xlim(x_lo, x_hi) +
-            ggplot2::coord_equal(ratio = bw * 2 / 3) +
+            ggplot2::scale_x_continuous(limits = xlims) +
+            ggplot2::scale_y_continuous(
+                limits = c(0, y_top),
+                expand = ggplot2::expansion(mult = c(0.01, 0.02))) +
             ggplot2::theme(text = ggplot2::element_text(size = 14))
-
-        if (show_line)
-            p <- p + ggplot2::geom_vline(xintercept = obs_stat, linetype = "dashed", color = "red")
-        if (show_label)
-            p <- p + ggplot2::annotate("text", x = obs_stat, y = lab_ht, label = obs_label, color = "red")
-        if (show_caption)
-            p <- p + ggplot2::labs(caption = caption) +
-                ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))
     } else {
-        closed <- ifelse(ptail == "lt", "right", "left")
-        perms <- perms |>
-            dplyr::mutate(extreme = show_tail & ((ptail == "lt" & stat <= obs_stat) | (ptail == "rt" & stat >= obs_stat)))
-        p <- ggplot2::ggplot(perms, ggplot2::aes(x = stat, fill = extreme)) +
-            ggplot2::geom_histogram(boundary = obs_stat, closed = closed, show.legend = FALSE) +
-            ggplot2::scale_fill_manual(values = c("FALSE" = "black", "TRUE" = "#ff8c8c")) +
-            ggplot2::theme_minimal() +
-            ggplot2::xlab(xlab) +
-            ggplot2::ylab("count") +
-            ggplot2::theme(text = ggplot2::element_text(size = 14))
+        y_top <- max(bars$n) * (if (show_label) 1.2 else 1.04)
 
-        if (show_line)
-            p <- p + ggplot2::geom_vline(xintercept = obs_stat, linetype = "dashed", color = "red")
-        if (show_caption)
-            p <- p + ggplot2::labs(caption = caption) +
-                ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))
-        if (show_label) {
-            yMax <- ggplot2::layer_scales(p)$y$range$range[2]
-            p <- p + ggplot2::annotate("text", x = obs_stat, y = yMax, vjust = "top", label = obs_label, color = "red")
-        }
+        p <- ggplot2::ggplot(bars) +
+            ggplot2::geom_rect(
+                ggplot2::aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = n, fill = fill),
+                color = "white", linewidth = 0.3, show.legend = FALSE) +
+            fill_scale +
+            ggplot2::theme_minimal() +
+            ggplot2::ylab("count") +
+            ggplot2::xlab(xlab) +
+            ggplot2::scale_x_continuous(limits = xlims) +
+            ggplot2::scale_y_continuous(
+                limits = c(0, y_top),
+                expand = ggplot2::expansion(mult = c(0, 0.02))) +
+            ggplot2::theme(text = ggplot2::element_text(size = 14))
     }
+
+    if (show_line)
+        p <- p + ggplot2::geom_vline(xintercept = obs_stat, linetype = "dashed", color = "red")
+    if (show_label)
+        p <- p + ggplot2::annotate("text", x = obs_stat, y = y_top, vjust = "top",
+                                   hjust = inward_hjust(obs_stat, xlims),
+                                   label = obs_label, color = "red")
+    if (show_caption)
+        p <- p + ggplot2::labs(caption = caption) +
+            ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))
+
     p
 }

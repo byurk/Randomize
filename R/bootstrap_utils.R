@@ -73,6 +73,14 @@ compute_boot_ci <- function(boot, obs_stat, conf_level, ci_type,
 #' with dashed vertical lines showing the CI bounds and an explanatory
 #' caption describing how the CI was constructed.
 #'
+#' Bins are centered on the observed statistic with a width adapted to the
+#' discreteness of the replicates (see \code{\link{choose_binning}}), so
+#' bars stay contiguous and evenly spaced even for discrete statistics
+#' like proportions.  When the replicates lie on a lattice, the drawn CI
+#' lines are nudged outward to the nearest bin edge so they never slice
+#' through a bar (the reported CI bounds are unaffected; this is display
+#' only).
+#'
 #' @inheritParams compute_boot_ci
 #' @param dotHist Either \code{"dotplot"} or \code{"histogram"}.
 #' @param xlab Label for the x-axis (e.g. \code{"mean"}, \code{"slope"}).
@@ -116,59 +124,75 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
         )
     }
 
-    if (dotHist == "dotplot") {
-        ndist <- dplyr::n_distinct(boot$stat)
-        bw <- boot |>
-            dplyr::summarise(min = min(stat), max = max(stat)) |>
-            dplyr::mutate(bw = (max - min) / 30) |>
-            dplyr::pull(bw)
+    b <- choose_binning(boot$stat, obs_stat, align = "center")
+    idx <- bin_index(boot$stat, obs_stat, b$bw, b$off, 1, "center")
 
-        # Guard against zero bin width (all values identical)
-        if (bw == 0) bw <- abs(obs_stat) * 0.01 + 0.001
+    bars <- data.frame(idx = idx) |>
+        dplyr::count(idx)
+    xr <- bin_xrange(bars$idx, obs_stat, b$bw, 1, "center")
+    bars$xmin <- xr$xmin
+    bars$xmax <- xr$xmax
 
-        if (ndist <= 30) {
-            boot <- boot |> dplyr::mutate(x.bin = stat)
-            cila <- cil
-            ciua <- ciu
-        } else {
-            boot <- boot |>
-                dplyr::mutate(x.bin = obs_stat + ((stat - bw / 2 - obs_stat) %/% bw) * bw)
-            cila <- obs_stat + ((cil - bw / 2 - obs_stat) %/% bw) * bw
-            ciua <- obs_stat + ((ciu - bw / 2 - obs_stat) %/% bw) * bw
-        }
-
-        boot <- boot |>
-            dplyr::group_by(x.bin) |>
-            dplyr::mutate(y = seq_along(x.bin))
-
-        p <- ggplot2::ggplot(boot) +
-            ggforce::geom_ellipse(ggplot2::aes(x0 = x.bin, y0 = y, a = bw / 3, b = 0.5, angle = 0),
-                                  show.legend = FALSE) +
-            ggplot2::theme_minimal() +
-            ggplot2::ylab("count") +
-            ggplot2::xlab(xlab) +
-            ggplot2::coord_equal(ratio = bw * 2 / 3) +
-            ggplot2::theme(text = ggplot2::element_text(size = 14))
-
-        if (show_lines)
-            p <- p + ggplot2::geom_vline(xintercept = c(cila, ciua), linetype = "dashed", color = "red")
-        if (show_caption)
-            p <- p + ggplot2::labs(caption = caption) +
-                ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))
+    # For lattice data, nudge the drawn CI lines outward to the nearest bin
+    # edge so they never cut through a bar.  Display only; the reported CI
+    # is unchanged.
+    if (b$lattice) {
+        eps <- 1e-7
+        cila <- obs_stat + (floor((cil - obs_stat) / b$bw + 0.5 + eps) - 0.5) * b$bw
+        ciua <- obs_stat + (ceiling((ciu - obs_stat) / b$bw - 0.5 - eps) + 0.5) * b$bw
     } else {
-        p <- ggplot2::ggplot(boot, ggplot2::aes(x = stat)) +
-            ggplot2::geom_histogram(center = obs_stat, show.legend = FALSE) +
-            ggplot2::theme_minimal() +
-            ggplot2::xlab(xlab) +
-            ggplot2::ylab("count") +
-            ggplot2::theme(text = ggplot2::element_text(size = 14))
-
-        if (show_lines)
-            p <- p + ggplot2::geom_vline(xintercept = c(cil, ciu), linetype = "dashed", color = "red")
-        if (show_caption)
-            p <- p + ggplot2::labs(caption = caption) +
-                ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))
+        cila <- cil
+        ciua <- ciu
     }
+
+    pad <- 0.03 * (max(bars$xmax, ciua) - min(bars$xmin, cila))
+    xlims <- c(min(bars$xmin, cila) - pad, max(bars$xmax, ciua) + pad)
+
+    if (dotHist == "dotplot") {
+        dots <- data.frame(idx = idx) |>
+            dplyr::group_by(idx) |>
+            dplyr::mutate(y = dplyr::row_number()) |>
+            dplyr::ungroup()
+        dots$x <- bin_xrange(dots$idx, obs_stat, b$bw, 1, "center")$mid
+
+        # At least 0.6 above the tallest stack so the top dot (semi-height
+        # up to 0.45) is never clipped by the y limit
+        y_top <- max(max(dots$y) * 1.06, max(dots$y) + 0.6)
+        a <- 0.42 * b$bw
+        semi_h <- dot_semi_height(a, diff(xlims), y_top)
+
+        p <- ggplot2::ggplot(dots) +
+            ggforce::geom_ellipse(
+                ggplot2::aes(x0 = x, y0 = y, a = a, b = semi_h, angle = 0),
+                fill = "grey35", color = NA, n = 36, show.legend = FALSE) +
+            ggplot2::theme_minimal() +
+            ggplot2::ylab("count") +
+            ggplot2::xlab(xlab) +
+            ggplot2::scale_x_continuous(limits = xlims) +
+            ggplot2::scale_y_continuous(
+                limits = c(0, y_top),
+                expand = ggplot2::expansion(mult = c(0.01, 0.02))) +
+            ggplot2::theme(text = ggplot2::element_text(size = 14))
+    } else {
+        p <- ggplot2::ggplot(bars) +
+            ggplot2::geom_rect(
+                ggplot2::aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = n),
+                fill = "grey35", color = "white", linewidth = 0.3,
+                show.legend = FALSE) +
+            ggplot2::theme_minimal() +
+            ggplot2::ylab("count") +
+            ggplot2::xlab(xlab) +
+            ggplot2::scale_x_continuous(limits = xlims) +
+            ggplot2::scale_y_continuous(
+                expand = ggplot2::expansion(mult = c(0, 0.04))) +
+            ggplot2::theme(text = ggplot2::element_text(size = 14))
+    }
+
+    if (show_lines)
+        p <- p + ggplot2::geom_vline(xintercept = c(cila, ciua), linetype = "dashed", color = "red")
+    if (show_caption)
+        p <- p + ggplot2::labs(caption = caption) +
+            ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))
 
     p
 }
