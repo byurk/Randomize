@@ -58,9 +58,14 @@ choose_binning <- function(stats, anchor, align = c("edge", "center"),
     mult <- d / res
     lattice <- all(abs(mult - round(mult)) < 0.01)
 
+    # Counts over the central 98% of simulations: a lone outlier must not
+    # be allowed to force chunky bins on the whole distribution (it gets
+    # its own bar with honest empty space instead)
     bin_counts <- function(bw) {
         idx <- bin_index(stats, anchor, bw, min(res, bw) / 2, sign, align)
-        tabulate(idx - min(idx) + 1L)
+        qs <- stats::quantile(idx, c(0.01, 0.99), type = 1, names = FALSE)
+        win <- idx[idx >= qs[1] & idx <= qs[2]]
+        tabulate(win - min(win) + 1L)
     }
 
     frac_empty <- function(counts) {

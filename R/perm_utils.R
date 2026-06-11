@@ -168,8 +168,20 @@ plot_null_dist <- function(perms, obs_stat, direction,
     bars$xmax <- xr$xmax
     bars$mid <- xr$mid
 
-    pad <- 0.03 * (max(bars$xmax, obs_stat) - min(bars$xmin, obs_stat))
-    xlims <- c(min(bars$xmin, obs_stat) - pad, max(bars$xmax, obs_stat) + pad)
+    # Extend the axis to reach the observed value, but never so far that
+    # the distribution collapses into a sliver: beyond half the data span
+    # past the data, the observed value is indicated with an arrow at the
+    # panel edge instead of a line.
+    dat_lo <- min(bars$xmin)
+    dat_hi <- max(bars$xmax)
+    dspan <- dat_hi - dat_lo
+    cap_lo <- dat_lo - 0.5 * dspan
+    cap_hi <- dat_hi + 0.5 * dspan
+    obs_in <- obs_stat >= cap_lo && obs_stat <= cap_hi
+    x_lo <- max(min(dat_lo, obs_stat), cap_lo)
+    x_hi <- min(max(dat_hi, obs_stat), cap_hi)
+    pad <- 0.03 * (x_hi - x_lo)
+    xlims <- c(x_lo - pad, x_hi + pad)
 
     fill_scale <- ggplot2::scale_fill_manual(
         values = c("FALSE" = "black", "TRUE" = "#ff8c8c"), guide = "none")
@@ -220,12 +232,36 @@ plot_null_dist <- function(perms, obs_stat, direction,
             ggplot2::theme(text = ggplot2::element_text(size = 14))
     }
 
-    if (show_line)
+    if (show_line && obs_in)
         p <- p + ggplot2::geom_vline(xintercept = obs_stat, linetype = "dashed", color = "red")
-    if (show_label)
-        p <- p + ggplot2::annotate("text", x = obs_stat, y = y_top, vjust = "top",
-                                   hjust = inward_hjust(obs_stat, xlims),
-                                   label = obs_label, color = "red")
+    W <- diff(xlims)
+    if (obs_in) {
+        if (show_label) {
+            hj <- inward_hjust(obs_stat, xlims)
+            # keep the text clear of the dashed line when edge-justified
+            lab_x <- obs_stat + (0.5 - hj) * 2 * (0.01 * W)
+            p <- p + ggplot2::annotate("text", x = lab_x, y = y_top,
+                                       vjust = "top", hjust = hj,
+                                       label = obs_label, color = "red")
+        }
+    } else {
+        # Observed value beyond the axis cap: a drawn arrow at the panel
+        # edge stands in for the dashed line (drawn geometrically -- text
+        # arrows are missing from some graphics-device fonts)
+        edge <- if (obs_stat > cap_hi) xlims[2] else xlims[1]
+        dir <- if (obs_stat > cap_hi) 1 else -1
+        if (show_line)
+            p <- p + ggplot2::annotate("segment",
+                x = edge - dir * 0.08 * W, xend = edge - dir * 0.005 * W,
+                y = y_top * 0.92, yend = y_top * 0.92,
+                color = "red", linewidth = 0.6,
+                arrow = grid::arrow(length = grid::unit(6, "pt"), type = "closed"))
+        if (show_label)
+            p <- p + ggplot2::annotate("text",
+                x = edge - dir * 0.095 * W, y = y_top, vjust = "top",
+                hjust = if (dir > 0) 1 else 0,
+                label = obs_label, color = "red")
+    }
     if (show_caption)
         p <- p + ggplot2::labs(caption = caption) +
             ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))

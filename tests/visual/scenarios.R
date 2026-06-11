@@ -158,6 +158,25 @@ make_null_scenarios <- function() {
         stats = rnorm(25), obs = 1.1, direction = "two_sided",
         xlab = "difference")
 
+    set.seed(123)
+    sc$far_obs <- list(
+        # observed value far beyond the null: axis must not collapse the
+        # distribution into a sliver (arrow at panel edge instead)
+        stats = rnorm(1000), obs = 15, direction = "greater",
+        xlab = "slope")
+
+    set.seed(124)
+    sc$far_obs_left <- list(
+        stats = rnorm(1000), obs = -15, direction = "less",
+        xlab = "difference")
+
+    set.seed(125)
+    sc$outlier <- list(
+        # a lone extreme simulation must not force chunky bins or crush
+        # the axis
+        stats = c(rnorm(999), 8), obs = 1.8, direction = "two_sided",
+        xlab = "difference")
+
     sc
 }
 
@@ -216,6 +235,13 @@ make_boot_scenarios <- function() {
         stats = rbinom(20, 25, 0.6) / 25, obs = 0.6,
         conf = 95, ci_type = "bootperc", clamp = c(0, 1),
         xlab = "proportion", stat_label = "bootstrap proportions")
+
+    set.seed(209)
+    sc$boot_outlier <- list(
+        # a lone extreme replicate must not force chunky bins
+        stats = c(rnorm(999, 2, 0.15), 4), obs = 2,
+        conf = 95, ci_type = "bootperc", clamp = NULL,
+        xlab = "slope", stat_label = "bootstrap slopes")
 
     sc
 }

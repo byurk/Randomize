@@ -38,11 +38,11 @@ test <- function(name, expr) {
 
 RED <- "#ff8c8c"
 
-# Building a plot must not drop any drawn geometry (e.g. a dot clipped
-# by the y-axis limits)
-assert_no_removed <- function(p) {
+# Build a plot, failing if any drawn geometry was dropped (e.g. a dot
+# clipped by the axis limits); returns the built plot for inspection
+build_checked <- function(p) {
     warns <- character()
-    withCallingHandlers(
+    built <- withCallingHandlers(
         ggplot_build(p),
         warning = function(w) {
             warns <<- c(warns, conditionMessage(w))
@@ -51,29 +51,48 @@ assert_no_removed <- function(p) {
     bad <- grepl("[Rr]emoved", warns)
     if (any(bad))
         stop(paste("geometry clipped:", warns[bad][1]))
-    invisible(TRUE)
+    built
+}
+
+# The drawn distribution must fill most of the panel: at least 55% of
+# the x range (axis may legitimately extend toward a distant observed
+# value or CI line, but never so far the data become a sliver) and at
+# least 70% of the y range
+assert_axis_economy <- function(built, el) {
+    xr <- built$layout$panel_params[[1]]$x.range
+    yr <- built$layout$panel_params[[1]]$y.range
+    x_use <- (max(el$xmax) - min(el$xmin)) / diff(xr)
+    if (x_use < 0.55)
+        stop(paste0("distribution occupies only ",
+                    round(100 * x_use), "% of the x axis"))
+    if ("ytop" %in% names(el)) {
+        y_use <- max(el$ytop) / yr[2]
+        if (y_use < 0.7)
+            stop(paste0("distribution occupies only ",
+                        round(100 * y_use), "% of the y axis"))
+    }
 }
 
 # Extract per-element (bar or ellipse) x-extent and fill from the first
 # layer of a built plot.  For geom_rect each row is a bar; for
 # geom_ellipse the rows are polygon vertices grouped per dot.
-layer_elements <- function(p) {
-    d <- ggplot_build(p)$data[[1]]
+layer_elements <- function(built) {
+    d <- built$data[[1]]
     if (all(c("xmin", "xmax") %in% names(d)) && !all(is.na(d$xmin))) {
         data.frame(xmin = d$xmin, xmax = d$xmax, fill = d$fill,
-                   height = d$ymax - d$ymin)
+                   height = d$ymax - d$ymin, ytop = d$ymax)
     } else {
         agg <- aggregate(d$x, by = list(group = d$group), FUN = min)
         names(agg) <- c("group", "xmin")
         agg$xmax <- aggregate(d$x, by = list(d$group), FUN = max)$x
         agg$fill <- aggregate(d$fill, by = list(d$group), FUN = function(f) f[1])$x
         agg$height <- 1
+        agg$ytop <- aggregate(d$y, by = list(d$group), FUN = max)$x
         agg
     }
 }
 
-vline_positions <- function(p) {
-    built <- ggplot_build(p)
+vline_positions <- function(built) {
     for (d in built$data) {
         if ("xintercept" %in% names(d)) return(d$xintercept)
     }
@@ -84,8 +103,9 @@ check_null_invariants <- function(s, mode) {
     df <- data.frame(stat = s$stats)
     p <- plot_null_dist(df, s$obs, s$direction, mode,
                         xlab = s$xlab, obs_label = "Observed\nValue")
-    assert_no_removed(p)
-    el <- layer_elements(p)
+    built <- build_checked(p)
+    el <- layer_elements(built)
+    assert_axis_economy(built, el)
 
     # Determine which tail is shaded, mirroring plot_null_dist
     if (s$direction == "less") {
@@ -155,8 +175,8 @@ for (nm in c("prop_n20_greater", "cont_two_sided", "chisq_2x2")) {
         bare <- plot_null_dist(df, s$obs, s$direction, "histogram", xlab = s$xlab,
                                show_line = FALSE, show_label = FALSE,
                                show_caption = FALSE, show_tail = FALSE)
-        ef <- layer_elements(full)
-        eb <- layer_elements(bare)
+        ef <- layer_elements(build_checked(full))
+        eb <- layer_elements(build_checked(bare))
         if (!isTRUE(all.equal(sort(ef$xmin), sort(eb$xmin))) ||
             !isTRUE(all.equal(sort(ef$height), sort(eb$height))))
             stop("bare-mode bars differ from full-mode bars")
@@ -175,8 +195,9 @@ for (nm in names(boot_sc)) {
             p <- plot_boot_dist(df, s$obs, s$conf, s$ci_type, mode,
                                 xlab = s$xlab, stat_label = s$stat_label,
                                 clamp = s$clamp)
-            assert_no_removed(p)
-            el <- layer_elements(p)
+            built <- build_checked(p)
+            el <- layer_elements(built)
+            assert_axis_economy(built, el)
             span <- diff(range(s$stats))
             eps <- span * 1e-9 + 1e-12
 
@@ -187,7 +208,7 @@ for (nm in names(boot_sc)) {
             # CI lines must not slice a bar when stats are on a lattice
             b <- choose_binning(df$stat, s$obs, align = "center")
             if (b$lattice) {
-                vl <- vline_positions(p)
+                vl <- vline_positions(built)
                 for (v in vl) {
                     inside <- el$xmin + eps < v & v < el$xmax - eps
                     if (any(inside))
