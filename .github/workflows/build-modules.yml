@@ -118,6 +118,16 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           merge-multiple: true
+      # Strip the version from asset names so course-website links via
+      # .../releases/latest/download/Randomize_<platform>.jmo never go stale.
+      # (The release tag records the version; so does the module itself.)
+      - name: Stable asset names
+        run: |
+          for f in Randomize_*_*.jmo; do
+            mv "$f" "Randomize_${f##*_}"
+          done
+          ls -l Randomize_*.jmo
       - uses: softprops/action-gh-release@v2
         with:
-          files: "*.jmo"
+          files: "Randomize_*.jmo"
+          generate_release_notes: true
