@@ -1,0 +1,136 @@
+# Builds sideloadable jamovi module packages (.jmo) for all desktop platforms.
+#
+# The jamovi-compiler always builds with the R bundled inside a jamovi
+# installation (that guarantees the R version matches what students run), so
+# each job downloads the target jamovi release, extracts it, and points the
+# compiler at it with --home. The compiler itself ships inside the jmvtools
+# R package; we pull its source tarball and run it with the runner's node —
+# no R installation is needed on the runner.
+#
+# When a new jamovi comes out, bump JAMOVI_VERSION and JMVTOOLS_VERSION
+# together (jmvtools versions track jamovi releases at repo.jamovi.org).
+#
+# Triggers: every PR to main (artifacts downloadable from the run page),
+# manual runs, and version tags (v*), which also attach the .jmo files to a
+# GitHub Release for permanent distribution to students.
+
+name: Build .jmo modules
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  JAMOVI_VERSION: "2.7.38.0"
+  JMVTOOLS_VERSION: "28.3"
+
+jobs:
+  build:
+    name: build (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win-x64
+            ext: zip
+          - os: macos-15-intel
+            platform: macos-x64
+            ext: dmg
+          - os: macos-latest
+            platform: macos-arm64
+            ext: dmg
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache jamovi download
+        id: cache-jamovi
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/jamovi-dist.${{ matrix.ext }}
+          key: jamovi-${{ env.JAMOVI_VERSION }}-${{ matrix.platform }}
+
+      - name: Download jamovi
+        if: steps.cache-jamovi.outputs.cache-hit != 'true'
+        run: |
+          # dl-cdn.jamovi.org turns away requests without browser-like headers
+          curl -fL --retry 3 --max-time 900 \
+            -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" \
+            -H "Referer: https://www.jamovi.org/" \
+            -o "${RUNNER_TEMP}/jamovi-dist.${{ matrix.ext }}" \
+            "https://dl-cdn.jamovi.org/jamovi-${JAMOVI_VERSION}-${{ matrix.platform }}.${{ matrix.ext }}"
+
+      - name: Extract jamovi
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            7z x -y -o"${RUNNER_TEMP}/jamovi-dist" "${RUNNER_TEMP}/jamovi-dist.zip" > /dev/null
+            # the zip contains a single top-level "jamovi/" directory
+            echo "JAMOVI_HOME=$(cygpath -m "$RUNNER_TEMP")/jamovi-dist/jamovi" >> "$GITHUB_ENV"
+          else
+            mnt=$(hdiutil attach -nobrowse -readonly "${RUNNER_TEMP}/jamovi-dist.dmg" | grep -o '/Volumes/.*' | head -1)
+            cp -R "$mnt/jamovi.app" "${RUNNER_TEMP}/jamovi.app"
+            hdiutil detach "$mnt" -quiet || true
+            echo "JAMOVI_HOME=${RUNNER_TEMP}/jamovi.app" >> "$GITHUB_ENV"
+          fi
+
+      - name: Fetch jamovi-compiler (bundled inside the jmvtools package)
+        run: |
+          # git-bash tar parses "D:\..." as a remote host ("Cannot connect
+          # to D"); hand it a POSIX-style path instead
+          TMP=$(cygpath -u "$RUNNER_TEMP" 2>/dev/null || echo "$RUNNER_TEMP")
+          curl -fsSL --retry 3 -o "$TMP/jmvtools.tar.gz" \
+            "https://repo.jamovi.org/src/contrib/jmvtools_${JMVTOOLS_VERSION}.tar.gz"
+          tar xzf "$TMP/jmvtools.tar.gz" -C "$TMP"
+
+      - name: Build module
+        run: node "${RUNNER_TEMP}/jmvtools/inst/node_modules/jamovi-compiler/index.js" --build . --home "$JAMOVI_HOME"
+
+      - name: Collect artifact
+        run: |
+          VERSION=$(awk '/^Version:/ { print $2 }' DESCRIPTION)
+          OUT="Randomize_${VERSION}_${{ matrix.platform }}.jmo"
+          mv Randomize_*.jmo "$OUT"
+          # a real .jmo bundles compiled R packages; a tiny file means the build went wrong
+          [ "$(wc -c < "$OUT")" -gt 1000000 ] || { echo "unexpectedly small .jmo"; exit 1; }
+          echo "JMO_FILE=$OUT" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Randomize-${{ matrix.platform }}
+          path: ${{ env.JMO_FILE }}
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      # Strip the version from asset names so course-website links via
+      # .../releases/latest/download/Randomize_<platform>.jmo never go stale.
+      # (The release tag records the version; so does the module itself.)
+      - name: Stable asset names
+        run: |
+          for f in Randomize_*_*.jmo; do
+            mv "$f" "Randomize_${f##*_}"
+          done
+          ls -l Randomize_*.jmo
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: "Randomize_*.jmo"
+          generate_release_notes: true
