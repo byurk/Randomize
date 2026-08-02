@@ -139,7 +139,7 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
             dplyr::group_by(idx) |>
             dplyr::mutate(y = dplyr::row_number()) |>
             dplyr::ungroup()
-        dots$x <- bin_xrange(dots$idx, obs_stat, b$bw, 1, "center")$mid
+        dots$x <- dot_column_x(boot$stat, idx, b, obs_stat, 1, "center")
 
         # At least 0.6 above the tallest stack so the top dot (semi-height
         # up to 0.45) is never clipped by the y limit

@@ -84,12 +84,21 @@ layer_elements <- function(built) {
     d <- built$data[[1]]
     if (all(c("xmin", "xmax") %in% names(d)) && !all(is.na(d$xmin))) {
         data.frame(xmin = d$xmin, xmax = d$xmax, fill = d$fill,
-                   height = d$ymax - d$ymin, ytop = d$ymax)
+                   height = d$ymax - d$ymin, ytop = d$ymax, halfw = 0)
     } else {
         a <- built$plot$layers[[1]]$geom_params$a
         data.frame(xmin = d$x - a, xmax = d$x + a, fill = d$fill,
-                   height = 1, ytop = d$y + 0.45)
+                   height = 1, ytop = d$y + 0.45, halfw = a)
     }
+}
+
+# A stack of dots (or a bar) is never part red / part black: every
+# element sharing an x position has exactly one fill color.
+assert_single_fill_stacks <- function(el) {
+    mids <- round((el$xmin + el$xmax) / 2, 12)
+    n_fills <- tapply(el$fill, mids, function(f) length(unique(f)))
+    if (any(n_fills > 1))
+        stop("a stack mixes fill colors")
 }
 
 vline_positions <- function(built) {
@@ -137,18 +146,32 @@ check_null_invariants <- function(s, mode) {
     red <- el[el$fill == RED, ]
     black <- el[el$fill != RED, ]
 
-    # 1. Side purity of everything actually drawn
+    # 1. Side purity of everything actually drawn.  Bars are intervals,
+    # so the strict edge rule applies (halfw = 0).  Dot columns are
+    # point claims judged by their CENTER (halfw = dot semi-width): a
+    # tie column -- dots for simulations exactly equal to the observed
+    # value -- legitimately sits centered on the line, and it must be
+    # red, never black (ties count toward the p-value).
+    bb <- black[black$halfw == 0, ]   # bars: strict edge rule
+    bd <- black[black$halfw > 0, ]    # dot columns: center rule
     if (ptail == "rt") {
-        if (nrow(red) > 0 && min(red$xmin) < s$obs - eps)
-            stop("red element extends left of the observed value")
-        if (nrow(black) > 0 && max(black$xmax) > s$obs + eps)
-            stop("black element extends right of the observed value")
+        if (nrow(red) > 0 && min(red$xmin + red$halfw) < s$obs - eps)
+            stop("red element lies left of the observed value")
+        if (nrow(bb) > 0 && max(bb$xmax) > s$obs + eps)
+            stop("black bar extends right of the observed value")
+        if (nrow(bd) > 0 && max(bd$xmax - bd$halfw) > s$obs - eps)
+            stop("black dot column centered at or beyond the observed value")
     } else {
-        if (nrow(red) > 0 && max(red$xmax) > s$obs + eps)
-            stop("red element extends right of the observed value")
-        if (nrow(black) > 0 && min(black$xmin) < s$obs - eps)
-            stop("black element extends left of the observed value")
+        if (nrow(red) > 0 && max(red$xmax - red$halfw) > s$obs + eps)
+            stop("red element lies right of the observed value")
+        if (nrow(bb) > 0 && min(bb$xmin) < s$obs - eps)
+            stop("black bar extends left of the observed value")
+        if (nrow(bd) > 0 && min(bd$xmin + bd$halfw) < s$obs + eps)
+            stop("black dot column centered at or beyond the observed value")
     }
+
+    # 1b. No mixed-color stacks, ever
+    assert_single_fill_stacks(el)
 
     # 2. Count conservation: total and per-color
     if (abs(sum(el$height) - length(s$stats)) > 1e-6)

@@ -140,6 +140,14 @@ choose_binning <- function(stats, anchor, align = c("edge", "center"),
 #'
 #' @keywords internal
 bin_index <- function(stats, anchor, bw, off, sign = 1, align = "edge") {
+    # With center alignment, lattice values already sit at bin centers
+    # when bw equals the lattice spacing; adding the half-resolution
+    # nudge there sums to exactly one bin width (bw/2 + res/2 == bw) and
+    # used to shift every value into the next bin -- drawing the whole
+    # distribution one lattice step to the right of the data.  The nudge
+    # is only needed (and only safe) when it is strictly less than half
+    # a bin.
+    if (align == "center" && 2 * off >= bw * (1 - 1e-9)) off <- 0
     s <- sign * (stats - anchor) + if (align == "center") bw / 2 else 0
     as.integer(floor((s + off) / bw))
 }
@@ -161,6 +169,33 @@ bin_xrange <- function(idx, anchor, bw, sign = 1, align = "edge") {
         xmin <- anchor - (idx + 1) * bw
     }
     list(xmin = xmin, xmax = xmin + bw, mid = xmin + bw / 2)
+}
+
+#' X-positions for dotplot columns
+#'
+#' When each bin holds exactly one achievable value (bin width equals
+#' the lattice spacing), every dot column sits at its exact value -- so
+#' simulations equal to the observed statistic stack directly on the
+#' observed-value line instead of at a bin midpoint half a step away
+#' (which students can misread as "no simulation matched the observed
+#' value").  A single-value column can never mix extreme and non-extreme
+#' simulations, so stacks stay one color.  When bins group a range of
+#' values, columns sit at bin midpoints as before -- centering the grid
+#' on the observed value there would put a mixed-color stack under the
+#' line.
+#'
+#' @param stats Simulated statistics (same order as \code{idx}).
+#' @param idx Bin indices from \code{\link{bin_index}}.
+#' @param b Binning description from \code{\link{choose_binning}}.
+#' @inheritParams bin_index
+#' @return X position for each element of \code{stats}.
+#' @keywords internal
+dot_column_x <- function(stats, idx, b, anchor, sign, align) {
+    if (b$lattice && abs(b$bw - b$res) <= b$res * 1e-9) {
+        stats::ave(stats, idx, FUN = function(v) v[1])
+    } else {
+        bin_xrange(idx, anchor, b$bw, sign, align)$mid
+    }
 }
 
 #' Horizontal justification that keeps a label inside the panel

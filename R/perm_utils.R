@@ -190,7 +190,7 @@ plot_null_dist <- function(perms, obs_stat, direction,
             dplyr::group_by(idx) |>
             dplyr::mutate(y = dplyr::row_number()) |>
             dplyr::ungroup()
-        dots$x <- bin_xrange(dots$idx, obs_stat, b$bw, sgn, "edge")$mid
+        dots$x <- dot_column_x(perms$stat, idx, b, obs_stat, sgn, "edge")
 
         max_stack <- max(dots$y)
         # At least 0.6 above the tallest stack so the top dot (semi-height
