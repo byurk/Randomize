@@ -73,22 +73,20 @@ assert_axis_economy <- function(built, el) {
     }
 }
 
-# Extract per-element (bar or ellipse) x-extent and fill from the first
+# Extract per-element (bar or dot) x-extent and fill from the first
 # layer of a built plot.  For geom_rect each row is a bar; for
-# geom_ellipse the rows are polygon vertices grouped per dot.
+# GeomDotStack each row is a dot center, with the semi-width in the
+# layer params (the semi-height is resolved at draw time; 0.45 is its
+# upper bound).
 layer_elements <- function(built) {
     d <- built$data[[1]]
     if (all(c("xmin", "xmax") %in% names(d)) && !all(is.na(d$xmin))) {
         data.frame(xmin = d$xmin, xmax = d$xmax, fill = d$fill,
                    height = d$ymax - d$ymin, ytop = d$ymax)
     } else {
-        agg <- aggregate(d$x, by = list(group = d$group), FUN = min)
-        names(agg) <- c("group", "xmin")
-        agg$xmax <- aggregate(d$x, by = list(d$group), FUN = max)$x
-        agg$fill <- aggregate(d$fill, by = list(d$group), FUN = function(f) f[1])$x
-        agg$height <- 1
-        agg$ytop <- aggregate(d$y, by = list(d$group), FUN = max)$x
-        agg
+        a <- built$plot$layers[[1]]$geom_params$a
+        data.frame(xmin = d$x - a, xmax = d$x + a, fill = d$fill,
+                   height = 1, ytop = d$y + 0.45)
     }
 }
 

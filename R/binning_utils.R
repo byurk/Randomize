@@ -160,20 +160,74 @@ inward_hjust <- function(x, lims) {
     if (pos > 0.82) 1 else if (pos < 0.18) 0 else 0.5
 }
 
-#' Vertical semi-axis for dotplot dots
+#' Dotplot dots that stay circular at any device size
 #'
-#' Chooses the dot half-height so dots render roughly circular at the
-#' default Jamovi plot size (400 x 350), capped so stacked dots never
-#' overlap.  With tall stacks the dots flatten into ovals rather than
-#' compressing the x-axis (which is what a forced equal-coordinate
-#' aspect ratio used to do).
+#' Draws each simulation as a true circle.  The radius is resolved at
+#' draw time from the actual panel geometry as the smaller of the bin
+#' semi-width (\code{a}, in x units, so dots never exceed their bin) and
+#' the vertical cap (\code{max_b} y-units, so stacked dots never
+#' overlap); when the cap binds, the whole dot shrinks -- columns gain a
+#' little horizontal breathing room but dots are never squashed into
+#' ovals.  Deciding this at draw time (via \code{grid::makeContent}, so
+#' it re-runs on every resize) is what keeps dots circular at every
+#' device size -- a fixed formula tuned to one panel size distorts
+#' everywhere else.
 #'
-#' @param a Dot semi-width in x units.
-#' @param x_span,y_span Current axis spans.
-#' @return Dot semi-height in y units.
 #' @keywords internal
-dot_semi_height <- function(a, x_span, y_span) {
-    panel_px_x <- 345
-    panel_px_y <- 255
-    min(0.45, a * (panel_px_x / x_span) * (y_span / panel_px_y))
+GeomDotStack <- ggplot2::ggproto("GeomDotStack", ggplot2::Geom,
+    required_aes = c("x", "y"),
+    default_aes = ggplot2::aes(fill = "grey35"),
+    draw_key = ggplot2::draw_key_point,
+    draw_panel = function(data, panel_params, coord, a = 1, max_b = 0.45) {
+        coords <- coord$transform(data, panel_params)
+        shifted <- transform(data, x = x + a, y = y + max_b)
+        sc <- coord$transform(shifted, panel_params)
+        grid::gTree(
+            cx = coords$x, cy = coords$y,
+            a_npc = sc$x[1] - coords$x[1],
+            bcap_npc = sc$y[1] - coords$y[1],
+            fill = coords$fill,
+            cl = "randomize_dotstack")
+    }
+)
+
+#' @rdname GeomDotStack
+#' @keywords internal
+makeContent.randomize_dotstack <- function(x) {
+    a_mm <- grid::convertWidth(grid::unit(x$a_npc, "npc"), "mm", valueOnly = TRUE)
+    bcap_mm <- grid::convertHeight(grid::unit(x$bcap_npc, "npc"), "mm", valueOnly = TRUE)
+    # Radius floor: for very tall stacks the no-overlap cap would shrink
+    # dots below visibility, so from there dots keep a legible size and
+    # overlap vertically like stacked coins instead (the plot itself
+    # disables panel clipping so the top dot survives intact).
+    r_mm <- min(a_mm, max(bcap_mm, 1.2))
+    dots <- grid::circleGrob(
+        x = grid::unit(x$cx, "npc"), y = grid::unit(x$cy, "npc"),
+        r = grid::unit(r_mm, "mm"),
+        gp = grid::gpar(fill = x$fill, col = NA))
+    grid::setChildren(x, grid::gList(dots))
+}
+
+#' Layer constructor for \code{GeomDotStack}
+#'
+#' @param dots Data frame with \code{x}, \code{y} (and optionally
+#'   \code{fill}) columns, one row per dot.
+#' @param a Dot semi-width in x units.
+#' @param max_b Vertical semi-height cap in y units; stacked dots sit 1
+#'   y-unit apart, so any value below 0.5 prevents overlap.
+#' @param fill Constant fill color; when \code{NULL}, \code{dots$fill}
+#'   is mapped through the plot's fill scale instead.
+#' @keywords internal
+stack_dots <- function(dots, a, max_b = 0.45, fill = NULL) {
+    if (is.null(fill)) {
+        mapping <- ggplot2::aes(x = x, y = y, fill = fill)
+        params <- list(a = a, max_b = max_b)
+    } else {
+        mapping <- ggplot2::aes(x = x, y = y)
+        params <- list(a = a, max_b = max_b, fill = fill)
+    }
+    ggplot2::layer(
+        geom = GeomDotStack, data = dots, mapping = mapping,
+        stat = "identity", position = "identity",
+        params = params, inherit.aes = FALSE, show.legend = FALSE)
 }

@@ -7,7 +7,6 @@
 #'
 #' @name bootstrap_utils
 #' @import ggplot2
-#' @import ggforce
 #' @import dplyr
 #' @import tibble
 NULL
@@ -159,12 +158,11 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
         # up to 0.45) is never clipped by the y limit
         y_top <- max(max(dots$y) * 1.06, max(dots$y) + 0.6)
         a <- 0.42 * b$bw
-        semi_h <- dot_semi_height(a, diff(xlims), y_top)
 
         p <- ggplot2::ggplot(dots) +
-            ggforce::geom_ellipse(
-                ggplot2::aes(x0 = x, y0 = y, a = a, b = semi_h, angle = 0),
-                fill = "grey35", color = NA, n = 36, show.legend = FALSE) +
+            stack_dots(dots, a = a, fill = "grey35") +
+            # floor-sized dots on very tall stacks may poke past y_top
+            ggplot2::coord_cartesian(clip = "off") +
             ggplot2::theme_minimal() +
             ggplot2::ylab("count") +
             ggplot2::xlab(xlab) +
