@@ -194,7 +194,8 @@ multimeanhtestClass <- R6::R6Class(
             st <- image$state
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                            xlab = "F",
-                           obs_label = "Observed\nF")
+                           obs_label = "Observed\nF",
+                           domain = c(0, Inf))
         },
           .formula=function() {
             jmvcore:::composeFormula(self$options$vars, self$options$group)

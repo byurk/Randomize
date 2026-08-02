@@ -209,7 +209,8 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
             st <- image$state
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                            xlab = "proportion",
-                           obs_label = "Observed\nProportion")
+                           obs_label = "Observed\nProportion",
+                           domain = c(0, 1))
         },
 
         #### Helper functions ----

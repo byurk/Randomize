@@ -7,7 +7,6 @@
 #'
 #' @name bootstrap_utils
 #' @import ggplot2
-#' @import ggforce
 #' @import dplyr
 #' @import tibble
 NULL
@@ -73,6 +72,13 @@ compute_boot_ci <- function(boot, obs_stat, conf_level, ci_type,
 #' with dashed vertical lines showing the CI bounds and an explanatory
 #' caption describing how the CI was constructed.
 #'
+#' Bins are centered on the observed statistic with a width adapted to the
+#' discreteness of the replicates (see \code{\link{choose_binning}}),
+#' chosen so the histogram never shows interior empty bins.  The dashed
+#' CI lines are drawn at the exact reported bounds; since no tail is
+#' shaded on CI plots, a line falling inside a bar is fine (and
+#' preferable to nudging the line away from the true percentile).
+#'
 #' @inheritParams compute_boot_ci
 #' @param dotHist Either \code{"dotplot"} or \code{"histogram"}.
 #' @param xlab Label for the x-axis (e.g. \code{"mean"}, \code{"slope"}).
@@ -116,59 +122,91 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
         )
     }
 
-    if (dotHist == "dotplot") {
-        ndist <- dplyr::n_distinct(boot$stat)
-        bw <- boot |>
-            dplyr::summarise(min = min(stat), max = max(stat)) |>
-            dplyr::mutate(bw = (max - min) / 30) |>
-            dplyr::pull(bw)
+    # Sparse discrete replicates cannot be binned gap-free; draw one bar
+    # or dot column per exact value (see plot_null_dist for rationale).
+    u <- sort(unique(boot$stat))
+    sparse <- length(u) >= 2 && length(u) <= 8
 
-        # Guard against zero bin width (all values identical)
-        if (bw == 0) bw <- abs(obs_stat) * 0.01 + 0.001
-
-        if (ndist <= 30) {
-            boot <- boot |> dplyr::mutate(x.bin = stat)
-            cila <- cil
-            ciua <- ciu
-        } else {
-            boot <- boot |>
-                dplyr::mutate(x.bin = obs_stat + ((stat - bw / 2 - obs_stat) %/% bw) * bw)
-            cila <- obs_stat + ((cil - bw / 2 - obs_stat) %/% bw) * bw
-            ciua <- obs_stat + ((ciu - bw / 2 - obs_stat) %/% bw) * bw
-        }
-
-        boot <- boot |>
-            dplyr::group_by(x.bin) |>
-            dplyr::mutate(y = seq_along(x.bin))
-
-        p <- ggplot2::ggplot(boot) +
-            ggforce::geom_ellipse(ggplot2::aes(x0 = x.bin, y0 = y, a = bw / 3, b = 0.5, angle = 0),
-                                  show.legend = FALSE) +
-            ggplot2::theme_minimal() +
-            ggplot2::ylab("count") +
-            ggplot2::xlab(xlab) +
-            ggplot2::coord_equal(ratio = bw * 2 / 3) +
-            ggplot2::theme(text = ggplot2::element_text(size = 14))
-
-        if (show_lines)
-            p <- p + ggplot2::geom_vline(xintercept = c(cila, ciua), linetype = "dashed", color = "red")
-        if (show_caption)
-            p <- p + ggplot2::labs(caption = caption) +
-                ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))
+    if (sparse) {
+        a <- 0.4 * min(diff(u))
+        idx <- match(boot$stat, u)
+        dot_x <- u[idx]
+        bars <- data.frame(idx = idx) |>
+            dplyr::count(idx)
+        bars$xmin <- u[bars$idx] - a
+        bars$xmax <- u[bars$idx] + a
     } else {
-        p <- ggplot2::ggplot(boot, ggplot2::aes(x = stat)) +
-            ggplot2::geom_histogram(center = obs_stat, show.legend = FALSE) +
-            ggplot2::theme_minimal() +
-            ggplot2::xlab(xlab) +
-            ggplot2::ylab("count") +
-            ggplot2::theme(text = ggplot2::element_text(size = 14))
+        b <- choose_binning(boot$stat, obs_stat, align = "center")
+        idx <- bin_index(boot$stat, obs_stat, b$bw, b$off, 1, "center")
+        a <- 0.42 * b$bw
+        dot_x <- dot_column_x(boot$stat, idx, b, obs_stat, 1, "center")
+        # a bin straddling a domain bound would place its column at an
+        # impossible value; clamp the center to the bound instead
+        if (!is.null(clamp))
+            dot_x <- pmin(pmax(dot_x, clamp[1]), clamp[2])
 
-        if (show_lines)
-            p <- p + ggplot2::geom_vline(xintercept = c(cil, ciu), linetype = "dashed", color = "red")
-        if (show_caption)
-            p <- p + ggplot2::labs(caption = caption) +
-                ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))
+        bars <- data.frame(idx = idx) |>
+            dplyr::count(idx)
+        xr <- bin_xrange(bars$idx, obs_stat, b$bw, 1, "center")
+        bars$xmin <- xr$xmin
+        bars$xmax <- xr$xmax
     }
+
+    # Trim to the statistic's domain (the CI clamp bounds) so no bar
+    # implies impossible values, e.g. proportions outside [0, 1].
+    # Center-aligned bins put values at bin centers, so a boundary bar
+    # trims to an honest half-bar rather than vanishing.
+    if (!is.null(clamp)) {
+        bars$xmin <- pmax(bars$xmin, clamp[1])
+        bars$xmax <- pmin(bars$xmax, clamp[2])
+    }
+
+    pad <- 0.03 * (max(bars$xmax, ciu) - min(bars$xmin, cil))
+    xlims <- c(min(bars$xmin, cil) - pad, max(bars$xmax, ciu) + pad)
+
+    if (dotHist == "dotplot") {
+        dots <- data.frame(idx = idx) |>
+            dplyr::group_by(idx) |>
+            dplyr::mutate(y = dplyr::row_number()) |>
+            dplyr::ungroup()
+        dots$x <- dot_x
+
+        # At least 0.6 above the tallest stack so the top dot (semi-height
+        # up to 0.45) is never clipped by the y limit
+        y_top <- max(max(dots$y) * 1.06, max(dots$y) + 0.6)
+
+        p <- ggplot2::ggplot(dots) +
+            stack_dots(dots, a = a, fill = "grey35") +
+            # floor-sized dots on very tall stacks may poke past y_top
+            ggplot2::coord_cartesian(clip = "off") +
+            ggplot2::theme_minimal() +
+            ggplot2::ylab("count") +
+            ggplot2::xlab(xlab) +
+            ggplot2::scale_x_continuous(limits = xlims) +
+            ggplot2::scale_y_continuous(
+                limits = c(0, y_top),
+                expand = ggplot2::expansion(mult = c(0.01, 0.02))) +
+            ggplot2::theme(text = ggplot2::element_text(size = 14))
+    } else {
+        p <- ggplot2::ggplot(bars) +
+            ggplot2::geom_rect(
+                ggplot2::aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = n),
+                fill = "grey35", color = "white", linewidth = 0.3,
+                show.legend = FALSE) +
+            ggplot2::theme_minimal() +
+            ggplot2::ylab("count") +
+            ggplot2::xlab(xlab) +
+            ggplot2::scale_x_continuous(limits = xlims) +
+            ggplot2::scale_y_continuous(
+                expand = ggplot2::expansion(mult = c(0, 0.04))) +
+            ggplot2::theme(text = ggplot2::element_text(size = 14))
+    }
+
+    if (show_lines)
+        p <- p + ggplot2::geom_vline(xintercept = c(cil, ciu), linetype = "dashed", color = "red")
+    if (show_caption)
+        p <- p + ggplot2::labs(caption = caption) +
+            ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))
 
     p
 }

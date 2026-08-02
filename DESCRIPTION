@@ -23,7 +23,6 @@ LazyData: true
 Depends: R (>= 4.1.0)
 Imports:
     dplyr (>= 1.1.4),
-    ggforce (>= 0.4.2),
     ggplot2 (>= 3.5.1),
     infer (>= 1.0.7),
     jmvcore (>= 2.4.7),

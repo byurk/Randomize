@@ -227,7 +227,8 @@ ContTabHTestClass <- R6::R6Class(
             st <- image$state
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                            xlab = "X\u00B2",
-                           obs_label = "Observed\nX\u00B2")
+                           obs_label = "Observed\nX\u00B2",
+                           domain = c(0, Inf))
         },
 
         #### Helper functions ----

@@ -256,7 +256,8 @@ TwoPropHTestClass <- R6::R6Class(
             st <- image$state
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                            xlab = "difference (group 1 - group 2)",
-                           obs_label = "Observed\nDifference")
+                           obs_label = "Observed\nDifference",
+                           domain = c(-1, 1))
         },
 
         #### Helper functions ----

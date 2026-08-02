@@ -1,7 +1,6 @@
 exportPattern("^[[:alpha:]]+")
 S3method(plot, Group)
 import(dplyr)
-import(ggforce)
 import(ggplot2)
 import(infer)
 import(jmvcore)
