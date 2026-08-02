@@ -86,9 +86,12 @@ jobs:
 
       - name: Fetch jamovi-compiler (bundled inside the jmvtools package)
         run: |
-          curl -fsSL --retry 3 -o "${RUNNER_TEMP}/jmvtools.tar.gz" \
+          # git-bash tar parses "D:\..." as a remote host ("Cannot connect
+          # to D"); hand it a POSIX-style path instead
+          TMP=$(cygpath -u "$RUNNER_TEMP" 2>/dev/null || echo "$RUNNER_TEMP")
+          curl -fsSL --retry 3 -o "$TMP/jmvtools.tar.gz" \
             "https://repo.jamovi.org/src/contrib/jmvtools_${JMVTOOLS_VERSION}.tar.gz"
-          tar xzf "${RUNNER_TEMP}/jmvtools.tar.gz" -C "${RUNNER_TEMP}"
+          tar xzf "$TMP/jmvtools.tar.gz" -C "$TMP"
 
       - name: Build module
         run: node "${RUNNER_TEMP}/jmvtools/inst/node_modules/jamovi-compiler/index.js" --build . --home "$JAMOVI_HOME"
