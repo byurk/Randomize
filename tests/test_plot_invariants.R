@@ -13,7 +13,9 @@
 #      numerator (so a student counting red dots recovers the p-value).
 #   3. Toggle stability: bare/no-text modes draw bars at identical
 #      positions to the full plot.
-#   4. Bootstrap lattice CI lines never slice through a bar.
+#   4. Bootstrap CI lines are drawn at the exact reported bounds, and
+#      bootstrap histograms/dotplots never show interior empty bins
+#      (gaps) within the central 99.8% of replicates.
 #
 # Run with: Rscript tests/test_plot_invariants.R
 
@@ -95,6 +97,20 @@ vline_positions <- function(built) {
         if ("xintercept" %in% names(d)) return(d$xintercept)
     }
     numeric(0)
+}
+
+# No missing interior bins: within the central 99.8% of the data,
+# occupied bins must sit at a regular spacing with no absent bin between
+# them.  (A lone extreme outlier may still have its own separated bar
+# beyond the window -- that is honest empty space, not a binning gap.)
+assert_gap_free <- function(el, stats) {
+    win <- stats::quantile(stats, c(0.001, 0.999), names = FALSE)
+    mids <- sort(unique(round((el$xmin + el$xmax) / 2, 12)))
+    if (length(mids) < 3) return(invisible())
+    step <- min(diff(mids))
+    inwin <- mids[mids >= win[1] - step & mids <= win[2] + step]
+    if (length(inwin) > 1 && any(diff(inwin) > 1.5 * step))
+        stop("empty bin (gap) inside the central window")
 }
 
 check_null_invariants <- function(s, mode) {
@@ -203,16 +219,15 @@ for (nm in names(boot_sc)) {
             if (abs(sum(el$height) - length(s$stats)) > 1e-6)
                 stop("element heights do not sum to the number of replicates")
 
-            # CI lines must not slice a bar when stats are on a lattice
-            b <- choose_binning(df$stat, s$obs, align = "center")
-            if (b$lattice) {
-                vl <- vline_positions(built)
-                for (v in vl) {
-                    inside <- el$xmin + eps < v & v < el$xmax - eps
-                    if (any(inside))
-                        stop(paste("CI line at", v, "slices through a bar"))
-                }
-            }
+            # CI lines sit at the exact reported bounds (no display nudge)
+            ci <- compute_boot_ci(df, s$obs, s$conf, s$ci_type, s$clamp)
+            vl <- sort(vline_positions(built))
+            if (length(vl) != 2 ||
+                max(abs(vl - c(ci$cil, ci$ciu))) > eps)
+                stop("CI lines are not at the reported CI bounds")
+
+            # No interior empty bins within the central 98% of replicates
+            assert_gap_free(el, s$stats)
         })
     }
 }

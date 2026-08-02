@@ -73,12 +73,11 @@ compute_boot_ci <- function(boot, obs_stat, conf_level, ci_type,
 #' caption describing how the CI was constructed.
 #'
 #' Bins are centered on the observed statistic with a width adapted to the
-#' discreteness of the replicates (see \code{\link{choose_binning}}), so
-#' bars stay contiguous and evenly spaced even for discrete statistics
-#' like proportions.  When the replicates lie on a lattice, the drawn CI
-#' lines are nudged outward to the nearest bin edge so they never slice
-#' through a bar (the reported CI bounds are unaffected; this is display
-#' only).
+#' discreteness of the replicates (see \code{\link{choose_binning}}),
+#' chosen so the histogram never shows interior empty bins.  The dashed
+#' CI lines are drawn at the exact reported bounds; since no tail is
+#' shaded on CI plots, a line falling inside a bar is fine (and
+#' preferable to nudging the line away from the true percentile).
 #'
 #' @inheritParams compute_boot_ci
 #' @param dotHist Either \code{"dotplot"} or \code{"histogram"}.
@@ -123,7 +122,7 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
         )
     }
 
-    b <- choose_binning(boot$stat, obs_stat, align = "center")
+    b <- choose_binning(boot$stat, obs_stat, align = "center", max_empty = 0)
     idx <- bin_index(boot$stat, obs_stat, b$bw, b$off, 1, "center")
 
     bars <- data.frame(idx = idx) |>
@@ -132,20 +131,8 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
     bars$xmin <- xr$xmin
     bars$xmax <- xr$xmax
 
-    # For lattice data, nudge the drawn CI lines outward to the nearest bin
-    # edge so they never cut through a bar.  Display only; the reported CI
-    # is unchanged.
-    if (b$lattice) {
-        eps <- 1e-7
-        cila <- obs_stat + (floor((cil - obs_stat) / b$bw + 0.5 + eps) - 0.5) * b$bw
-        ciua <- obs_stat + (ceiling((ciu - obs_stat) / b$bw - 0.5 - eps) + 0.5) * b$bw
-    } else {
-        cila <- cil
-        ciua <- ciu
-    }
-
-    pad <- 0.03 * (max(bars$xmax, ciua) - min(bars$xmin, cila))
-    xlims <- c(min(bars$xmin, cila) - pad, max(bars$xmax, ciua) + pad)
+    pad <- 0.03 * (max(bars$xmax, ciu) - min(bars$xmin, cil))
+    xlims <- c(min(bars$xmin, cil) - pad, max(bars$xmax, ciu) + pad)
 
     if (dotHist == "dotplot") {
         dots <- data.frame(idx = idx) |>
@@ -187,7 +174,7 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
     }
 
     if (show_lines)
-        p <- p + ggplot2::geom_vline(xintercept = c(cila, ciua), linetype = "dashed", color = "red")
+        p <- p + ggplot2::geom_vline(xintercept = c(cil, ciu), linetype = "dashed", color = "red")
     if (show_caption)
         p <- p + ggplot2::labs(caption = caption) +
             ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))

@@ -30,6 +30,10 @@ NULL
 #' @param sign +1 bins rightward from the anchor, -1 mirrors (used when
 #'   the extreme tail is the lower one).
 #' @param target_bins Preferred number of bins for continuous data.
+#' @param max_empty Highest tolerated fraction of interior empty bins
+#'   (evaluated over the central 99.8\% of simulations).  Bootstrap plots
+#'   pass 0 so histograms never show gaps; a lone outlier still gets its
+#'   own bar with honest empty space beyond the central window.
 #'
 #' @return A list with \code{bw} (bin width), \code{off} (half-resolution
 #'   offset that keeps lattice values away from bin edges), \code{lattice}
@@ -37,7 +41,7 @@ NULL
 #'
 #' @keywords internal
 choose_binning <- function(stats, anchor, align = c("edge", "center"),
-                           sign = 1, target_bins = 30) {
+                           sign = 1, target_bins = 30, max_empty = 0.25) {
     align <- match.arg(align)
     u <- sort(unique(stats))
     span <- u[length(u)] - u[1]
@@ -58,12 +62,9 @@ choose_binning <- function(stats, anchor, align = c("edge", "center"),
     mult <- d / res
     lattice <- all(abs(mult - round(mult)) < 0.01)
 
-    # Counts over the central 98% of simulations: a lone outlier must not
-    # be allowed to force chunky bins on the whole distribution (it gets
-    # its own bar with honest empty space instead)
-    bin_counts <- function(bw) {
+    bin_counts <- function(bw, lo, hi) {
         idx <- bin_index(stats, anchor, bw, min(res, bw) / 2, sign, align)
-        qs <- stats::quantile(idx, c(0.01, 0.99), type = 1, names = FALSE)
+        qs <- stats::quantile(idx, c(lo, hi), type = 1, names = FALSE)
         win <- idx[idx >= qs[1] & idx <= qs[2]]
         tabulate(win - min(win) + 1L)
     }
@@ -94,14 +95,28 @@ choose_binning <- function(stats, anchor, align = c("edge", "center"),
     # snaps to a multiple of the lattice spacing, which removes aliasing
     # immediately; for irregular discrete data (e.g. chi-square) wider
     # bins absorb the gaps.
-    bw <- span / target_bins
-    ks <- unique(c(target_bins, 24, 20, 16, 13, 10, 8))
-    for (k in ks[ks <= target_bins]) {
-        cand <- if (lattice) res * max(1, round((span / k) / res)) else span / k
-        bw <- cand
-        counts <- bin_counts(cand)
-        if (frac_empty(counts) <= 0.25 && frac_zigzag(counts) <= 0.2) break
+    #
+    # Two passes: the first evaluates occupancy over the FULL range, so
+    # ordinary distributions come out with no gaps anywhere.  Only when
+    # no width can manage that (a genuinely detached outlier) does the
+    # second pass exclude the extreme 0.1% per side -- the outlier keeps
+    # its own bar with honest empty space rather than forcing chunky
+    # bins on the whole distribution.
+    ks <- unique(c(target_bins, 24, 20, 16, 13, 10, 8, 6, 5))
+    ks <- ks[ks <= target_bins]
+    try_ladder <- function(lo, hi) {
+        for (k in ks) {
+            cand <- if (lattice) res * max(1, round((span / k) / res)) else span / k
+            counts <- bin_counts(cand, lo, hi)
+            if (frac_empty(counts) <= max_empty && frac_zigzag(counts) <= 0.2)
+                return(cand)
+        }
+        NULL
     }
+    bw <- try_ladder(0, 1)
+    if (is.null(bw)) bw <- try_ladder(0.001, 0.999)
+    if (is.null(bw))
+        bw <- if (lattice) res * max(1, round((span / min(ks)) / res)) else span / min(ks)
 
     list(bw = bw, off = min(res, bw) / 2, lattice = lattice, res = res)
 }
