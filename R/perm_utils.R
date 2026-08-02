@@ -116,6 +116,10 @@ compute_null_pval <- function(perms, obs_stat, direction) {
 #'   how the p-value is calculated. Default \code{TRUE}.
 #' @param show_tail Logical; if \code{FALSE}, do not shade the tail region
 #'   used for the p-value calculation. Default \code{TRUE}.
+#' @param domain Optional length-2 bounds of the statistic (e.g.
+#'   \code{c(0, Inf)} for chi-square or F, \code{c(0, 1)} for a
+#'   proportion).  Bars and dot columns are trimmed so nothing is drawn
+#'   at impossible values.
 #'
 #' @return A \code{ggplot} object.
 #'
@@ -127,7 +131,8 @@ plot_null_dist <- function(perms, obs_stat, direction,
                            show_line = TRUE,
                            show_label = TRUE,
                            show_caption = TRUE,
-                           show_tail = TRUE) {
+                           show_tail = TRUE,
+                           domain = NULL) {
     dotHist <- match.arg(dotHist)
 
     if (direction == "less") {
@@ -153,19 +158,60 @@ plot_null_dist <- function(perms, obs_stat, direction,
     # bin arithmetic) decides which side of the line a value is drawn on.
     extreme <- if (ptail == "lt") perms$stat <= obs_stat else perms$stat >= obs_stat
 
-    b <- choose_binning(perms$stat, obs_stat, align = "edge", sign = sgn)
-    idx <- bin_index(perms$stat, obs_stat, b$bw, b$off, sgn, "edge")
-    idx[extreme] <- pmax(idx[extreme], 0L)
-    idx[!extreme] <- pmin(idx[!extreme], -1L)
-
     fill <- extreme & show_tail
 
-    bars <- data.frame(idx = idx, fill = fill) |>
-        dplyr::count(idx, fill)
-    xr <- bin_xrange(bars$idx, obs_stat, b$bw, sgn, "edge")
-    bars$xmin <- xr$xmin
-    bars$xmax <- xr$xmax
-    bars$mid <- xr$mid
+    # Sparse discrete statistics (e.g. chi-square from a 2x2 table, or a
+    # handful of reps) cannot be binned gap-free with equal-width bins:
+    # too few achievable values, unevenly spaced.  Draw one bar / dot
+    # column per exact value instead -- the space between values is
+    # honest, every element sits exactly at its value, and a value equal
+    # to the observed statistic lies on the line.
+    u <- sort(unique(perms$stat))
+    sparse <- length(u) >= 2 && length(u) <= 8
+
+    if (sparse) {
+        a <- 0.4 * min(diff(u))
+        idx <- match(perms$stat, u)
+        dot_x <- u[idx]
+        bars <- data.frame(idx = idx, fill = fill) |>
+            dplyr::count(idx, fill)
+        bars$xmin <- u[bars$idx] - a
+        bars$xmax <- u[bars$idx] + a
+        if (!is.null(domain)) {
+            bars$xmin <- pmax(bars$xmin, domain[1])
+            bars$xmax <- pmin(bars$xmax, domain[2])
+        }
+        bars$mid <- u[bars$idx]
+    } else {
+        b <- choose_binning(perms$stat, obs_stat, align = "edge", sign = sgn)
+        idx <- bin_index(perms$stat, obs_stat, b$bw, b$off, sgn, "edge")
+        idx[extreme] <- pmax(idx[extreme], 0L)
+        idx[!extreme] <- pmin(idx[!extreme], -1L)
+        a <- 0.42 * b$bw
+        dot_x <- dot_column_x(perms$stat, idx, b, obs_stat, sgn, "edge")
+        # a bin straddling a domain bound would place its column at an
+        # impossible value; clamp the center to the bound instead
+        if (!is.null(domain))
+            dot_x <- pmin(pmax(dot_x, domain[1]), domain[2])
+
+        bars <- data.frame(idx = idx, fill = fill) |>
+            dplyr::count(idx, fill)
+        xr <- bin_xrange(bars$idx, obs_stat, b$bw, sgn, "edge")
+        bars$xmin <- xr$xmin
+        bars$xmax <- xr$xmax
+        bars$mid <- xr$mid
+
+        # Trim grouped bins to the statistic's domain so no bar implies
+        # impossible values (e.g. negative chi-square).  Single-value
+        # bins are left alone: each bar starts exactly at its value (the
+        # value-at-edge convention), which is already honest.
+        single_val <- b$lattice && abs(b$bw - b$res) <= b$res * 1e-9
+        if (!is.null(domain) && !single_val) {
+            bars$xmin <- pmax(bars$xmin, domain[1])
+            bars$xmax <- pmin(bars$xmax, domain[2])
+            bars$mid <- (bars$xmin + bars$xmax) / 2
+        }
+    }
 
     # Extend the axis to reach the observed value, but never so far that
     # the distribution collapses into a sliver: beyond half the data span
@@ -190,14 +236,13 @@ plot_null_dist <- function(perms, obs_stat, direction,
             dplyr::group_by(idx) |>
             dplyr::mutate(y = dplyr::row_number()) |>
             dplyr::ungroup()
-        dots$x <- dot_column_x(perms$stat, idx, b, obs_stat, sgn, "edge")
+        dots$x <- dot_x
 
         max_stack <- max(dots$y)
         # At least 0.6 above the tallest stack so the top dot (semi-height
         # up to 0.45) is never clipped by the y limit
         y_top <- max(max_stack * (if (show_label) 1.3 else 1.06),
                      max_stack + 0.6)
-        a <- 0.42 * b$bw
 
         p <- ggplot2::ggplot(dots) +
             stack_dots(dots, a = a) +

@@ -13,9 +13,11 @@
 #      numerator (so a student counting red dots recovers the p-value).
 #   3. Toggle stability: bare/no-text modes draw bars at identical
 #      positions to the full plot.
-#   4. Bootstrap CI lines are drawn at the exact reported bounds, and
-#      bootstrap histograms/dotplots never show interior empty bins
-#      (gaps) within the central 99.8% of replicates.
+#   4. Bootstrap CI lines are drawn at the exact reported bounds.
+#   5. No interior empty bins (gaps) within the central 99.8% of
+#      simulations -- null and bootstrap alike.
+#   6. Nothing is drawn outside the statistic's domain (no negative
+#      chi-square bar, no proportion beyond [0, 1]).
 #
 # Run with: Rscript tests/test_plot_invariants.R
 
@@ -125,7 +127,8 @@ assert_gap_free <- function(el, stats) {
 check_null_invariants <- function(s, mode) {
     df <- data.frame(stat = s$stats)
     p <- plot_null_dist(df, s$obs, s$direction, mode,
-                        xlab = s$xlab, obs_label = "Observed\nValue")
+                        xlab = s$xlab, obs_label = "Observed\nValue",
+                        domain = s$domain)
     built <- build_checked(p)
     el <- layer_elements(built)
     assert_axis_economy(built, el)
@@ -142,6 +145,45 @@ check_null_invariants <- function(s, mode) {
 
     span <- diff(range(c(s$stats, s$obs)))
     eps <- span * 1e-9 + 1e-12
+
+    # Sparse statistics (<= 8 distinct values) draw one value-centered
+    # bar/column per achievable value: gaps between values are honest,
+    # and side purity is judged by centers (a bar AT the observed value
+    # legitimately straddles the line, pure by value identity).
+    u <- sort(unique(s$stats))
+    sparse <- length(u) >= 2 && length(u) <= 8
+    if (sparse) {
+        el$halfw <- (el$xmax - el$xmin) / 2
+    } else {
+        assert_gap_free(el, s$stats)
+    }
+
+    # Nothing placed at impossible values.  Grouped bars are trimmed to
+    # the domain (strict); single-value bars follow the value-at-edge
+    # convention and may extend one bin past a bound; value-centered
+    # elements are judged by center.  Grouped dot columns sit at bin
+    # midpoints and are exempt (a midpoint may fall within half a bin of
+    # the bound, the same accepted class as a glyph grazing the line).
+    if (!is.null(s$domain)) {
+        sgn <- if (ptail == "lt") -1 else 1
+        slack <- 0
+        if (!sparse) {
+            b <- choose_binning(s$stats, s$obs, align = "edge", sign = sgn)
+            if (b$lattice && abs(b$bw - b$res) <= b$res * 1e-9)
+                slack <- b$bw
+        }
+        bars_el <- el[el$halfw == 0, ]
+        if (nrow(bars_el) > 0 &&
+            (min(bars_el$xmin) < s$domain[1] - slack - eps ||
+             max(bars_el$xmax) > s$domain[2] + slack + eps))
+            stop("bar drawn outside the statistic's domain")
+        pts <- el[el$halfw > 0, ]
+        if (nrow(pts) > 0) {
+            ctr <- (pts$xmin + pts$xmax) / 2
+            if (min(ctr) < s$domain[1] - eps || max(ctr) > s$domain[2] + eps)
+                stop("element centered outside the statistic's domain")
+        }
+    }
 
     red <- el[el$fill == RED, ]
     black <- el[el$fill != RED, ]
@@ -187,7 +229,11 @@ check_null_invariants <- function(s, mode) {
     cols <- unique(el[, c("xmin", "xmax")])
     if (nrow(cols) > 1) {
         ord <- cols[order(cols$xmin), ]
-        if (any(ord$xmin[-1] - ord$xmax[-nrow(ord)] < -eps - 1e-9 * span))
+        # A dot column clamped to a domain bound may lean into its
+        # neighbor's nominal extent; drawn glyphs are narrower than the
+        # nominal half-width, so tolerate overlap below 35% of a column
+        colw <- stats::median(ord$xmax - ord$xmin)
+        if (any(ord$xmin[-1] - ord$xmax[-nrow(ord)] < -0.35 * colw - eps))
             stop("elements overlap horizontally")
     }
 }
@@ -249,8 +295,31 @@ for (nm in names(boot_sc)) {
                 max(abs(vl - c(ci$cil, ci$ciu))) > eps)
                 stop("CI lines are not at the reported CI bounds")
 
-            # No interior empty bins within the central 98% of replicates
-            assert_gap_free(el, s$stats)
+            # No interior empty bins (unless sparse: value-centered
+            # elements with honest gaps), and nothing placed at
+            # impossible values (clamp = domain bounds; bootstrap bars
+            # are trimmed, value-centered elements judged by center,
+            # grouped dot columns exempt as in the null checks)
+            u <- sort(unique(s$stats))
+            sparse <- length(u) >= 2 && length(u) <= 8
+            if (sparse) {
+                el$halfw <- (el$xmax - el$xmin) / 2
+            } else {
+                assert_gap_free(el, s$stats)
+            }
+            if (!is.null(s$clamp)) {
+                bars_el <- el[el$halfw == 0, ]
+                if (nrow(bars_el) > 0 &&
+                    (min(bars_el$xmin) < s$clamp[1] - eps ||
+                     max(bars_el$xmax) > s$clamp[2] + eps))
+                    stop("bar drawn outside the statistic's domain")
+                pts <- el[el$halfw > 0, ]
+                if (sparse && nrow(pts) > 0) {
+                    ctr <- (pts$xmin + pts$xmax) / 2
+                    if (min(ctr) < s$clamp[1] - eps || max(ctr) > s$clamp[2] + eps)
+                        stop("element centered outside the statistic's domain")
+                }
+            }
         })
     }
 }

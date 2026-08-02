@@ -30,10 +30,10 @@ NULL
 #' @param sign +1 bins rightward from the anchor, -1 mirrors (used when
 #'   the extreme tail is the lower one).
 #' @param target_bins Preferred number of bins for continuous data.
-#' @param max_empty Highest tolerated fraction of interior empty bins
-#'   (evaluated over the central 99.8\% of simulations).  Bootstrap plots
-#'   pass 0 so histograms never show gaps; a lone outlier still gets its
-#'   own bar with honest empty space beyond the central window.
+#' @param max_empty Highest tolerated fraction of interior empty bins.
+#'   The default 0 means histograms and dotplots never show gaps; a
+#'   genuinely detached outlier still gets its own bar with honest empty
+#'   space via the windowed second pass.
 #'
 #' @return A list with \code{bw} (bin width), \code{off} (half-resolution
 #'   offset that keeps lattice values away from bin edges), \code{lattice}
@@ -41,7 +41,7 @@ NULL
 #'
 #' @keywords internal
 choose_binning <- function(stats, anchor, align = c("edge", "center"),
-                           sign = 1, target_bins = 30, max_empty = 0.25) {
+                           sign = 1, target_bins = 30, max_empty = 0) {
     align <- match.arg(align)
     u <- sort(unique(stats))
     span <- u[length(u)] - u[1]
@@ -191,11 +191,9 @@ bin_xrange <- function(idx, anchor, bw, sign = 1, align = "edge") {
 #' @return X position for each element of \code{stats}.
 #' @keywords internal
 dot_column_x <- function(stats, idx, b, anchor, sign, align) {
-    if (b$lattice && abs(b$bw - b$res) <= b$res * 1e-9) {
-        stats::ave(stats, idx, FUN = function(v) v[1])
-    } else {
-        bin_xrange(idx, anchor, b$bw, sign, align)$mid
-    }
+    if (b$lattice && abs(b$bw - b$res) <= b$res * 1e-9)
+        return(stats::ave(stats, idx, FUN = function(v) v[1]))
+    bin_xrange(idx, anchor, b$bw, sign, align)$mid
 }
 
 #' Horizontal justification that keeps a label inside the panel

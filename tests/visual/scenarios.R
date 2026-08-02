@@ -40,44 +40,44 @@ make_null_scenarios <- function() {
     sc$prop_n20_greater <- list(
         # single proportion, n = 20: lattice spacing 0.05
         stats = rbinom(1000, 20, 0.5) / 20, obs = 0.65, direction = "greater",
-        xlab = "proportion")
+        xlab = "proportion", domain = c(0, 1))
 
     set.seed(106)
     sc$prop_n20_two_sided <- list(
         stats = rbinom(1000, 20, 0.5) / 20, obs = 0.65, direction = "two_sided",
-        xlab = "proportion")
+        xlab = "proportion", domain = c(0, 1))
 
     set.seed(107)
     sc$prop_n50_two_sided <- list(
         # lattice spacing 0.02
         stats = rbinom(1000, 50, 0.5) / 50, obs = 0.6, direction = "two_sided",
-        xlab = "proportion")
+        xlab = "proportion", domain = c(0, 1))
 
     set.seed(108)
     sc$prop_n100_greater <- list(
         # lattice spacing 0.01 -- finer than default bin width
         stats = rbinom(1000, 100, 0.5) / 100, obs = 0.57, direction = "greater",
-        xlab = "proportion")
+        xlab = "proportion", domain = c(0, 1))
 
     set.seed(109)
     sc$prop_n10_greater <- list(
         # very coarse: at most 11 distinct values
         stats = rbinom(1000, 10, 0.5) / 10, obs = 0.7, direction = "greater",
-        xlab = "proportion")
+        xlab = "proportion", domain = c(0, 1))
 
     set.seed(110)
     sc$diffprop_25_25 <- list(
         # two-prop diff, equal n: lattice spacing 0.04
         stats = rbinom(1000, 25, 0.5) / 25 - rbinom(1000, 25, 0.5) / 25,
         obs = 0.16, direction = "two_sided",
-        xlab = "difference in proportions")
+        xlab = "difference in proportions", domain = c(-1, 1))
 
     set.seed(111)
     sc$diffprop_30_20 <- list(
         # unequal n: values on 1/60 lattice but unevenly occupied
         stats = rbinom(1000, 30, 0.4) / 30 - rbinom(1000, 20, 0.4) / 20,
         obs = 0.21, direction = "greater",
-        xlab = "difference in proportions")
+        xlab = "difference in proportions", domain = c(-1, 1))
 
     set.seed(112)
     sc$chisq_2x2 <- list(
@@ -91,7 +91,7 @@ make_null_scenarios <- function() {
             }, numeric(1))
         }),
         obs = 5.4, direction = "greater",
-        xlab = "X-squared")
+        xlab = "X-squared", domain = c(0, Inf))
 
     set.seed(113)
     sc$chisq_3x3 <- list(
@@ -104,7 +104,7 @@ make_null_scenarios <- function() {
             }, numeric(1))
         }),
         obs = 9.2, direction = "greater",
-        xlab = "X-squared")
+        xlab = "X-squared", domain = c(0, Inf))
 
     set.seed(114)
     sc$slope_two_sided <- list(
