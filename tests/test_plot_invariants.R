@@ -342,6 +342,22 @@ test("sparse_groups never merges across the observed value", {
     if (length(g$centers) != 3) stop("values on opposite sides of obs were merged")
 })
 
+cat("\n=== Sparse mode: structure, not just few values ===\n")
+test("5 continuous reps are binned; a 2x2 chi-square with ties is one column per value", {
+    set.seed(9)
+    cont5 <- rnorm(5)
+    if (is_sparse_values(cont5)) stop("5 distinct continuous values should be binned")
+    if (!is_sparse_values(rnorm(2))) stop("2 values are always sparse")
+    # Yates-corrected 2x2 chi-square: 8 distinct values, heavy repetition, not a lattice
+    k <- rhyper(300, 7, 18, 13); e <- c(13*7, 13*18, 12*7, 12*18) / 25   # permuted 2x2 tables
+    x2 <- vapply(k, function(a) { o <- c(a, 13 - a, 7 - a, 12 - (7 - a)); sum((pmax(abs(o - e) - 0.5, 0))^2 / e) }, numeric(1))
+    if (!is_sparse_values(x2)) stop("repeated chi-square values should be sparse")
+    # dots of a sparse chi-square plot sit at (merged) exact values, never at a bin midpoint
+    b <- ggplot2::ggplot_build(plot_null_dist(data.frame(stat = x2), 0, "greater", "dotplot", domain = c(0, Inf)))
+    xs <- sort(unique(b$data[[1]]$x))
+    if (min(xs) > 0.1) stop("the zero-valued simulations are not drawn at zero")
+})
+
 cat("\n=== Toggle stability: bare mode draws identical bars ===\n")
 for (nm in c("prop_n20_greater", "cont_two_sided", "chisq_2x2")) {
     test(nm, {

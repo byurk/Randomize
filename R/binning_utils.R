@@ -355,15 +355,19 @@ stack_dots <- function(dots, a, max_b = 0.45, fill = NULL) {
 is_sparse_values <- function(stats) {
     nu <- length(unique(stats))
     if (nu < 2) return(FALSE)
-    if (nu <= 8) return(TRUE)
-    # Irregularly occupied lattices with a few more values (chi-square
-    # from a 2x2 table often has 9-12) are still clearer one column per
-    # value than binned.  Densely occupied lattices (proportions) get one
-    # bin per value from the ladder anyway, with bars anchored at the
-    # observed value, and continuous statistics with a dozen reps are
-    # binned as before.
+    if (nu <= 3) return(TRUE)
     if (nu > 12) return(FALSE)
     li <- lattice_info(stats)
+    # Few distinct values must reflect the statistic's structure (a
+    # lattice, or heavy repetition as in chi-square from a 2x2 table,
+    # whose Yates-corrected values are not a lattice) -- then one column
+    # per value is the honest picture.  A handful of continuous
+    # simulations (5 reps, 5 distinct values) is binned instead: sizing
+    # dots by the smallest gap between two random values can make them
+    # near-invisible.  Irregularly occupied lattices with 9-12 values
+    # are still clearer one column per value; densely occupied ones get
+    # that from the ladder anyway.
+    if (nu <= 8) return(li$lattice || nu <= length(stats) / 2)
     li$lattice && !li$dense
 }
 
