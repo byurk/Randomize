@@ -69,7 +69,9 @@ assert_axis_economy <- function(built, el) {
     if (x_use < 0.55)
         stop(paste0("distribution occupies only ",
                     round(100 * x_use), "% of the x axis"))
-    if ("ytop" %in% names(el)) {
+    # (dotplots never show fewer than 8 counts on the axis, so short
+    # stacks legitimately fill less of it)
+    if ("ytop" %in% names(el) && max(el$ytop) >= 8) {
         y_use <- max(el$ytop) / yr[2]
         if (y_use < 0.7)
             stop(paste0("distribution occupies only ",
@@ -90,7 +92,7 @@ layer_elements <- function(built) {
     } else {
         a <- built$plot$layers[[1]]$geom_params$a
         data.frame(xmin = d$x - a, xmax = d$x + a, fill = d$fill,
-                   height = 1, ytop = d$y + 0.45, halfw = a)
+                   height = 1, ytop = d$y + 0.5, halfw = a)
     }
 }
 

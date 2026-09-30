@@ -612,6 +612,18 @@ test("p = 0 no longer emits infer's warning", {
         warning = function(x) { w <<- c(w, conditionMessage(x)); invokeRestart("muffleWarning") })
     stopifnot(!any(grepl("p-value of 0", w)))
 })
+test("dot stacks rest on the axis", {
+    for (r in list(
+        twomeanhtest(data = clean_data, vars = "score", group = "group", hypothesis = "different",
+                     reps = 3, dotHist = "dotplot", seedBool = TRUE, rngSeed = 1),
+        SingleMeanCI(data = clean_data, resp = "score", reps = 3, dotHist = "dotplot",
+                     seedBool = TRUE, rngSeed = 1))) {
+        b <- ggplot2::ggplot_build(plot(r))
+        d <- b$data[[1]]
+        stopifnot(min(d$y) == 0.5)                       # bottom dot centred half a unit up
+        stopifnot(b$layout$panel_params[[1]]$y.range[2] >= 8)  # axis floor
+    }
+})
 test("a single simulation keeps the observed value on the axis", {
     r <- twomeanhtest(data = clean_data, vars = "score", group = "group", hypothesis = "different",
                       reps = 1, dotHist = "dotplot", seedBool = TRUE, rngSeed = 1)

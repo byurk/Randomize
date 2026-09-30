@@ -172,18 +172,19 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
     xlims <- c(min(bars$xmin, cil) - pad, max(bars$xmax, ciu) + pad)
 
     if (dotHist == "dotplot") {
+        # Dot k of a stack is centred at k - 1/2 so the bottom dot rests on
+        # the axis (see plot_null_dist)
         dots <- data.frame(idx = idx) |>
             dplyr::group_by(idx) |>
-            dplyr::mutate(y = dplyr::row_number()) |>
+            dplyr::mutate(y = dplyr::row_number() - 0.5) |>
             dplyr::ungroup()
         dots$x <- dot_x
 
-        # At least 0.6 above the tallest stack so the top dot (semi-height
-        # up to 0.45) is never clipped by the y limit; count labels need
-        # a little more headroom
+        max_stack <- max(dots$y) + 0.5
         cnt_room <- if (!show_counts) 1.06 else if (counts_vertical(bars$n, plot_width)) 1.26 else 1.14
-        y_top <- max(max(dots$y) * cnt_room,
-                     max(dots$y) + 0.6 + (if (show_counts) 0.8 else 0))
+        y_top <- max(max_stack * cnt_room,
+                     max_stack + 0.6 + (if (show_counts) 0.8 else 0),
+                     8)
 
         p <- ggplot2::ggplot(dots) +
             stack_dots(dots, a = a, fill = "grey35") +
@@ -201,8 +202,8 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
         if (show_counts) {
             tops <- dots |>
                 dplyr::group_by(idx) |>
-                dplyr::summarize(x = x[1], n = max(y), .groups = "drop")
-            p <- p + count_labels(tops$x, tops$n + 0.5, tops$n, plot_width = plot_width)
+                dplyr::summarize(x = x[1], n = max(y) + 0.5, .groups = "drop")
+            p <- p + count_labels(tops$x, tops$n, tops$n, plot_width = plot_width)
         }
     } else {
         p <- ggplot2::ggplot(bars) +
