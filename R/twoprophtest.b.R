@@ -237,7 +237,7 @@ TwoPropHTestClass <- R6::R6Class(
             } else {
                 diffProp$setRow(rowNo=othRowNo, list(
                     `v[dp]`=NaN))
-                diffProp$addFootnote(rowNo=othRowNo, 'v[dp]', .('Available for 2x2 tables only'))
+                diffProp$addFootnote(rowNo=othRowNo, 'v[dp]', if (all(dim(mat) == 2)) .('Not available: an empty row or column leaves a proportion undefined') else .('Available for 2x2 tables only'))
             }
 
         },

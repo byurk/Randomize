@@ -63,7 +63,9 @@ TwoPropCIOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
             private$..confLevel <- jmvcore::OptionNumber$new(
                 "confLevel",
                 confLevel,
-                default=95)
+                default=95,
+                min=1,
+                max=99.9)
             private$..ciType <- jmvcore::OptionList$new(
                 "ciType",
                 ciType,
@@ -91,9 +93,10 @@ TwoPropCIOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
                 "pcTot",
                 pcTot,
                 default=FALSE)
-            private$..reps <- jmvcore::OptionNumber$new(
+            private$..reps <- jmvcore::OptionInteger$new(
                 "reps",
                 reps,
+                min=1,
                 default=100)
             private$..dotHist <- jmvcore::OptionList$new(
                 "dotHist",

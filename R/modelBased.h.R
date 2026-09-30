@@ -64,8 +64,8 @@ modelBasedOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
                 "confLevel",
                 confLevel,
                 default=95,
-                min=0,
-                max=100)
+                min=1,
+                max=99.9)
 
             self$.addOption(private$..distro)
             self$.addOption(private$..dF)

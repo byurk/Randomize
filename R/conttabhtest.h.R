@@ -78,9 +78,10 @@ ContTabHTestOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
                 "pcTot",
                 pcTot,
                 default=FALSE)
-            private$..reps <- jmvcore::OptionNumber$new(
+            private$..reps <- jmvcore::OptionInteger$new(
                 "reps",
                 reps,
+                min=1,
                 default=100)
             private$..dotHist <- jmvcore::OptionList$new(
                 "dotHist",

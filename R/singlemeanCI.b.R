@@ -57,6 +57,15 @@ SingleMeanCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
 
             set_seed_if(self$options$seedBool, self$options$rngSeed)
 
+            if (length(varData) < 2)
+                jmvcore::reject(jmvcore::format("Variable '{resp}' needs at least 2 observations", resp = resp), code = '')
+
+            # infer::specify() runs t.test() internally, which refuses a
+            # constant sample; every bootstrap mean of a constant sample
+            # is that constant, so draw it directly
+            if (stats::sd(varData) == 0)
+                return(data.frame(replicate = seq_len(reps), stat = rep(mean(varData), reps)))
+
             boot <- df %>%
                 infer::specify(response = val) %>%
                 infer::generate(reps = reps, type = "bootstrap") %>%

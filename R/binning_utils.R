@@ -310,7 +310,9 @@ makeContent.randomize_dotstack <- function(x) {
     # dots below visibility, so from there dots keep a legible size and
     # overlap vertically like stacked coins instead (the plot itself
     # disables panel clipping so the top dot survives intact).
-    r_mm <- min(a_mm, max(bcap_mm, 1.2))
+    # ...and a ceiling: with one or two columns (a handful of reps in a
+    # classroom demo) the column semi-width would make dinner-plate dots
+    r_mm <- min(a_mm, max(bcap_mm, 1.2), 4)
     dots <- grid::circleGrob(
         x = grid::unit(x$cx, "npc"), y = grid::unit(x$cy, "npc"),
         r = grid::unit(r_mm, "mm"),

@@ -93,9 +93,15 @@ map_direction <- function(hypothesis) {
 #'
 #' @keywords internal
 compute_null_pval <- function(perms, obs_stat, direction) {
-    perms |>
-        infer::get_p_value(obs_stat = obs_stat, direction = direction) |>
-        dplyr::pull()
+    # infer warns when p = 0; the tables report that case as "< 1/reps"
+    # (format_sim_pval), so the warning is noise for R users
+    withCallingHandlers(
+        perms |>
+            infer::get_p_value(obs_stat = obs_stat, direction = direction) |>
+            dplyr::pull(),
+        warning = function(w) {
+            if (grepl("p-value of 0", conditionMessage(w))) invokeRestart("muffleWarning")
+        })
 }
 
 #' Format a simulation p-value for a results table
@@ -262,6 +268,10 @@ plot_null_dist <- function(perms, obs_stat, direction,
     dspan <- dat_hi - dat_lo
     cap_lo <- dat_lo - 0.5 * dspan
     cap_hi <- dat_hi + 0.5 * dspan
+    # With a handful of simulations (a step-by-step classroom demo)
+    # there is no distribution to protect from collapsing, so always
+    # bring the observed value onto the axis
+    if (nrow(bars) <= 2 || nrow(perms) <= 10) { cap_lo <- -Inf; cap_hi <- Inf }
     obs_in <- obs_stat >= cap_lo && obs_stat <= cap_hi
     x_lo <- max(min(dat_lo, obs_stat), cap_lo)
     x_hi <- min(max(dat_hi, obs_stat), cap_hi)

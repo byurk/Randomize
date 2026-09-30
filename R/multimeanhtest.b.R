@@ -54,6 +54,10 @@ multimeanhtestClass <- R6::R6Class(
         res <- createError(.('Variable is not numeric'))
       } else if (any(is.infinite(dataHTest$dep))) {
         res <- createError(.('Variable contains infinite values'))
+      } else if (any(n < 2)) {
+        res <- createError(.('Each group needs at least 2 observations'))
+      } else if (!is.finite(f_stat(dataHTest$dep, dataHTest$group))) {
+        res <- createError(.('F is undefined: the variable does not vary within groups'))
       } else {
         # f_stat() rather than infer::calculate("F"): infer's specify()
         # is rejected by Jamovi 2.7's formula sandbox (see ?resample_means)

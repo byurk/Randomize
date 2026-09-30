@@ -207,9 +207,11 @@ plot_model_density <- function(distro, dF, dF2 = NULL, obs = 0, tail = "right") 
             chisq   = function(p) stats::qchisq(p, dF),
             fdistro = function(p) stats::qf(p, dF, dF2))
         xmax <- max(qfun(0.995), obs * 1.15, 1e-6)
-        # start a hair above zero: chi-square / F densities with df = 1
-        # are unbounded at zero
-        x <- seq(xmax / 400, xmax, length.out = 601)
+        # start a hair above zero (chi-square / F densities with df = 1
+        # are unbounded there) or, for large df where the mass sits far
+        # from zero, at a low quantile so the curve is not a spike
+        xmin <- max(xmax / 400, min(qfun(0.0005), obs * 0.85))
+        x <- seq(xmin, xmax, length.out = 601)
     }
     curve <- data.frame(x = x, y = dfun(x))
 
@@ -265,7 +267,7 @@ plot_model_density <- function(distro, dF, dF2 = NULL, obs = 0, tail = "right") 
         ggplot2::theme(text = ggplot2::element_text(size = 18))
 
     if (!symmetric)
-        p <- p + ggplot2::scale_x_continuous(limits = c(0, max(x)),
+        p <- p + ggplot2::scale_x_continuous(limits = c(if (min(x) > xmax / 400) min(x) else 0, max(x)),
                                              expand = ggplot2::expansion(mult = c(0, 0.02)))
     if (!is.null(y_cap))
         p <- p + ggplot2::coord_cartesian(ylim = c(0, y_cap))

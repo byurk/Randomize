@@ -40,6 +40,10 @@ slopehtestClass <- R6::R6Class(
         res <- createError(.('Independent variable is not numeric'))
       } else if (any(is.infinite(dataHTest$indep))) {
         res <- createError(.('Independent variable contains infinite values'))
+      } else if (nrow(dataHTest) < 3) {
+        res <- createError(.('At least 3 complete observations are needed'))
+      } else if (stats::var(dataHTest$indep) == 0) {
+        res <- createError(.('Independent variable is constant, so the slope is undefined'))
       } else {
         lm1 <- lm(dep ~ indep, data=dataHTest)
         coef <- lm1$coefficients

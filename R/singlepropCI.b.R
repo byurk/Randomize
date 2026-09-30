@@ -261,6 +261,21 @@ SinglePropCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
                 )
             }
 
+            if (self$options$areCounts) {
+                raw <- data[[resp]]
+                cnt <- if (jmvcore::canBeNumeric(raw)) jmvcore::toNumeric(raw) else suppressWarnings(as.numeric(as.character(raw)))
+                if (length(cnt) != 2)
+                    jmvcore::reject(jmvcore::format("With 'Values are counts', '{resp}' must hold exactly 2 counts (found {n} rows)", resp=resp, n=length(cnt)), code='')
+                if (any(is.na(cnt)))
+                    jmvcore::reject(jmvcore::format("Counts in '{resp}' must be numbers (a value is missing or non-numeric)", resp=resp), code='')
+                if (any(cnt < 0))
+                    jmvcore::reject(jmvcore::format("Counts in '{resp}' may not be negative", resp=resp), code='')
+                if (any(cnt != round(cnt)))
+                    jmvcore::reject(jmvcore::format("Counts in '{resp}' must be whole numbers", resp=resp), code='')
+                if (sum(cnt) == 0)
+                    jmvcore::reject(jmvcore::format("Counts in '{resp}' are both zero", resp=resp), code='')
+            }
+
             results <- private$.counts(resp)
             if (length(results$counts) != 2) {
                 jmvcore::reject(

@@ -558,6 +558,70 @@ test("bare mode still draws no counts", {
     stopifnot(count_layers(plot(r, show_lines = FALSE, show_counts = FALSE), "GeomText") == 0)
 })
 
+cat("\n=== Degenerate input gives a clear message, not a stack trace ===\n")
+expect_reject <- function(expr, pattern) {
+    msg <- tryCatch({ force(expr); "" }, error = function(e) conditionMessage(e))
+    if (!grepl(pattern, msg)) stop(paste0("expected message matching '", pattern, "', got: ", substr(msg, 1, 120)))
+}
+# The mean/slope analyses report data problems as a table footnote (the
+# analysis itself succeeds), so look for the message in the printed table
+expect_footnote <- function(tbl, pattern) {
+    txt <- gsub("\\s+", " ", paste(capture.output(print(tbl)), collapse = " "))
+    if (!grepl(pattern, txt)) stop(paste0("expected footnote matching '", pattern, "'"))
+}
+test("F test: constant response / one obs per group", {
+    r <- multimeanhtest(data = data.frame(score = rep(3, 30), group = factor(rep(c("A","B","C"), 10))),
+                        vars = "score", group = "group", reps = 50)
+    expect_footnote(r$htest, "does not vary")
+    r <- multimeanhtest(data = data.frame(score = c(1, 2, 4), group = factor(c("A","B","C"))),
+                        vars = "score", group = "group", reps = 50)
+    expect_footnote(r$htest, "at least 2 observations")
+})
+test("slope: constant predictor / too few rows", {
+    r <- slopehtest(data = data.frame(x = rep(2, 20), y = rnorm(20)), dep = "y", indep = "x", reps = 50)
+    expect_footnote(r$htest, "constant")
+    r <- slopeCI(data = data.frame(x = rep(2, 20), y = rnorm(20)), dep = "y", indep = "x", reps = 50)
+    expect_footnote(r$CITable, "constant")
+    r <- slopehtest(data = data.frame(x = c(1, 2), y = c(3, 5)), dep = "y", indep = "x", reps = 50)
+    expect_footnote(r$htest, "At least 3")
+})
+test("single mean CI: n = 1 rejects, constant sample gives a point CI", {
+    expect_reject(SingleMeanCI(data = data.frame(v = 7), resp = "v", reps = 50), "at least 2")
+    r <- SingleMeanCI(data = data.frame(v = rep(7, 15)), resp = "v", reps = 100, seedBool = TRUE, rngSeed = 1)
+    stopifnot(r$simtable$asDF$cil == 7, r$simtable$asDF$ciu == 7)
+    assert_is_ggplot(plot(r))
+})
+test("proportion counts: NA / negative / fractional / wrong row count", {
+    expect_reject(SinglePropHTest(data = data.frame(x = c(3, NA)), resp = "x", areCounts = TRUE, reps = 50), "missing")
+    expect_reject(SinglePropHTest(data = data.frame(x = c(3, -2)), resp = "x", areCounts = TRUE, reps = 50), "negative")
+    expect_reject(SinglePropHTest(data = data.frame(x = c(3.5, 2.5)), resp = "x", areCounts = TRUE, reps = 50), "whole numbers")
+    expect_reject(SinglePropHTest(data = data.frame(x = c(5, 3, 2)), resp = "x", areCounts = TRUE, reps = 50), "exactly 2 counts")
+    expect_reject(SinglePropCI(data = data.frame(x = c(0, 0)), resp = "x", areCounts = TRUE, reps = 50), "both zero")
+})
+test("reps must be a positive integer; confidence level in (0, 100)", {
+    expect_reject(twomeanhtest(data = clean_data, vars = "score", group = "group", reps = 0), "reps|Reps|greater|minimum|min")
+    expect_reject(twomeanhtest(data = clean_data, vars = "score", group = "group", reps = -5), "reps|Reps|greater|minimum|min")
+    expect_reject(SingleMeanCI(data = clean_data, resp = "score", reps = 50, confLevel = 100), "confLevel|maximum|max")
+    expect_reject(modelBased(distro = "tdistro", dF = 10, CIBool = TRUE, confLevel = 0), "confLevel|minimum|min")
+})
+test("p = 0 no longer emits infer's warning", {
+    w <- NULL
+    withCallingHandlers(
+        SinglePropHTest(data = data.frame(x = c(19, 1)), resp = "x", areCounts = TRUE, testValue = 0.5,
+                        alt = "greater", reps = 100, seedBool = TRUE, rngSeed = 1),
+        warning = function(x) { w <<- c(w, conditionMessage(x)); invokeRestart("muffleWarning") })
+    stopifnot(!any(grepl("p-value of 0", w)))
+})
+test("a single simulation keeps the observed value on the axis", {
+    r <- twomeanhtest(data = clean_data, vars = "score", group = "group", hypothesis = "different",
+                      reps = 1, dotHist = "dotplot", seedBool = TRUE, rngSeed = 1)
+    p <- plot(r); b <- ggplot2::ggplot_build(p)
+    xr <- b$layout$panel_params[[1]]$x.range
+    obs <- r$simplot$state$obs_stat
+    stopifnot(obs >= xr[1], obs <= xr[2])
+    stopifnot(count_layers(p, "GeomVline") == 1)   # dashed line, not an edge arrow
+})
+
 cat("\n=== Formula-free resampling matches the model-based statistics ===\n")
 test("f_stat equals anova(lm()) F", {
     f_ref <- anova(lm(score ~ group, data = multi_data))$F[1]

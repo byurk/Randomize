@@ -78,7 +78,8 @@ options:
 
     - name: reps
       title: Number of simulated samples
-      type: Number
+      type: Integer
+      min: 1
       default: 100
       description:
           R: >
