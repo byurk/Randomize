@@ -175,7 +175,8 @@ slopehtestClass <- R6::R6Class(
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                            xlab = "slope",
                            obs_label = "Observed\nSlope",
-                           show_counts = isTRUE(st$showCounts))
+                           show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
           },
           .formula=function() {
             jmvcore:::composeFormula(self$options$dep, self$options$indep)

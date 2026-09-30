@@ -224,7 +224,8 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
                            xlab = "proportion",
                            obs_label = "Observed\nProportion",
                            domain = c(0, 1),
-                           show_counts = isTRUE(st$showCounts))
+                           show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
         },
 
         #### Helper functions ----

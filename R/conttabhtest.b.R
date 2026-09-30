@@ -236,7 +236,8 @@ ContTabHTestClass <- R6::R6Class(
                            xlab = "X\u00B2",
                            obs_label = "Observed\nX\u00B2",
                            domain = c(0, Inf),
-                           show_counts = isTRUE(st$showCounts))
+                           show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
         },
 
         #### Helper functions ----

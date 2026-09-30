@@ -191,7 +191,8 @@ twomeanCIClass <- R6::R6Class(
                                 st$dotHist,
                                 xlab = "difference (group 1 - group 2)",
                                 stat_label = "bootstrap differences",
-                                show_counts = isTRUE(st$showCounts))
+                                show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
             return(p)
           },
           

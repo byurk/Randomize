@@ -185,7 +185,8 @@ twomeanhtestClass <- R6::R6Class(
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                            xlab = "difference (group 1 - group 2)",
                            obs_label = "Observed\nDifference",
-                           show_counts = isTRUE(st$showCounts))
+                           show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
         },
           .formula=function() {
             jmvcore:::composeFormula(self$options$vars, self$options$group)

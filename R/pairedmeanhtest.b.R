@@ -202,7 +202,8 @@ pairedmeanhtestClass <- R6::R6Class(
                 plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                                xlab = "mean difference",
                                obs_label = "Observed\nDifference",
-                               show_counts = isTRUE(st$showCounts))
+                               show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
               }
             )
           )

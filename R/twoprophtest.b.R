@@ -258,7 +258,8 @@ TwoPropHTestClass <- R6::R6Class(
                            xlab = "difference (group 1 - group 2)",
                            obs_label = "Observed\nDifference",
                            domain = c(-1, 1),
-                           show_counts = isTRUE(st$showCounts))
+                           show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
         },
 
         #### Helper functions ----

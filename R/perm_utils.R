@@ -154,6 +154,8 @@ format_sim_pval <- function(p, reps) {
 #'   at impossible values.
 #' @param show_counts Logical; if \code{TRUE}, print the count above
 #'   each bar or dot stack.  Default \code{FALSE}.
+#' @param plot_width Logical plot width in pixels, used to size the
+#'   count labels (see \code{\link{count_label_size}}).
 #'
 #' @return A \code{ggplot} object.
 #'
@@ -167,7 +169,8 @@ plot_null_dist <- function(perms, obs_stat, direction,
                            show_caption = TRUE,
                            show_tail = TRUE,
                            domain = NULL,
-                           show_counts = FALSE) {
+                           show_counts = FALSE,
+                           plot_width = 400) {
     dotHist <- match.arg(dotHist)
 
     if (direction == "less") {
@@ -279,7 +282,7 @@ plot_null_dist <- function(perms, obs_stat, direction,
         # At least 0.6 above the tallest stack so the top dot (semi-height
         # up to 0.45) is never clipped by the y limit; count labels need
         # a little more headroom
-        cnt_room <- if (!show_counts) 1 else if (counts_vertical(bars$n)) 1.2 else 1.08
+        cnt_room <- if (!show_counts) 1 else if (counts_vertical(bars$n, plot_width)) 1.2 else 1.08
         y_top <- max(max_stack * (if (show_label) 1.3 else 1.06) * cnt_room,
                      max_stack + 0.6 + (if (show_counts) 0.8 else 0))
 
@@ -302,10 +305,10 @@ plot_null_dist <- function(perms, obs_stat, direction,
                 dplyr::group_by(idx) |>
                 dplyr::summarize(x = x[1], n = max(y), fill = fill[1],
                                  .groups = "drop")
-            p <- p + count_labels(tops$x, tops$n + 0.5, tops$n, tops$fill)
+            p <- p + count_labels(tops$x, tops$n + 0.5, tops$n, tops$fill, plot_width)
         }
     } else {
-        cnt_room <- if (!show_counts) 1 else if (counts_vertical(bars$n)) 1.2 else 1.08
+        cnt_room <- if (!show_counts) 1 else if (counts_vertical(bars$n, plot_width)) 1.2 else 1.08
         y_top <- max(bars$n) * (if (show_label) 1.2 else 1.04) * cnt_room
 
         p <- ggplot2::ggplot(bars) +
@@ -323,7 +326,7 @@ plot_null_dist <- function(perms, obs_stat, direction,
             ggplot2::theme(text = ggplot2::element_text(size = 14))
 
         if (show_counts)
-            p <- p + count_labels(bars$mid, bars$n, bars$n, bars$fill)
+            p <- p + count_labels(bars$mid, bars$n, bars$n, bars$fill, plot_width)
     }
 
     if (show_line && obs_in)
@@ -381,10 +384,10 @@ plot_null_dist <- function(perms, obs_stat, direction,
 #'   straight off the plot.
 #' @return A \code{geom_text} layer.
 #' @keywords internal
-count_labels <- function(x, y, n, extreme = FALSE) {
+count_labels <- function(x, y, n, extreme = FALSE, plot_width = 400) {
     d <- data.frame(x = x, y = y, n = n,
                     col = ifelse(rep_len(extreme, length(x)), "#d9534f", "grey25"))
-    sz <- count_label_size(n)
+    sz <- count_label_size(n, plot_width)
     if (sz$vertical) {
         ggplot2::geom_text(
             data = d, ggplot2::aes(x = x, y = y, label = n),
@@ -405,13 +408,16 @@ count_labels <- function(x, y, n, extreme = FALSE) {
 #' sized by the bar spacing with the same floor and cap.
 #'
 #' @param n The counts to be printed.
+#' @param plot_width Logical width of the plot in pixels (Jamovi's
+#'   default is 400; a plot the user has resized in the results panel
+#'   reports its new width, so labels grow with it).
 #' @return A list with \code{size} (ggplot text size, mm) and
 #'   \code{vertical}.
 #' @keywords internal
-count_label_size <- function(n) {
+count_label_size <- function(n, plot_width = 400) {
     n_bars <- length(n)
     chars <- max(nchar(as.character(n)))
-    per_bar <- 0.95 * 340 / n_bars               # px available per label
+    per_bar <- 0.95 * 0.85 * plot_width / n_bars  # px available per label
     pt_per_size <- 2.845                          # ggplot size (mm) -> pt (= px at 72 ppi)
     size_h <- per_bar / (chars * 0.6 * pt_per_size)   # digits are ~0.6 em wide
     if (size_h >= 3)
@@ -423,7 +429,7 @@ count_label_size <- function(n) {
 #' Should count labels be drawn vertically?
 #' @param n The counts to be printed.
 #' @keywords internal
-counts_vertical <- function(n) count_label_size(n)$vertical
+counts_vertical <- function(n, plot_width = 400) count_label_size(n, plot_width)$vertical
 
 #' Permutation null distributions computed without formulas
 #'

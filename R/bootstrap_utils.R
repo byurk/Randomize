@@ -90,6 +90,8 @@ compute_boot_ci <- function(boot, obs_stat, conf_level, ci_type,
 #'   how the CI was constructed. Default \code{TRUE}.
 #' @param show_counts Logical; if \code{TRUE}, print the count above
 #'   each bar or dot stack.  Default \code{FALSE}.
+#' @param plot_width Logical plot width in pixels, used to size the
+#'   count labels (see \code{\link{count_label_size}}).
 #'
 #' @return A \code{ggplot} object.
 #'
@@ -101,7 +103,8 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
                            clamp = NULL,
                            show_lines = TRUE,
                            show_caption = TRUE,
-                           show_counts = FALSE) {
+                           show_counts = FALSE,
+                           plot_width = 400) {
     dotHist <- match.arg(dotHist)
     ci <- compute_boot_ci(boot, obs_stat, conf_level, ci_type, clamp)
     cil <- ci$cil
@@ -178,7 +181,7 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
         # At least 0.6 above the tallest stack so the top dot (semi-height
         # up to 0.45) is never clipped by the y limit; count labels need
         # a little more headroom
-        cnt_room <- if (!show_counts) 1.06 else if (counts_vertical(bars$n)) 1.26 else 1.14
+        cnt_room <- if (!show_counts) 1.06 else if (counts_vertical(bars$n, plot_width)) 1.26 else 1.14
         y_top <- max(max(dots$y) * cnt_room,
                      max(dots$y) + 0.6 + (if (show_counts) 0.8 else 0))
 
@@ -199,7 +202,7 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
             tops <- dots |>
                 dplyr::group_by(idx) |>
                 dplyr::summarize(x = x[1], n = max(y), .groups = "drop")
-            p <- p + count_labels(tops$x, tops$n + 0.5, tops$n)
+            p <- p + count_labels(tops$x, tops$n + 0.5, tops$n, plot_width = plot_width)
         }
     } else {
         p <- ggplot2::ggplot(bars) +
@@ -213,11 +216,11 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
             ggplot2::scale_x_continuous(limits = xlims) +
             ggplot2::scale_y_continuous(
                 expand = ggplot2::expansion(mult = c(0, if (!show_counts) 0.04
-                    else if (counts_vertical(bars$n)) 0.24 else 0.12))) +
+                    else if (counts_vertical(bars$n, plot_width)) 0.24 else 0.12))) +
             ggplot2::theme(text = ggplot2::element_text(size = 14))
 
         if (show_counts)
-            p <- p + count_labels((bars$xmin + bars$xmax) / 2, bars$n, bars$n)
+            p <- p + count_labels((bars$xmin + bars$xmax) / 2, bars$n, bars$n, plot_width = plot_width)
     }
 
     if (show_lines)

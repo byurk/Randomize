@@ -240,7 +240,8 @@ SinglePropCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
                                 st$dotHist, xlab = "proportion",
                                 stat_label = "bootstrap proportions",
                                 clamp = c(0, 1),
-                                show_counts = isTRUE(st$showCounts))
+                                show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
             return(p)
         },
 

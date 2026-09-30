@@ -190,7 +190,8 @@ multimeanhtestClass <- R6::R6Class(
                            xlab = "F",
                            obs_label = "Observed\nF",
                            domain = c(0, Inf),
-                           show_counts = isTRUE(st$showCounts))
+                           show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
         },
           .formula=function() {
             jmvcore:::composeFormula(self$options$vars, self$options$group)
