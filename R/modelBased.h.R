@@ -8,6 +8,7 @@ modelBasedOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
         initialize = function(
             distro = "ndistro",
             dF = 30,
+            dF2 = 30,
             areaBool = FALSE,
             obsStat = 0,
             tail = "right",
@@ -25,11 +26,18 @@ modelBasedOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
                 distro,
                 options=list(
                     "ndistro",
-                    "tdistro"),
+                    "tdistro",
+                    "chisq",
+                    "fdistro"),
                 default="ndistro")
             private$..dF <- jmvcore::OptionInteger$new(
                 "dF",
                 dF,
+                min=1,
+                default=30)
+            private$..dF2 <- jmvcore::OptionInteger$new(
+                "dF2",
+                dF2,
                 min=1,
                 default=30)
             private$..areaBool <- jmvcore::OptionBool$new(
@@ -56,10 +64,12 @@ modelBasedOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
                 "confLevel",
                 confLevel,
                 default=95,
-                min=0)
+                min=0,
+                max=100)
 
             self$.addOption(private$..distro)
             self$.addOption(private$..dF)
+            self$.addOption(private$..dF2)
             self$.addOption(private$..areaBool)
             self$.addOption(private$..obsStat)
             self$.addOption(private$..tail)
@@ -69,6 +79,7 @@ modelBasedOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
     active = list(
         distro = function() private$..distro$value,
         dF = function() private$..dF$value,
+        dF2 = function() private$..dF2$value,
         areaBool = function() private$..areaBool$value,
         obsStat = function() private$..obsStat$value,
         tail = function() private$..tail$value,
@@ -77,6 +88,7 @@ modelBasedOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
     private = list(
         ..distro = NA,
         ..dF = NA,
+        ..dF2 = NA,
         ..areaBool = NA,
         ..obsStat = NA,
         ..tail = NA,
@@ -88,10 +100,8 @@ modelBasedResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
     "modelBasedResults",
     inherit = jmvcore::Group,
     active = list(
-        textArea = function() private$.items[["textArea"]],
         Plot = function() private$.items[["Plot"]],
         areaTable = function() private$.items[["areaTable"]],
-        textMultiplier = function() private$.items[["textMultiplier"]],
         multTable = function() private$.items[["multTable"]]),
     private = list(),
     public=list(
@@ -100,20 +110,18 @@ modelBasedResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
                 options=options,
                 name="",
                 title="Model-Based Inference")
-            self$add(jmvcore::Preformatted$new(
-                options=options,
-                name="textArea",
-                title="Calculate Probability"))
             self$add(jmvcore::Image$new(
                 options=options,
                 name="Plot",
                 title="Probability density function",
                 renderFun=".areaPlot",
-                width=400,
-                height=200,
+                width=450,
+                height=250,
+                visible="(areaBool)",
                 clearWith=list(
                     "distro",
                     "dF",
+                    "dF2",
                     "areaBool",
                     "obsStat",
                     "tail")))
@@ -121,30 +129,44 @@ modelBasedResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
                 options=options,
                 name="areaTable",
                 title="Shaded area (p-value)",
+                visible="(areaBool)",
                 clearWith=list(
                     "distro",
                     "dF",
+                    "dF2",
                     "areaBool",
                     "obsStat",
                     "tail"),
                 columns=list(
                     list(
                         `name`="obsStat", 
-                        `title`="Obs. Val", 
+                        `title`="Observed value", 
                         `type`="number"),
+                    list(
+                        `name`="df", 
+                        `title`="df", 
+                        `type`="integer", 
+                        `visible`="(distro:tdistro || distro:chisq)"),
+                    list(
+                        `name`="df1", 
+                        `title`="df\u2081", 
+                        `type`="integer", 
+                        `visible`="(distro:fdistro)"),
+                    list(
+                        `name`="df2", 
+                        `title`="df\u2082", 
+                        `type`="integer", 
+                        `visible`="(distro:fdistro)"),
                     list(
                         `name`="area", 
                         `title`="Area (p-value)", 
                         `type`="number", 
                         `format`="zto,pvalue"))))
-            self$add(jmvcore::Preformatted$new(
-                options=options,
-                name="textMultiplier",
-                title="CI multiplier"))
             self$add(jmvcore::Table$new(
                 options=options,
                 name="multTable",
-                title="Critical value",
+                title="CI multiplier (critical value)",
+                visible="(CIBool)",
                 clearWith=list(
                     "distro",
                     "dF",
@@ -155,6 +177,11 @@ modelBasedResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
                         `name`="confLev", 
                         `title`="Confidence level (%)", 
                         `type`="number"),
+                    list(
+                        `name`="df", 
+                        `title`="df", 
+                        `type`="integer", 
+                        `visible`="(distro:tdistro)"),
                     list(
                         `name`="critVal", 
                         `title`="Multiplier", 
@@ -169,7 +196,7 @@ modelBasedBase <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
             super$initialize(
                 package = "Randomize",
                 name = "modelBased",
-                version = c(1,0,0),
+                version = c(1,1,0),
                 options = options,
                 results = modelBasedResults$new(options=options),
                 data = data,
@@ -185,21 +212,25 @@ modelBasedBase <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
 #' Model-Based Inference
 #'
 #' 
-#' @param distro .
-#' @param dF a number (default: 30), degrees of freedom for T distro
+#' @param distro \code{'ndistro'} (default), \code{'tdistro'}, \code{'chisq'},
+#'   or \code{'fdistro'}, the reference distribution
+#' @param dF an integer (default: 30), degrees of freedom for the t or
+#'   chi-square distribution; numerator degrees of freedom for F
+#' @param dF2 an integer (default: 30), denominator degrees of freedom for the
+#'   F distribution
 #' @param areaBool \code{TRUE} or \code{FALSE} (default), whether to calculate
 #'   area
-#' @param obsStat a number (default: 0.0), the observed value of Z or T
-#' @param tail .
+#' @param obsStat a number (default: 0.0), the observed value of the statistic
+#' @param tail \code{'right'} (default), \code{'left'}, or \code{'both'};
+#'   ignored for the chi-square and F distributions, which always use the right
+#'   tail
 #' @param CIBool \code{TRUE} or \code{FALSE} (default), whether to calculate
-#'   CI multiplier
+#'   CI multiplier (standard normal and t distributions only)
 #' @param confLevel a number (default: 95), the confidence level
 #' @return A results object containing:
 #' \tabular{llllll}{
-#'   \code{results$textArea} \tab \tab \tab \tab \tab a preformatted \cr
 #'   \code{results$Plot} \tab \tab \tab \tab \tab a plot showing the area under probability density curve \cr
 #'   \code{results$areaTable} \tab \tab \tab \tab \tab table with area under probability density curve \cr
-#'   \code{results$textMultiplier} \tab \tab \tab \tab \tab a preformatted \cr
 #'   \code{results$multTable} \tab \tab \tab \tab \tab a table with CI multiplier \cr
 #' }
 #'
@@ -213,6 +244,7 @@ modelBasedBase <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
 modelBased <- function(
     distro = "ndistro",
     dF = 30,
+    dF2 = 30,
     areaBool = FALSE,
     obsStat = 0,
     tail = "right",
@@ -226,6 +258,7 @@ modelBased <- function(
     options <- modelBasedOptions$new(
         distro = distro,
         dF = dF,
+        dF2 = dF2,
         areaBool = areaBool,
         obsStat = obsStat,
         tail = tail,

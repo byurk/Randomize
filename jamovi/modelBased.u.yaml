@@ -7,19 +7,16 @@ children:
   - type: LayoutBox
     margin: large
     children:
-      - type: RadioButton
-        name: distro_ndistro
-        optionName: distro
-        optionPart: ndistro
-      - type: RadioButton
-        name: distro_tdistro
-        optionName: distro
-        optionPart: tdistro
-        children:
-          - type: TextBox
-            name: dF
-            format: number
-            enable: (distro_tdistro)
+      - type: ComboBox
+        name: distro
+      - type: TextBox
+        name: dF
+        format: number
+        enable: (distro:tdistro || distro:chisq || distro:fdistro)
+      - type: TextBox
+        name: dF2
+        format: number
+        enable: (distro:fdistro)
   - type: LayoutBox
     margin: large
     children:
@@ -32,15 +29,16 @@ children:
             enable: (areaBool)
           - type: ComboBox
             name: tail
-            enable: (areaBool)
+            enable: (areaBool && (distro:ndistro || distro:tdistro))
   - type: LayoutBox
     margin: large
     children:
       - type: CheckBox
         name: CIBool
+        enable: (distro:ndistro || distro:tdistro)
         children:
           - type: TextBox
             name: confLevel
             format: number
             suffix: '%'
-            enable: (CIBool)
+            enable: (CIBool && (distro:ndistro || distro:tdistro))

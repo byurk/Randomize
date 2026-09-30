@@ -4,20 +4,18 @@ title: Model-Based Inference
 jrs:   '1.1'
 
 items:
-    - name:  textArea
-      title: Calculate Probability
-      type:  Preformatted
-
     - name: Plot
       title: Probability density function
       type: Image
       description: a plot showing the area under probability density curve
       renderFun: .areaPlot
-      width: 400
-      height: 200
+      width: 450
+      height: 250
+      visible: (areaBool)
       clearWith:
           - distro
           - dF
+          - dF2
           - areaBool
           - obsStat
           - tail
@@ -26,31 +24,45 @@ items:
       title: Shaded area (p-value)
       type: Table
       description: table with area under probability density curve
+      visible: (areaBool)
       clearWith:
           - distro
           - dF
+          - dF2
           - areaBool
           - obsStat
           - tail
 
       columns:
           - name: obsStat
-            title: Obs. Val
+            title: Observed value
             type: number
+
+          - name: df
+            title: df
+            type: integer
+            visible: (distro:tdistro || distro:chisq)
+
+          - name: df1
+            title: df₁
+            type: integer
+            visible: (distro:fdistro)
+
+          - name: df2
+            title: df₂
+            type: integer
+            visible: (distro:fdistro)
 
           - name: area
             title: Area (p-value)
             type: number
             format: zto,pvalue
 
-    - name:  textMultiplier
-      title: CI multiplier
-      type:  Preformatted
-
     - name: multTable
-      title: Critical value
+      title: CI multiplier (critical value)
       type: Table
       description: a table with CI multiplier
+      visible: (CIBool)
       clearWith:
           - distro
           - dF
@@ -61,6 +73,11 @@ items:
           - name: confLev
             title: Confidence level (%)
             type: number
+
+          - name: df
+            title: df
+            type: integer
+            visible: (distro:tdistro)
 
           - name: critVal
             title: Multiplier
