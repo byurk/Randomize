@@ -532,6 +532,24 @@ test("showCounts labels every dot stack (bootstrap dotplot)", {
     stopifnot(sum(as.numeric(labs$label)) == 300)
     stopifnot(length(unique(labs$x)) == length(unique(b$data[[1]]$x)))
 })
+test("an enlarged plot magnifies all text (plot_width)", {
+    r <- twomeanhtest(data = clean_data, vars = "score", group = "group",
+                      hypothesis = "different", reps = 300,
+                      dotHist = "histogram", seedBool = TRUE, rngSeed = 123)
+    st <- r$simplot$state
+    p400 <- plot_null_dist(st$df, st$obs_stat, st$direction, "histogram", show_counts = TRUE)
+    p800 <- plot_null_dist(st$df, st$obs_stat, st$direction, "histogram", show_counts = TRUE,
+                           plot_width = 800)
+    stopifnot(p400$theme$text$size == 14, p800$theme$text$size == 28)
+    txt <- function(p) {
+        b <- ggplot2::ggplot_build(p)
+        b$data[[which(vapply(p$layers, function(l) inherits(l$geom, "GeomText"), logical(1)))[1]]]
+    }
+    stopifnot(unique(txt(p800)$size) > unique(txt(p400)$size))
+    # count labels never exceed the (scaled) tick-label size
+    stopifnot(unique(txt(p800)$size) <= 3.9 * 2 + 1e-9)
+    stopifnot(text_scale(400) == 1, text_scale(600) == 1.5, text_scale(2000) == 2)
+})
 test("bare mode still draws no counts", {
     r <- twomeanhtest(data = clean_data, vars = "score", group = "group",
                       hypothesis = "different", reps = 300,

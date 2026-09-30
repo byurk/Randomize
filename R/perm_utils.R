@@ -270,6 +270,7 @@ plot_null_dist <- function(perms, obs_stat, direction,
 
     fill_scale <- ggplot2::scale_fill_manual(
         values = c("FALSE" = "black", "TRUE" = "#ff8c8c"), guide = "none")
+    ts <- text_scale(plot_width)
 
     if (dotHist == "dotplot") {
         dots <- data.frame(idx = idx, fill = fill) |>
@@ -298,7 +299,7 @@ plot_null_dist <- function(perms, obs_stat, direction,
             ggplot2::scale_y_continuous(
                 limits = c(0, y_top),
                 expand = ggplot2::expansion(mult = c(0.01, 0.02))) +
-            ggplot2::theme(text = ggplot2::element_text(size = 14))
+            ggplot2::theme(text = ggplot2::element_text(size = 14 * ts))
 
         if (show_counts) {
             tops <- dots |>
@@ -323,7 +324,7 @@ plot_null_dist <- function(perms, obs_stat, direction,
             ggplot2::scale_y_continuous(
                 limits = c(0, y_top),
                 expand = ggplot2::expansion(mult = c(0, 0.02))) +
-            ggplot2::theme(text = ggplot2::element_text(size = 14))
+            ggplot2::theme(text = ggplot2::element_text(size = 14 * ts))
 
         if (show_counts)
             p <- p + count_labels(bars$mid, bars$n, bars$n, bars$fill, plot_width)
@@ -338,7 +339,7 @@ plot_null_dist <- function(perms, obs_stat, direction,
             # keep the text clear of the dashed line when edge-justified
             lab_x <- obs_stat + (0.5 - hj) * 2 * (0.01 * W)
             p <- p + ggplot2::annotate("text", x = lab_x, y = y_top,
-                                       vjust = "top", hjust = hj,
+                                       vjust = "top", hjust = hj, size = 3.88 * ts,
                                        label = obs_label, color = "red")
         }
     } else {
@@ -356,7 +357,7 @@ plot_null_dist <- function(perms, obs_stat, direction,
         if (show_label)
             p <- p + ggplot2::annotate("text",
                 x = edge - dir * 0.095 * W, y = y_top, vjust = "top",
-                hjust = if (dir > 0) 1 else 0,
+                hjust = if (dir > 0) 1 else 0, size = 3.88 * ts,
                 label = obs_label, color = "red")
     }
     if (show_caption)
@@ -417,13 +418,28 @@ count_labels <- function(x, y, n, extreme = FALSE, plot_width = 400) {
 count_label_size <- function(n, plot_width = 400) {
     n_bars <- length(n)
     chars <- max(nchar(as.character(n)))
+    cap <- 3.9 * text_scale(plot_width)          # the (scaled) tick-label size
     per_bar <- 0.95 * 0.85 * plot_width / n_bars  # px available per label
     pt_per_size <- 2.845                          # ggplot size (mm) -> pt (= px at 72 ppi)
     size_h <- per_bar / (chars * 0.6 * pt_per_size)   # digits are ~0.6 em wide
     if (size_h >= 3)
-        return(list(size = min(3.9, size_h), vertical = FALSE))
+        return(list(size = min(cap, size_h), vertical = FALSE))
     size_v <- per_bar / (0.8 * pt_per_size)      # vertical: bar spacing vs glyph height
-    list(size = max(3, min(3.9, size_v)), vertical = TRUE)
+    list(size = max(3, min(cap, size_v)), vertical = TRUE)
+}
+
+#' Text magnification for an enlarged plot
+#'
+#' When a plot is dragged larger in Jamovi's results panel the bars grow
+#' but text drawn at a fixed point size does not, so labels look smaller
+#' relative to the plot.  All text in the distribution plots is therefore
+#' scaled by the plot width relative to the 400-pixel default (capped at
+#' 2x), so enlarging a plot magnifies it as a whole.
+#'
+#' @param plot_width Logical plot width in pixels.
+#' @keywords internal
+text_scale <- function(plot_width = 400) {
+    min(2, max(1, plot_width / 400))
 }
 
 #' Should count labels be drawn vertically?

@@ -196,7 +196,7 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
             ggplot2::scale_y_continuous(
                 limits = c(0, y_top),
                 expand = ggplot2::expansion(mult = c(0.01, 0.02))) +
-            ggplot2::theme(text = ggplot2::element_text(size = 14))
+            ggplot2::theme(text = ggplot2::element_text(size = 14 * text_scale(plot_width)))
 
         if (show_counts) {
             tops <- dots |>
@@ -217,7 +217,7 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
             ggplot2::scale_y_continuous(
                 expand = ggplot2::expansion(mult = c(0, if (!show_counts) 0.04
                     else if (counts_vertical(bars$n, plot_width)) 0.24 else 0.12))) +
-            ggplot2::theme(text = ggplot2::element_text(size = 14))
+            ggplot2::theme(text = ggplot2::element_text(size = 14 * text_scale(plot_width)))
 
         if (show_counts)
             p <- p + count_labels((bars$xmin + bars$xmax) / 2, bars$n, bars$n, plot_width = plot_width)
