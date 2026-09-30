@@ -365,6 +365,15 @@ plot_null_dist <- function(perms, obs_stat, direction,
 
 #' Count labels above bars or dot stacks
 #'
+#' Every bar / stack gets its count.  The label is as large as the axis
+#' tick labels (\code{size = 3.9}, about 11 pt) whenever the widest count
+#' fits inside its bar at Jamovi's 400-pixel plot width, shrinks with the
+#' bar width down to \code{size = 3}, and below that stands up vertically
+#' (still size 3 or larger) so neighbours cannot run into each other.
+#' Size 3 is a hard floor: Jamovi renders with ragg at 72 ppi, which
+#' silently drops smaller text.  If even that is too small to read, the
+#' user can switch the counts off.
+#'
 #' @param x,y Label positions (the top of each bar or stack).
 #' @param n Counts to print.
 #' @param extreme Logical per label; \code{TRUE} labels are drawn in the
@@ -375,33 +384,46 @@ plot_null_dist <- function(perms, obs_stat, direction,
 count_labels <- function(x, y, n, extreme = FALSE) {
     d <- data.frame(x = x, y = y, n = n,
                     col = ifelse(rep_len(extreme, length(x)), "#d9534f", "grey25"))
-    # Never below size 3: Jamovi renders plots with ragg at 72 ppi, and
-    # ragg drops text smaller than that outright (verified: size 2.7
-    # labels vanish in the app, size 3 draws).
-    if (counts_vertical(n)) {
-        # many narrow bars with wide numbers: stand the labels up so
-        # neighbours cannot run into each other
+    sz <- count_label_size(n)
+    if (sz$vertical) {
         ggplot2::geom_text(
             data = d, ggplot2::aes(x = x, y = y, label = n),
             color = d$col, angle = 90, hjust = -0.15, vjust = 0.5,
-            size = 3, inherit.aes = FALSE)
+            size = sz$size, inherit.aes = FALSE)
     } else {
         ggplot2::geom_text(
             data = d, ggplot2::aes(x = x, y = y, label = n),
-            color = d$col, vjust = -0.35, size = 3, inherit.aes = FALSE)
+            color = d$col, vjust = -0.35, size = sz$size, inherit.aes = FALSE)
     }
 }
 
-#' Should count labels be drawn vertically?
+#' Size and orientation of count labels
 #'
-#' Horizontal labels collide once the total label width (bars times
-#' digits) outgrows the panel; the threshold was set by eye at Jamovi's
-#' 400-pixel plot width.
+#' Fits the widest count into one bar's share of Jamovi's plot width
+#' (400 px wide, roughly 340 px of panel): horizontal when that allows at
+#' least size 3, capped at the tick-label size (3.9); otherwise vertical,
+#' sized by the bar spacing with the same floor and cap.
+#'
+#' @param n The counts to be printed.
+#' @return A list with \code{size} (ggplot text size, mm) and
+#'   \code{vertical}.
+#' @keywords internal
+count_label_size <- function(n) {
+    n_bars <- length(n)
+    chars <- max(nchar(as.character(n)))
+    per_bar <- 0.95 * 340 / n_bars               # px available per label
+    pt_per_size <- 2.845                          # ggplot size (mm) -> pt (= px at 72 ppi)
+    size_h <- per_bar / (chars * 0.6 * pt_per_size)   # digits are ~0.6 em wide
+    if (size_h >= 3)
+        return(list(size = min(3.9, size_h), vertical = FALSE))
+    size_v <- per_bar / (0.8 * pt_per_size)      # vertical: bar spacing vs glyph height
+    list(size = max(3, min(3.9, size_v)), vertical = TRUE)
+}
+
+#' Should count labels be drawn vertically?
 #' @param n The counts to be printed.
 #' @keywords internal
-counts_vertical <- function(n) {
-    length(n) * max(nchar(as.character(n))) > 70
-}
+counts_vertical <- function(n) count_label_size(n)$vertical
 
 #' Permutation null distributions computed without formulas
 #'
