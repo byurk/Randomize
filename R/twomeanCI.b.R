@@ -162,10 +162,10 @@ twomeanCIClass <- R6::R6Class(
 
             set_seed_if(self$options$seedBool, self$options$rngSeed)
 
-            boots <- df %>%
-                infer::specify(dep ~ group) %>%
-                infer::generate(reps = reps, type = "bootstrap") %>%
-                infer::calculate(stat = "diff in means", order = c(groupLevels[1], groupLevels[2]))
+            # Not infer::specify(dep ~ group): under Jamovi 2.7's formula
+            # sandbox that call is rejected (see ?resample_means).  Same
+            # bootstrap distribution (rows resampled), drawn directly.
+            boots <- bootstrap_diff_means(df$dep, df$group, groupLevels, reps)
 
             return(boots)
 

@@ -213,6 +213,16 @@ plot_model_density <- function(distro, dF, dF2 = NULL, obs = 0, tail = "right") 
     }
     curve <- data.frame(x = x, y = dfun(x))
 
+    # Chi-square with df <= 2 and F with df1 <= 2 are unbounded or spike at
+    # zero; left alone that spike sets the y scale and flattens the tail
+    # that matters.  Cap the axis at a modest multiple of the density at
+    # the median so the curve runs off the top instead (textbook style).
+    y_cap <- NULL
+    if (!symmetric) {
+        y_med <- dfun(qfun(0.5))
+        if (max(curve$y) > 3 * y_med) y_cap <- 2.5 * y_med
+    }
+
     # Shaded tail(s): each region is cut exactly at the observed value so
     # the shading begins at the dashed line
     region <- function(lo, hi) {
@@ -226,7 +236,9 @@ plot_model_density <- function(distro, dF, dF2 = NULL, obs = 0, tail = "right") 
     if (tail == "right") {
         lo <- if (symmetric) obs else max(obs, min(x))
         if (lo < max(x)) shade[[1]] <- region(lo, max(x))
-        lines <- obs
+        # a negative chi-square / F value has all the area to its right;
+        # draw the line at zero rather than off the panel
+        lines <- if (symmetric) obs else max(obs, 0)
     } else if (tail == "left") {
         if (obs > min(x)) shade[[1]] <- region(min(x), obs)
         lines <- obs
@@ -255,6 +267,8 @@ plot_model_density <- function(distro, dF, dF2 = NULL, obs = 0, tail = "right") 
     if (!symmetric)
         p <- p + ggplot2::scale_x_continuous(limits = c(0, max(x)),
                                              expand = ggplot2::expansion(mult = c(0, 0.02)))
+    if (!is.null(y_cap))
+        p <- p + ggplot2::coord_cartesian(ylim = c(0, y_cap))
 
     p
 }

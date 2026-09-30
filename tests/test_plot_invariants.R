@@ -171,8 +171,7 @@ check_null_invariants <- function(s, mode) {
     # bar/column per achievable value: gaps between values are honest,
     # and side purity is judged by centers (a bar AT the observed value
     # legitimately straddles the line, pure by value identity).
-    u <- sort(unique(s$stats))
-    sparse <- length(u) >= 2 && length(u) <= 8
+    sparse <- is_sparse_values(s$stats)
     sgn0 <- if (ptail == "lt") -1 else 1
     if (sparse) {
         el$halfw <- (el$xmax - el$xmin) / 2
@@ -309,6 +308,37 @@ test("prop_n500_greater groups lattice steps (too many for one column each)", {
     if (steps / (b$bw / b$res) > 50) stop("too many columns")
 })
 
+cat("\n=== Sparse values: near-coincident values share a column ===\n")
+test("Yates-corrected 2x2 chi-square: no sliver bars", {
+    # values (|k - 15| - 0.5)^2 * c and 0: the two smallest almost coincide
+    set.seed(31)
+    k <- rbinom(1000, 30, 0.5)
+    stats <- pmax(abs(k - 15) - 0.5, 0)^2 / 3
+    obs <- 2.5^2 / 3
+    df <- data.frame(stat = stats)
+    built <- build_checked(plot_null_dist(df, obs, "greater", "histogram",
+                                          xlab = "X2", domain = c(0, Inf)))
+    el <- layer_elements(built)
+    # the leftmost bar is legitimately trimmed at the domain bound 0
+    inner <- el[el$xmin > 1e-9, ]
+    w <- inner$xmax - inner$xmin
+    span <- diff(range(stats))
+    if (min(w) < 0.02 * span) stop("sliver bar drawn")
+    # count conservation and purity still hold after merging
+    if (abs(sum(el$height) - 1000) > 1e-6) stop("counts not conserved")
+    red <- el[el$fill == RED, ]; black <- el[el$fill != RED, ]
+    if (nrow(red) && min((red$xmin + red$xmax) / 2) < obs - 1e-9) stop("red bar left of obs")
+    if (nrow(black) && max((black$xmin + black$xmax) / 2) > obs + 1e-9) stop("black bar right of obs")
+    # the merged column is one bar for 0 and 0.083 together
+    n0 <- sum(stats < 0.1)
+    if (!any(abs(el$height - n0) < 1e-6)) stop("near-coincident values were not merged")
+})
+test("sparse_groups never merges across the observed value", {
+    stats <- c(rep(0, 50), rep(0.05, 30), rep(2, 20))
+    g <- sparse_groups(stats, extreme = stats >= 0.05)
+    if (length(g$centers) != 3) stop("values on opposite sides of obs were merged")
+})
+
 cat("\n=== Toggle stability: bare mode draws identical bars ===\n")
 for (nm in c("prop_n20_greater", "cont_two_sided", "chisq_2x2")) {
     test(nm, {
@@ -360,8 +390,7 @@ for (nm in names(boot_sc)) {
             # impossible values (clamp = domain bounds; bootstrap bars
             # are trimmed, value-centered elements judged by center,
             # grouped dot columns exempt as in the null checks)
-            u <- sort(unique(s$stats))
-            sparse <- length(u) >= 2 && length(u) <= 8
+            sparse <- is_sparse_values(s$stats)
             if (sparse) {
                 el$halfw <- (el$xmax - el$xmin) / 2
             } else {

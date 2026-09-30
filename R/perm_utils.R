@@ -25,6 +25,16 @@ strip_infer <- function(x) {
     data.frame(stat = x$stat)
 }
 
+#' Replace floating-point dust with exact zero
+#'
+#' @param x Numeric vector.
+#' @param tol Values with absolute value below this become 0.
+#' @keywords internal
+zap_tiny <- function(x, tol = 1e-10) {
+    x[!is.na(x) & abs(x) < tol] <- 0
+    x
+}
+
 #' Set the RNG seed conditionally
 #'
 #' Consolidates the seed-setting pattern used by every analysis.
@@ -190,13 +200,15 @@ plot_null_dist <- function(perms, obs_stat, direction,
     # too few achievable values, unevenly spaced.  Draw one bar / dot
     # column per exact value instead -- the space between values is
     # honest, every element sits exactly at its value, and a value equal
-    # to the observed statistic lies on the line.
-    u <- sort(unique(perms$stat))
-    sparse <- length(u) >= 2 && length(u) <= 8
+    # to the observed statistic lies on the line.  (Values that all but
+    # coincide share a column; see sparse_groups.)
+    sparse <- is_sparse_values(perms$stat)
 
     if (sparse) {
+        g <- sparse_groups(perms$stat, extreme)
+        u <- g$centers
         a <- 0.4 * min(diff(u))
-        idx <- match(perms$stat, u)
+        idx <- g$idx
         dot_x <- u[idx]
         bars <- data.frame(idx = idx, fill = fill) |>
             dplyr::count(idx, fill)
@@ -267,8 +279,8 @@ plot_null_dist <- function(perms, obs_stat, direction,
         # At least 0.6 above the tallest stack so the top dot (semi-height
         # up to 0.45) is never clipped by the y limit; count labels need
         # a little more headroom
-        y_top <- max(max_stack * (if (show_label) 1.3 else 1.06) *
-                         (if (show_counts) 1.08 else 1),
+        cnt_room <- if (!show_counts) 1 else if (counts_vertical(bars$n)) 1.2 else 1.08
+        y_top <- max(max_stack * (if (show_label) 1.3 else 1.06) * cnt_room,
                      max_stack + 0.6 + (if (show_counts) 0.8 else 0))
 
         p <- ggplot2::ggplot(dots) +
@@ -293,8 +305,8 @@ plot_null_dist <- function(perms, obs_stat, direction,
             p <- p + count_labels(tops$x, tops$n + 0.5, tops$n, tops$fill)
         }
     } else {
-        y_top <- max(bars$n) * (if (show_label) 1.2 else 1.04) *
-            (if (show_counts) 1.08 else 1)
+        cnt_room <- if (!show_counts) 1 else if (counts_vertical(bars$n)) 1.2 else 1.08
+        y_top <- max(bars$n) * (if (show_label) 1.2 else 1.04) * cnt_room
 
         p <- ggplot2::ggplot(bars) +
             ggplot2::geom_rect(
@@ -363,7 +375,89 @@ plot_null_dist <- function(perms, obs_stat, direction,
 count_labels <- function(x, y, n, extreme = FALSE) {
     d <- data.frame(x = x, y = y, n = n,
                     col = ifelse(rep_len(extreme, length(x)), "#d9534f", "grey25"))
-    ggplot2::geom_text(
-        data = d, ggplot2::aes(x = x, y = y, label = n),
-        color = d$col, vjust = -0.35, size = 3, inherit.aes = FALSE)
+    # Never below size 3: Jamovi renders plots with ragg at 72 ppi, and
+    # ragg drops text smaller than that outright (verified: size 2.7
+    # labels vanish in the app, size 3 draws).
+    if (counts_vertical(n)) {
+        # many narrow bars with wide numbers: stand the labels up so
+        # neighbours cannot run into each other
+        ggplot2::geom_text(
+            data = d, ggplot2::aes(x = x, y = y, label = n),
+            color = d$col, angle = 90, hjust = -0.15, vjust = 0.5,
+            size = 3, inherit.aes = FALSE)
+    } else {
+        ggplot2::geom_text(
+            data = d, ggplot2::aes(x = x, y = y, label = n),
+            color = d$col, vjust = -0.35, size = 3, inherit.aes = FALSE)
+    }
+}
+
+#' Should count labels be drawn vertically?
+#'
+#' Horizontal labels collide once the total label width (bars times
+#' digits) outgrows the panel; the threshold was set by eye at Jamovi's
+#' 400-pixel plot width.
+#' @param n The counts to be printed.
+#' @keywords internal
+counts_vertical <- function(n) {
+    length(n) * max(nchar(as.character(n))) > 70
+}
+
+#' Permutation null distributions computed without formulas
+#'
+#' Jamovi 2.7 runs module code under a formula sandbox: its \code{as.formula}
+#' rejects any formula that calls a function outside a short allowlist.
+#' \code{infer::specify()} builds \code{response_variable(x) ~
+#' explanatory_variable(x)} internally (to set theoretical-distribution
+#' parameters via \code{t.test()} / \code{lm()}) whenever the response is
+#' numeric and the explanatory variable is a factor, so the two-sample and
+#' multi-sample mean analyses cannot go through \pkg{infer} there.  These
+#' helpers draw the same permutation / bootstrap distributions directly:
+#' labels are shuffled (or rows resampled) and the statistic is computed
+#' from group means.  The result mimics \code{infer::calculate()}: a data
+#' frame with \code{replicate} and \code{stat} columns.
+#'
+#' @param dep Numeric response.
+#' @param group Factor of group labels (same length as \code{dep}).
+#' @param levels Length-2 character vector: the statistic is
+#'   \code{mean(levels[1]) - mean(levels[2])}.
+#' @param reps Number of replicates.
+#' @name resample_means
+#' @keywords internal
+NULL
+
+#' @rdname resample_means
+#' @keywords internal
+permute_diff_means <- function(dep, group, levels, reps) {
+    group <- as.character(group)
+    stat <- vapply(seq_len(reps), function(i) {
+        g <- sample(group)
+        mean(dep[g == levels[1]]) - mean(dep[g == levels[2]])
+    }, numeric(1))
+    data.frame(replicate = seq_len(reps), stat = stat)
+}
+
+#' One-way ANOVA F statistic from group means (no model formula)
+#'
+#' @inheritParams resample_means
+#' @return The F statistic \eqn{(SSB/(k-1)) / (SSW/(N-k))}, identical to
+#'   \code{anova(lm(dep ~ group))$F[1]}.
+#' @keywords internal
+f_stat <- function(dep, group) {
+    group <- as.character(group)
+    n <- length(dep)
+    gm <- tapply(dep, group, mean)
+    ng <- tapply(dep, group, length)
+    k <- length(gm)
+    ssb <- sum(ng * (gm - mean(dep))^2)
+    ssw <- sum((dep - gm[group])^2)
+    (ssb / (k - 1)) / (ssw / (n - k))
+}
+
+#' @rdname resample_means
+#' @keywords internal
+permute_F <- function(dep, group, reps) {
+    group <- as.character(group)
+    stat <- vapply(seq_len(reps), function(i) f_stat(dep, sample(group)), numeric(1))
+    data.frame(replicate = seq_len(reps), stat = stat)
 }

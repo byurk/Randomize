@@ -117,6 +117,21 @@ make_null_scenarios <- function() {
         obs = 5.4, direction = "greater",
         xlab = "X-squared", domain = c(0, Inf))
 
+    set.seed(130)
+    sc$chisq_2x2_uneven <- list(
+        # 2x2 table whose two smallest chi-square values nearly coincide:
+        # they must share one bar rather than sizing every bar by that gap
+        stats = local({
+            rows <- c(25, 25); cols <- c(30, 20)
+            tabs <- r2dtable(1000, rows, cols)
+            vapply(tabs, function(tt) {
+                e <- outer(rows, cols) / 50
+                sum((tt - e)^2 / e)
+            }, numeric(1))
+        }),
+        obs = 2.1, direction = "greater",
+        xlab = "X-squared", domain = c(0, Inf))
+
     set.seed(113)
     sc$chisq_3x3 <- list(
         stats = local({

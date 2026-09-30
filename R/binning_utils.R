@@ -69,15 +69,9 @@ choose_binning <- function(stats, anchor, align = c("edge", "center"),
         return(list(bw = bw, off = bw / 2, lattice = TRUE, res = bw))
     }
 
-    # The same lattice point computed from different inputs (e.g.
-    # a/30 - b/20) can differ by one ulp, creating phantom near-duplicate
-    # "unique" values.  Gaps that are floating-point noise must be ignored
-    # or the detected resolution collapses and binning aliases badly.
-    d <- diff(u)
-    d <- d[d > span * 1e-8]
-    res <- min(d)
-    mult <- d / res
-    lattice <- all(abs(mult - round(mult)) < 0.01)
+    li <- lattice_info(stats)
+    res <- li$res
+    lattice <- li$lattice
 
     bin_counts <- function(bw, lo, hi) {
         idx <- bin_index(stats, anchor, bw, min(res, bw) / 2, sign, align)
@@ -123,22 +117,12 @@ choose_binning <- function(stats, anchor, align = c("edge", "center"),
     ks <- unique(c(target_bins, 24, 20, 16, 13, 10, 8, 6, 5))
     ks <- ks[ks <= target_bins]
 
-    # A lattice is "dense" when the achievable values actually fill it:
-    # proportions k/n occupy every lattice point in the body of the
-    # distribution.  Chi-square statistics also lie on a (very fine)
-    # rational lattice but occupy only a sparse, irregular subset of it,
-    # so their empty bins are binning artifacts, not honest zero counts;
-    # they take the non-lattice ladder below.
-    qs <- stats::quantile(stats, c(0.005, 0.995), names = FALSE)
-    steps <- (qs[2] - qs[1]) / res
-    if (lattice) {
-        inwin <- u[u >= qs[1] & u <= qs[2]]
-        dense <- length(inwin) >= 0.6 * (steps + 1)
-    } else {
-        dense <- FALSE
-    }
-
-    if (dense) {
+    # Densely occupied lattices (see lattice_info) get one bin per value
+    # whenever that fits; sparse lattices such as chi-square take the
+    # ordinary ladder below, where their empty bins are binning artifacts
+    # rather than honest zero counts.
+    steps <- li$steps
+    if (li$dense) {
         # One bin per achievable value if the central 99% of the
         # simulations fits in ~1.6x the target bin count; otherwise the
         # smallest whole number of lattice steps that does.  Coarsen from
@@ -351,4 +335,96 @@ stack_dots <- function(dots, a, max_b = 0.45, fill = NULL) {
         geom = GeomDotStack, data = dots, mapping = mapping,
         stat = "identity", position = "identity",
         params = params, inherit.aes = FALSE, show.legend = FALSE)
+}
+
+#' Should a distribution be drawn one bar per achievable value?
+#'
+#' Sparse discrete statistics (2 to 8 distinct values) are drawn as one
+#' value-centered bar or dot column each rather than binned; see
+#' \code{\link{sparse_groups}} for how near-coincident values are handled.
+#'
+#' @param stats Numeric vector of simulated statistics.
+#' @keywords internal
+is_sparse_values <- function(stats) {
+    nu <- length(unique(stats))
+    if (nu < 2) return(FALSE)
+    if (nu <= 8) return(TRUE)
+    # Irregularly occupied lattices with a few more values (chi-square
+    # from a 2x2 table often has 9-12) are still clearer one column per
+    # value than binned.  Densely occupied lattices (proportions) get one
+    # bin per value from the ladder anyway, with bars anchored at the
+    # observed value, and continuous statistics with a dozen reps are
+    # binned as before.
+    if (nu > 12) return(FALSE)
+    li <- lattice_info(stats)
+    li$lattice && !li$dense
+}
+
+#' Describe the lattice structure of simulated statistics
+#'
+#' Detects whether the distinct values lie on a regular lattice (all
+#' gaps are whole multiples of the smallest, ignoring one-ulp phantom
+#' duplicates, which would otherwise collapse the resolution and alias
+#' the binning) and whether that lattice is densely occupied: at least
+#' 60\% of the lattice points within the central 99\% of the simulations
+#' are achieved.  Proportions \eqn{k/n} are dense; chi-square statistics
+#' lie on a fine rational lattice but occupy a sparse, irregular subset
+#' of it.
+#'
+#' @param stats Numeric vector of simulated statistics (at least two
+#'   distinct values).
+#' @return A list with \code{lattice}, \code{res} (lattice spacing),
+#'   \code{dense}, and \code{steps} (lattice steps spanned by the
+#'   central 99\%).
+#' @keywords internal
+lattice_info <- function(stats) {
+    u <- sort(unique(stats))
+    span <- u[length(u)] - u[1]
+    d <- diff(u)
+    d <- d[d > span * 1e-8]
+    res <- min(d)
+    mult <- d / res
+    lattice <- all(abs(mult - round(mult)) < 0.01)
+    qs <- stats::quantile(stats, c(0.005, 0.995), names = FALSE)
+    steps <- (qs[2] - qs[1]) / res
+    inwin <- u[u >= qs[1] & u <= qs[2]]
+    dense <- lattice && length(inwin) >= 0.6 * (steps + 1)
+    list(lattice = lattice, res = res, dense = dense, steps = steps)
+}
+
+#' Group near-coincident values of a sparse statistic
+#'
+#' One bar per value is sized by the smallest gap between values.  That
+#' breaks for statistics that are quadratic in a count -- chi-square from
+#' a 2x2 table, especially with the Yates correction -- where the two
+#' smallest values (e.g. 0 and 0.08 on an axis running to 10) all but
+#' coincide and every bar would collapse into a sliver.  Values closer
+#' than a quarter of the typical (median) gap are therefore drawn as one
+#' bar or dot column at their count-weighted mean.  Values on opposite
+#' sides of the observed statistic are never merged, so a merged column
+#' is still a single color.
+#'
+#' @param stats Numeric vector of simulated statistics.
+#' @param extreme Optional logical vector (same length) flagging the
+#'   simulations that count toward the p-value; \code{NULL} for bootstrap
+#'   distributions.
+#' @return A list with \code{idx} (group index per simulation) and
+#'   \code{centers} (x position of each group, sorted).
+#' @keywords internal
+sparse_groups <- function(stats, extreme = NULL) {
+    u <- sort(unique(stats))
+    ui <- match(stats, u)
+    cnt <- tabulate(ui, nbins = length(u))
+    if (length(u) == 1)
+        return(list(idx = ui, centers = u))
+    d <- diff(u)
+    thr <- 0.25 * stats::median(d)
+    new_group <- d >= thr
+    if (!is.null(extreme)) {
+        ext_u <- extreme[match(seq_along(u), ui)]
+        new_group <- new_group | (ext_u[-1] != ext_u[-length(u)])
+    }
+    grp <- cumsum(c(TRUE, new_group))
+    centers <- as.numeric(tapply(u * cnt, grp, sum) / tapply(cnt, grp, sum))
+    list(idx = grp[ui], centers = centers)
 }

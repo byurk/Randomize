@@ -55,11 +55,9 @@ multimeanhtestClass <- R6::R6Class(
       } else if (any(is.infinite(dataHTest$dep))) {
         res <- createError(.('Variable contains infinite values'))
       } else {
-        Fobs <- dataHTest %>%
-          infer::specify(dep ~ group) %>%
-          infer::hypothesize(null = "independence") %>%
-          infer::calculate("F") %>%
-          dplyr::pull()
+        # f_stat() rather than infer::calculate("F"): infer's specify()
+        # is rejected by Jamovi 2.7's formula sandbox (see ?resample_means)
+        Fobs <- f_stat(dataHTest$dep, dataHTest$group)
 
         perms <- private$.computePerms(dataHTest)
         res <- private$.computePval(perms, Fobs)
@@ -161,11 +159,7 @@ multimeanhtestClass <- R6::R6Class(
 
             set_seed_if(self$options$seedBool, self$options$rngSeed)
 
-            perms <- dataHTest %>%
-                infer::specify(dep ~ group) %>%
-                infer::hypothesize(null = "independence") %>%
-                infer::generate(reps = reps, type = "permute") %>%
-                infer::calculate(stat = "F")
+            perms <- permute_F(dataHTest$dep, dataHTest$group, reps)
 
             return(perms)
 

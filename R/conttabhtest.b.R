@@ -69,6 +69,10 @@ ContTabHTestClass <- R6::R6Class(
                 #if (all(dim(mat) == 2) && all(rowSums(mat) > 0) && all(colSums(mat) > 0)) {
                 if (all(rowSums(mat) > 0) && all(colSums(mat) > 0)) {
                     x2 <- private$.computeX2(mat)
+                    # chisq.test() returns floating-point dust (e.g.
+                    # 1.1e-31) for tables whose statistic is exactly
+                    # zero; zap it so the table reads 0
+                    x2$x2 <- zap_tiny(x2$x2)
                 }
 
             }) # suppressWarnings
@@ -77,6 +81,9 @@ ContTabHTestClass <- R6::R6Class(
 
             if (!is.null(x2)) {
                 perms <- private$.computePerms(mat)
+                # same zap for the simulations, so the >= comparison
+                # against the observed value is unaffected
+                perms$stat <- zap_tiny(perms$stat)
                 simres <- private$.computePval(perms, x2$x2)
 
                 private$.populateSimTable(simres)

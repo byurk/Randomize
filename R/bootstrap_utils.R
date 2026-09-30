@@ -127,12 +127,13 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
 
     # Sparse discrete replicates cannot be binned gap-free; draw one bar
     # or dot column per exact value (see plot_null_dist for rationale).
-    u <- sort(unique(boot$stat))
-    sparse <- length(u) >= 2 && length(u) <= 8
+    sparse <- is_sparse_values(boot$stat)
 
     if (sparse) {
+        g <- sparse_groups(boot$stat)
+        u <- g$centers
         a <- 0.4 * min(diff(u))
-        idx <- match(boot$stat, u)
+        idx <- g$idx
         dot_x <- u[idx]
         bars <- data.frame(idx = idx) |>
             dplyr::count(idx)
@@ -177,7 +178,8 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
         # At least 0.6 above the tallest stack so the top dot (semi-height
         # up to 0.45) is never clipped by the y limit; count labels need
         # a little more headroom
-        y_top <- max(max(dots$y) * (if (show_counts) 1.14 else 1.06),
+        cnt_room <- if (!show_counts) 1.06 else if (counts_vertical(bars$n)) 1.26 else 1.14
+        y_top <- max(max(dots$y) * cnt_room,
                      max(dots$y) + 0.6 + (if (show_counts) 0.8 else 0))
 
         p <- ggplot2::ggplot(dots) +
@@ -210,7 +212,8 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
             ggplot2::xlab(xlab) +
             ggplot2::scale_x_continuous(limits = xlims) +
             ggplot2::scale_y_continuous(
-                expand = ggplot2::expansion(mult = c(0, if (show_counts) 0.12 else 0.04))) +
+                expand = ggplot2::expansion(mult = c(0, if (!show_counts) 0.04
+                    else if (counts_vertical(bars$n)) 0.24 else 0.12))) +
             ggplot2::theme(text = ggplot2::element_text(size = 14))
 
         if (show_counts)
@@ -224,4 +227,28 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
             ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))
 
     p
+}
+
+#' Bootstrap distribution of a difference in means (no formulas)
+#'
+#' Resamples whole rows with replacement, as \code{infer::generate(type =
+#' "bootstrap")} does for a two-variable specification, and computes the
+#' difference in group means.  See \code{\link{resample_means}} for why
+#' \pkg{infer} cannot be used for this in Jamovi 2.7.  Replicates in which
+#' a group happens to be empty (possible only for tiny samples) are
+#' dropped.
+#'
+#' @inheritParams resample_means
+#' @return A data frame with \code{replicate} and \code{stat} columns.
+#' @keywords internal
+bootstrap_diff_means <- function(dep, group, levels, reps) {
+    group <- as.character(group)
+    n <- length(dep)
+    stat <- vapply(seq_len(reps), function(i) {
+        s <- sample.int(n, n, replace = TRUE)
+        d <- dep[s]; g <- group[s]
+        mean(d[g == levels[1]]) - mean(d[g == levels[2]])
+    }, numeric(1))
+    out <- data.frame(replicate = seq_len(reps), stat = stat)
+    out[is.finite(out$stat), ]
 }

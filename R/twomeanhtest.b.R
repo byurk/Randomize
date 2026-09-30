@@ -147,11 +147,10 @@ twomeanhtestClass <- R6::R6Class(
 
             set_seed_if(self$options$seedBool, self$options$rngSeed)
 
-            perms <- dataHTest %>%
-                infer::specify(dep ~ group) %>%
-                infer::hypothesize(null = "independence") %>%
-                infer::generate(reps = reps, type = "permute") %>%
-                infer::calculate(stat = "diff in means", order = c(groupLevels[1], groupLevels[2]))
+            # Not infer::specify(dep ~ group): under Jamovi 2.7's formula
+            # sandbox that call is rejected (see ?resample_means).  Same
+            # permutation distribution, drawn directly.
+            perms <- permute_diff_means(dataHTest$dep, dataHTest$group, groupLevels, reps)
 
             return(perms)
 

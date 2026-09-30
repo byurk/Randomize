@@ -417,6 +417,19 @@ test("SinglePropHTest rejects a variable with 3 levels", {
     stopifnot(grepl("exactly 2 levels", msg))
 })
 
+cat("\n=== Chi-square: exact-zero statistic reads 0, not 1e-31 ===\n")
+test("ContTabHTest zaps floating-point dust in X2", {
+    d <- data.frame(group = factor(rep(c("A", "B"), c(13, 12))),
+                    outcome = factor(c(rep("No", 4), rep("Yes", 9), rep("No", 3), rep("Yes", 9))))
+    r <- ContTabHTest(data = d, rows = "group", cols = "outcome", reps = 200,
+                      dotHist = "dotplot", seedBool = TRUE, rngSeed = 3, compare = "rows")
+    stopifnot(as.numeric(r$x2tab$asDF[["v[x2]"]]) == 0)
+    stopifnot(as.numeric(results_table(r)$x2) == 0)
+    st <- r$Plot$state
+    stopifnot(all(st$df$stat >= 0), sum(st$df$stat == 0) > 0)
+    stopifnot(p_num(results_table(r)$p) == 1)
+})
+
 cat("\n=== #10: p = 0 reported as < 1/reps ===\n")
 test("format_sim_pval", {
     stopifnot(identical(format_sim_pval(0, 100), "< .01"))
@@ -526,6 +539,103 @@ test("bare mode still draws no counts", {
                       showCounts = TRUE)
     stopifnot(count_layers(plot(r, show_lines = FALSE, show_counts = FALSE), "GeomText") == 0)
 })
+
+cat("\n=== Formula-free resampling matches the model-based statistics ===\n")
+test("f_stat equals anova(lm()) F", {
+    f_ref <- anova(lm(score ~ group, data = multi_data))$F[1]
+    assert_close(f_stat(multi_data$score, multi_data$group), f_ref, 1e-9)
+    # unbalanced groups too
+    d <- multi_data[-c(1:7), ]
+    f_ref <- anova(lm(score ~ group, data = d))$F[1]
+    assert_close(f_stat(d$score, d$group), f_ref, 1e-9)
+})
+test("permutation and bootstrap helpers return well-formed distributions", {
+    set.seed(5)
+    lv <- levels(clean_data$group)
+    pm <- permute_diff_means(clean_data$score, clean_data$group, lv, 400)
+    stopifnot(nrow(pm) == 400, all(c("replicate", "stat") %in% names(pm)))
+    # under the null the permutation distribution is centred near zero
+    stopifnot(abs(mean(pm$stat)) < 0.3)
+    bt <- bootstrap_diff_means(clean_data$score, clean_data$group, lv, 400)
+    stopifnot(nrow(bt) == 400)
+    obs <- mean(clean_data$score[clean_data$group == lv[1]]) -
+        mean(clean_data$score[clean_data$group == lv[2]])
+    stopifnot(abs(mean(bt$stat) - obs) < 0.4)
+    pf <- permute_F(multi_data$score, multi_data$group, 400)
+    stopifnot(nrow(pf) == 400, all(pf$stat >= 0))
+})
+
+# ============================================================
+# Jamovi 2.7 formula sandbox
+# ============================================================
+# Jamovi 2.7 replaces stats::as.formula with jmvcore::asFormula, which
+# rejects any formula calling a function outside a short allowlist.
+# infer::specify() builds response_variable(x) ~ explanatory_variable(x)
+# internally for numeric-response / factor-explanatory specifications,
+# which broke the two-means and multiple-means analyses in the app.
+# Replicate the sandbox here (same allowlist as jmvcore 2.7.35) and run
+# every analysis under it.  Runs last because the override is global.
+
+cat("\n=== All analyses under a replica of Jamovi 2.7's formula sandbox ===\n")
+sandbox_allowed <- c("log", "log2", "log10", "log1p", "exp", "expm1", "sqrt", "abs",
+    "sign", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "floor", "ceiling",
+    "round", "trunc", "mean", "sd", "var", "median", "min", "max", "sum", "length",
+    "rank", "scale", "poly", "ns", "bs", "I", "cbind", "rbind", "c", "as.numeric",
+    "as.integer", "as.factor", "as.character", "factor", "ordered", "cut", "offset",
+    "relevel", "interaction", "pmin", "pmax", "ifelse", "Error", "Surv", "strata",
+    "cluster", "frailty", "tt", "pspline", "Hist", "Event", "s", "te", "ti", "t2",
+    "rcs", "lsp", "pdSymm", "pdDiag", "item")
+orig_as_formula <- stats::as.formula
+sandbox_as_formula <- function(object, env = parent.frame()) {
+    fmla <- orig_as_formula(object, env)
+    txt <- paste(deparse(fmla, width.cutoff = 500), collapse = " ")
+    txt <- gsub("`[^`]+`", "", txt)
+    calls <- regmatches(txt, gregexpr("\\.?[a-zA-Z_][a-zA-Z0-9_.]*(?=\\s*\\()", txt, perl = TRUE))[[1]]
+    bad <- setdiff(calls, sandbox_allowed)
+    if (length(bad))
+        stop("Security violation: Unsafe function '", bad[1], "'.", call. = FALSE)
+    fmla
+}
+install_sandbox <- function(fun) {
+    ns <- asNamespace("stats")
+    unlockBinding("as.formula", ns)
+    assign("as.formula", fun, envir = ns)
+    lockBinding("as.formula", ns)
+}
+install_sandbox(sandbox_as_formula)
+test("sandbox replica rejects infer-style formulas", {
+    msg <- tryCatch({ stats::as.formula("response_variable(x) ~ explanatory_variable(x)"); "" },
+                    error = function(e) conditionMessage(e))
+    stopifnot(grepl("Security violation", msg))
+    stats::as.formula("y ~ x + log(z)")  # plain formulas still work
+})
+sandbox_run <- function(name, expr) test(paste("sandbox:", name), { force(expr); invisible() })
+sandbox_run("twomeanhtest", twomeanhtest(data = clean_data, vars = "score", group = "group",
+    hypothesis = "different", reps = 100, seedBool = TRUE, rngSeed = 1, desc = TRUE, plots = TRUE))
+sandbox_run("twomeanCI", twomeanCI(data = clean_data, vars = "score", group = "group",
+    reps = 100, seedBool = TRUE, rngSeed = 1, desc = TRUE, plots = TRUE))
+sandbox_run("pairedmeanhtest", pairedmeanhtest(data = clean_data, pairs = list(list(i1 = "measure1", i2 = "measure2")),
+    hypothesis = "different", reps = 100, seedBool = TRUE, rngSeed = 1))
+sandbox_run("pairedmeanCI", pairedmeanCI(data = clean_data, pairs = list(list(i1 = "measure1", i2 = "measure2")),
+    reps = 100, seedBool = TRUE, rngSeed = 1))
+sandbox_run("multimeanhtest", multimeanhtest(data = multi_data, vars = "score", group = "group",
+    reps = 100, seedBool = TRUE, rngSeed = 1, desc = TRUE, plots = TRUE))
+sandbox_run("slopehtest", slopehtest(data = reg_data, dep = "y", indep = "x",
+    hypothesis = "notequal", reps = 100, seedBool = TRUE, rngSeed = 1, plots = TRUE))
+sandbox_run("slopeCI", slopeCI(data = reg_data, dep = "y", indep = "x",
+    reps = 100, seedBool = TRUE, rngSeed = 1, plots = TRUE))
+sandbox_run("SingleMeanCI", SingleMeanCI(data = clean_data, resp = "score", reps = 100, seedBool = TRUE, rngSeed = 1))
+sandbox_run("SinglePropHTest", SinglePropHTest(data = cat_data, resp = "outcome", testValue = 0.5,
+    reps = 100, seedBool = TRUE, rngSeed = 1))
+sandbox_run("SinglePropCI", SinglePropCI(data = cat_data, resp = "outcome", reps = 100, seedBool = TRUE, rngSeed = 1))
+sandbox_run("TwoPropHTest", TwoPropHTest(data = cat_data, rows = "group", cols = "outcome",
+    hypothesis = "different", reps = 100, seedBool = TRUE, rngSeed = 1, compare = "rows"))
+sandbox_run("TwoPropCI", TwoPropCI(data = cat_data, rows = "group", cols = "outcome",
+    reps = 100, seedBool = TRUE, rngSeed = 1, compare = "rows"))
+sandbox_run("ContTabHTest", ContTabHTest(data = cat_data, rows = "group", cols = "outcome",
+    reps = 100, seedBool = TRUE, rngSeed = 1, compare = "rows"))
+sandbox_run("modelBased", modelBased(distro = "fdistro", dF = 2, dF2 = 20, areaBool = TRUE, obsStat = 3))
+install_sandbox(orig_as_formula)
 
 cat("\n\n============================\n")
 cat("Results:", passed, "passed,", failed, "failed\n")
