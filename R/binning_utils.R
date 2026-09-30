@@ -44,9 +44,9 @@ NULL
 #' never a binning artifact -- it is a value that genuinely never
 #' occurred in the simulation.  Such honest gaps (typically in the
 #' tails) therefore do not force coarser bins.  Binning starts from one
-#' bin per achievable value whenever the central 99\% of
-#' the simulations spans no more than about 1.6 times the target bin
-#' count, and coarsens only when the result shows a sawtooth (mixed
+#' bin per achievable value whenever the full range of
+#' the simulations spans no more than the target bin count (30 for
+#' 225+ reps), and coarsens only when the result shows a sawtooth (mixed
 #' lattices such as a difference in proportions with unequal group sizes)
 #' or an empty bin in the body of the distribution (both nearest occupied
 #' neighbours holding at least 5 simulations).  One bin per value is what
@@ -123,13 +123,18 @@ choose_binning <- function(stats, anchor, align = c("edge", "center"),
     # rather than honest zero counts.
     steps <- li$steps
     if (li$dense) {
-        # One bin per achievable value if the central 99% of the
-        # simulations fits in ~1.6x the target bin count; otherwise the
-        # smallest whole number of lattice steps that does.  Coarsen from
+        # One bin per achievable value if the simulations fit in the
+        # target bin count; otherwise the
+        # smallest whole number of lattice steps that does (so the
+        # plot never exceeds ~30 columns just because the lattice is
+        # fine, e.g. mean differences of rounded scores).  Coarsen from
         # there only for a sawtooth or a body gap, and never beyond the
         # coarsest width the non-lattice ladder would use.
-        max_cols <- ceiling(1.6 * target_bins)
-        m <- max(1L, as.integer(ceiling(steps / max_cols)))
+        # Sized on the FULL range (not the central 99%): at thousands of
+        # reps the outer tails add many sparse single-value bars, and the
+        # agreed ceiling is ~30 bars on the plot, not in the middle of it.
+        full_steps <- span / res
+        m <- max(1L, as.integer(ceiling(full_steps / target_bins)))
         m_max <- max(m, as.integer(round((span / min(ks)) / res)))
         while (m < m_max) {
             counts <- bin_counts(m * res, 0, 1)

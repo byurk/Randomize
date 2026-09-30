@@ -83,6 +83,18 @@ make_null_scenarios <- function() {
         stats = rbinom(1000, 200, 0.5) / 200, obs = 115 / 200, direction = "greater",
         xlab = "proportion", domain = c(0, 1))
 
+    set.seed(131)
+    sc$rounded_diff_5000 <- list(
+        # mean differences of scores rounded to 0.1 (n = 13 vs 12):
+        # a fine, densely occupied lattice at 5000 reps -- must be
+        # grouped to ~30 bars, not drawn one lattice step per bar
+        stats = local({
+            sc <- round(rnorm(25, 10, 2), 1); g <- rep(c("A", "B"), c(13, 12))
+            vapply(seq_len(5000), function(i) { p <- sample(g); mean(sc[p == "A"]) - mean(sc[p == "B"]) }, numeric(1))
+        }),
+        obs = -0.06, direction = "two_sided",
+        xlab = "difference in means")
+
     set.seed(129)
     sc$prop_n500_greater <- list(
         # too many lattice steps for one column each: grouped bins

@@ -273,7 +273,7 @@ for (nm in names(null_sc)) {
 
 cat("\n=== Dense lattices: one column per value, tie stack on the line (#9, #11) ===\n")
 for (nm in c("prop_n20_greater", "prop_n30_greater", "prop_n25_two_sided",
-             "prop_n50_two_sided", "prop_n100_greater", "prop_n200_greater")) {
+             "prop_n50_two_sided", "prop_n100_greater")) {
     test(nm, {
         s <- null_sc[[nm]]
         df <- data.frame(stat = s$stats)
@@ -299,14 +299,15 @@ for (nm in c("prop_n20_greater", "prop_n30_greater", "prop_n25_two_sided",
             stop("bars do not correspond one-to-one to achievable values")
     })
 }
-test("prop_n500_greater groups lattice steps (too many for one column each)", {
-    s <- null_sc$prop_n500_greater
-    if (is_single_value(s$stats, s$obs, "edge", 1))
-        stop("expected grouped bins for ~75 lattice steps")
-    b <- choose_binning(s$stats, s$obs, align = "edge", sign = 1)
-    steps <- diff(stats::quantile(s$stats, c(0.005, 0.995), names = FALSE)) / b$res
-    if (steps / (b$bw / b$res) > 50) stop("too many columns")
-})
+for (nm in c("prop_n200_greater", "prop_n500_greater", "rounded_diff_5000")) {
+    test(paste0(nm, " groups lattice steps: never more than the target bin count"), {
+        s <- null_sc[[nm]]
+        if (is_single_value(s$stats, s$obs, "edge", 1))
+            stop("expected grouped bins")
+        b <- choose_binning(s$stats, s$obs, align = "edge", sign = 1)
+        if (diff(range(s$stats)) / b$bw > 30 + 1e-9) stop("more than 30 columns")
+    })
+}
 
 cat("\n=== Sparse values: near-coincident values share a column ===\n")
 test("Yates-corrected 2x2 chi-square: no sliver bars", {
