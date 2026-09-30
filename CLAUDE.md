@@ -118,6 +118,7 @@ An edge-case sweep (`scratchpad edge_sweep.R` pattern: every analysis on constan
 - **Success level**: the proportion analyses report the proportion of the alphabetically first level (Yes/No → "No", 0/1 → "0"), the same limitation jamovi's own binomial test has. Brian decided (2026-09-30) NOT to add a success chooser so students face the same constraint as elsewhere in Jamovi, hoping for an upstream jamovi fix; a `type: Level, variable: (resp)` option with a `LevelSelector` compiles fine if that changes (needs `default: null`, and the R wrapper still gets no default — unresolved).
 - **README examples** run end-to-end (the quick example now sets `desc = TRUE, plots = TRUE` so the later `plot(r, "desc")` works). Base R's `pdf()` device warns about the ≤ ≥ × glyphs in captions; Jamovi (ragg) and Quarto (png/cairo) render them fine.
 - **CI**: `gh workflow run build-modules.yml --ref develop` builds all three platforms (win-x64 4.1 MB, macOS 2.1 MB each).
+- **Save / reopen**: an `.omv` saved from the develop build reopens in a fresh Jamovi with the Randomize plot and table restored and identical values (the analysis blob records `showCounts`, `reps`, `dotHist`, `hypothesis`). Seeded runs are identical across dotplot/histogram; plot state at 20 000 reps serializes to ~160 KB (limit 4 MB), an 8×7 table at 5000 reps to ~40 KB.
 
 ## Plot binning rework (fix/plot-quality branch)
 Distribution plots previously produced histograms with irregular gaps/widths
