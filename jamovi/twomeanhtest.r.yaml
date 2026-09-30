@@ -92,6 +92,7 @@ items:
           - rngSeed
           - seedBool
           - dotHist
+          - showCounts
 
     - name: htest
       title: Two Means - Hypothesis Test

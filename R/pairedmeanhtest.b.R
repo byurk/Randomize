@@ -69,7 +69,7 @@ pairedmeanhtestClass <- R6::R6Class(
               htestTable$setRow(rowKey=pair, list(
                 "reps"=self$options$reps,
                 "md"=m1-m2,
-                "p"=res$pval))
+                "p"=format_sim_pval(res$pval, self$options$reps)))
               }
               
               if (self$options$desc) {
@@ -192,7 +192,7 @@ pairedmeanhtestClass <- R6::R6Class(
               .preparePlot = function(perms, dm, direction) {
                 permplot <- self$results$simplot
                 dotHist <- self$options$dotHist
-                permplot$setState(list(df=strip_infer(perms), obs_stat=dm, direction=direction, dotHist=dotHist,
+                permplot$setState(list(df=strip_infer(perms), obs_stat=dm, direction=direction, dotHist=dotHist, showCounts=self$options$showCounts,
                                           xlab="mean difference", obs_label="Observed\nDifference"))
               },
               .permPlot = function(image, ggtheme, theme, ...) {
@@ -201,7 +201,8 @@ pairedmeanhtestClass <- R6::R6Class(
                 st <- image$state
                 plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                                xlab = "mean difference",
-                               obs_label = "Observed\nDifference")
+                               obs_label = "Observed\nDifference",
+                               show_counts = isTRUE(st$showCounts))
               }
             )
           )

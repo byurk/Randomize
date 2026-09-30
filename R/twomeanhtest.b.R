@@ -76,7 +76,7 @@ twomeanhtestClass <- R6::R6Class(
             htestTable$setRow(rowKey=depVarName, list(
               "reps"=self$options$reps,
               "md"=m[1]-m[2],
-              "p"=res$pval))
+              "p"=format_sim_pval(res$pval, self$options$reps)))
             }
             
             if (self$options$desc) {
@@ -173,7 +173,7 @@ twomeanhtestClass <- R6::R6Class(
             permplot <- self$results$simplot
             dotHist <- self$options$dotHist
 
-            permplot$setState(list(df=strip_infer(perms), obs_stat=dm, direction=direction, dotHist=dotHist,
+            permplot$setState(list(df=strip_infer(perms), obs_stat=dm, direction=direction, dotHist=dotHist, showCounts=self$options$showCounts,
                                           xlab="difference (group 1 - group 2)", obs_label="Observed\nDifference"))
 
         },
@@ -185,7 +185,8 @@ twomeanhtestClass <- R6::R6Class(
             st <- image$state
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                            xlab = "difference (group 1 - group 2)",
-                           obs_label = "Observed\nDifference")
+                           obs_label = "Observed\nDifference",
+                           show_counts = isTRUE(st$showCounts))
         },
           .formula=function() {
             jmvcore:::composeFormula(self$options$vars, self$options$group)

@@ -9,6 +9,15 @@ A Jamovi module and R package for teaching randomization-based inference in intr
 
 ## Branches
 - `main` — production code used by students
+- `develop` — integration branch for new work; CI only builds `.jmo` files for PRs to `main` and for `v*` tags, so nothing on `develop` reaches students until it is merged and tagged
+
+## Workflow for changes
+1. Work on `develop` (or a feature branch off it); never commit directly to `main`.
+2. After editing any `jamovi/*.yaml`, regenerate the `.h.R` files headlessly:
+   `node <jmvtools-lib>/node_modules/jamovi-compiler/index.js --prepare . --home /Applications/jamovi.app`
+   (`devtools::load_all()` and the tests read the `.h.R` files, so stale ones silently hide YAML changes).
+3. Run `tests/test_analyses.R` and `tests/test_plot_invariants.R`; for plot changes also render `tests/visual/generate_plots.R <tag>` and look at the sheets (a byte-for-byte `cmp` of `out/<before>/*.png` vs `out/<after>/*.png` shows exactly which scenarios a change touched).
+4. Build with `--build`, unzip the `.jmo` into `~/Library/Application Support/jamovi/modules/`, restart Jamovi, and check the affected analyses in the app (screenshots via the `drive-mac-app` skill). Typing into Jamovi text boxes drops characters: put the value on the clipboard and paste, then press Return and click elsewhere to commit.
 
 ## Key directories
 - `R/*.b.R` — analysis backend implementations (one per analysis)
@@ -16,8 +25,8 @@ A Jamovi module and R package for teaching randomization-based inference in intr
 - `R/*_utils.R` — shared utility functions (bootstrap, permutation, contingency table, descriptive plot)
 - `R/convenience.R` — plot(), results_table(), desc_table() for R/Quarto usage
 - `jamovi/*.yaml` — Jamovi UI definitions (.a.yaml = options, .r.yaml = results, .u.yaml = unit specs)
-- `tests/test_analyses.R` — 28 tests covering all 13 resampling analyses + plot display toggles
-- `tests/test_plot_invariants.R` — 73 tests asserting the drawn plot geometry (via `ggplot_build`): side purity at the observed value, count conservation, single-color stacks, gap-free bins, domain bounds, CI lines at the exact reported values, toggle stability
+- `tests/test_analyses.R` — 45 tests covering all 13 resampling analyses, plot display toggles, and regressions for GitHub issues #7, #8, #10, #12, #13
+- `tests/test_plot_invariants.R` — 88 tests asserting the drawn plot geometry (via `ggplot_build`): side purity at the observed value, count conservation, single-color stacks, gap-free bins (honest single-value gaps allowed for dense lattices), domain bounds, CI lines at the exact reported values, toggle stability, one-column-per-value for classroom-size proportions
 - `tests/visual/` — visual regression harness; `Rscript tests/visual/generate_plots.R <tag>` renders every scenario to `tests/visual/out/<tag>/` (gitignored) for eyeball inspection
 
 ## Build & test
@@ -79,6 +88,14 @@ plot(r, show_lines = FALSE) # bare distribution only
 - Jamovi module behavior is unchanged — toggles only apply when calling `plot()` from R
 - Underlying utility functions (`plot_null_dist()`, `plot_boot_dist()`) also accept fine-grained params (`show_line`, `show_label`, `show_caption`, `show_tail` / `show_lines`, `show_caption`)
 
+## Issue fixes on `develop` (2026-09-30)
+Reported at https://github.com/byurk/Randomize/issues; each has a regression test.
+- **#13 / #8 Model-Based Inference rebuilt** (`R/modelBased.b.R`, `jamovi/modelBased.*.yaml`): distribution is a single ComboBox (standard normal, t, chi-square, F); df boxes are enabled only for the distributions that use them (`dF2` = denominator df, F only); the Tail box and CI-multiplier section are enabled only for normal/t (chi-square and F are always right-tail); results are hidden until their checkbox is on, so a first-week student sees just Z with one checkbox. Shading is drawn by `plot_model_density()` from an explicit grid cut exactly at the observed value (the old `xlim = c(abs(obs), ...)` shaded from |Z|). Table columns `df` / `df₁` / `df₂` appear per distribution via column `visible:` rules; `results_table()` still works.
+- **#12 zero-count level** (`singleprophtest.b.R`, `singlepropCI.b.R`): `infer::specify()` drops unused factor levels, so 5 heads / 0 tails looked single-level. When any level has count 0 the null / bootstrap proportions are drawn with `rbinom()` directly (same distribution as infer's draw/bootstrap; the infer path is untouched otherwise). Variables with ≠ 2 levels now get a clear `jmvcore::reject()` instead of an infer stack trace.
+- **#10 simulation p-values** (`format_sim_pval()` in `perm_utils.R`): p = 0 is reported as the string `"< 1/reps"` (`< .01` for 100 reps, `< .001` for 1000, `< .0002` for 5000). jmvcore accepts a string in a number column, so the cell shows exactly that. Consequence for R users: `results_table(r)$p` is character in that case (tests use a `p_num()` helper).
+- **#9 / #11 too few bars, line between stacks** (`choose_binning()`): for *densely occupied* lattices (proportions k/n: ≥ 60% of lattice points in the central 99% are achieved) the bin width starts at one lattice step whenever the central range fits in ~1.6× the target bin count (≈ 48 columns for ≥ 225 reps), so up to n ≈ 200 every achievable proportion gets its own bar / stack and a simulation equal to the observed value stacks on the line. Honest tail gaps no longer force coarser bins; coarsening happens only for a sawtooth (mixed lattices) or an empty bin between two bins with ≥ 5 sims. Sparse lattices (chi-square) and continuous statistics keep the old gap-free ladder; the visual battery confirmed all 58 non-lattice renders are byte-identical.
+- **#7 counts on bars** (`showCounts` option in every analysis, default off): `count_labels()` prints the count above each bar / dot stack (red for the shaded tail); `plot(r, show_counts = TRUE)` forces it from R. The plot state now also carries `domain`, so toggled plots from R keep the statistic's bounds.
+
 ## Plot binning rework (fix/plot-quality branch)
 Distribution plots previously produced histograms with irregular gaps/widths
 (binwidth aliasing against discrete statistics) and dotplots with a crushed
@@ -91,6 +108,8 @@ x-axis (`coord_equal` vs tall stacks). Reworked in `R/binning_utils.R`:
   first demands gap-free occupancy over the full range; only a genuinely
   detached outlier falls back to a windowed pass and keeps its own bar with
   honest empty space). Target bin count scales with rep count (~2*sqrt(n), max 30).
+  Dense lattices are exempt from the gap rule at one step per bin (see the
+  issue-fix section above).
 - **Pedagogical invariant enforced by construction**: bins are anchored with an
   edge exactly at the observed statistic, and each simulation's extreme flag
   (the same `>=`/`<=` comparison as the p-value) clamps it to its own side, so

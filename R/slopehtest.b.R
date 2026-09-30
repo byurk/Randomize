@@ -68,7 +68,7 @@ slopehtestClass <- R6::R6Class(
             htestTable$setRow(rowKey=depVarName, list(
               "reps"=self$options$reps,
               "b"=b,
-              "p"=res$pval))
+              "p"=format_sim_pval(res$pval, self$options$reps)))
 
             if (self$options$coef) {
 
@@ -165,7 +165,7 @@ slopehtestClass <- R6::R6Class(
           .preparePlot = function(perms, b, direction) {
             permplot <- self$results$simplot
             dotHist <- self$options$dotHist
-            permplot$setState(list(df=strip_infer(perms), obs_stat=b, direction=direction, dotHist=dotHist,
+            permplot$setState(list(df=strip_infer(perms), obs_stat=b, direction=direction, dotHist=dotHist, showCounts=self$options$showCounts,
                                           xlab="slope", obs_label="Observed\nSlope"))
           },
           .permPlot = function(image, ggtheme, theme, ...) {
@@ -174,7 +174,8 @@ slopehtestClass <- R6::R6Class(
             st <- image$state
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                            xlab = "slope",
-                           obs_label = "Observed\nSlope")
+                           obs_label = "Observed\nSlope",
+                           show_counts = isTRUE(st$showCounts))
           },
           .formula=function() {
             jmvcore:::composeFormula(self$options$dep, self$options$indep)

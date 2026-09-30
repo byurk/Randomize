@@ -64,6 +64,7 @@ items:
           - rngSeed
           - seedBool
           - dotHist
+          - showCounts
 
     - name: CITable
       title: Paired Means - Confidence Interval

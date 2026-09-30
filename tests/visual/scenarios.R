@@ -65,6 +65,30 @@ make_null_scenarios <- function() {
         stats = rbinom(1000, 10, 0.5) / 10, obs = 0.7, direction = "greater",
         xlab = "proportion", domain = c(0, 1))
 
+    set.seed(126)
+    sc$prop_n30_greater <- list(
+        # n = 30, 1000 reps: 18 distinct values -- must get one column per
+        # value (a tail gap is honest, not a reason to double the width)
+        stats = rbinom(1000, 30, 0.5) / 30, obs = 20 / 30, direction = "greater",
+        xlab = "proportion", domain = c(0, 1))
+
+    set.seed(127)
+    sc$prop_n25_two_sided <- list(
+        stats = rbinom(500, 25, 0.5) / 25, obs = 18 / 25, direction = "two_sided",
+        xlab = "proportion", domain = c(0, 1))
+
+    set.seed(128)
+    sc$prop_n200_greater <- list(
+        # ~47 lattice steps: still one column per value
+        stats = rbinom(1000, 200, 0.5) / 200, obs = 115 / 200, direction = "greater",
+        xlab = "proportion", domain = c(0, 1))
+
+    set.seed(129)
+    sc$prop_n500_greater <- list(
+        # too many lattice steps for one column each: grouped bins
+        stats = rbinom(1000, 500, 0.5) / 500, obs = 270 / 500, direction = "greater",
+        xlab = "proportion", domain = c(0, 1))
+
     set.seed(110)
     sc$diffprop_25_25 <- list(
         # two-prop diff, equal n: lattice spacing 0.04

@@ -12,6 +12,7 @@ pairedmeanhtestOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
             plots = FALSE,
             reps = 100,
             dotHist = "dotplot",
+            showCounts = FALSE,
             seedBool = FALSE,
             rngSeed = 8675309, ...) {
 
@@ -55,6 +56,10 @@ pairedmeanhtestOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
                     "dotplot",
                     "histogram"),
                 default="dotplot")
+            private$..showCounts <- jmvcore::OptionBool$new(
+                "showCounts",
+                showCounts,
+                default=FALSE)
             private$..seedBool <- jmvcore::OptionBool$new(
                 "seedBool",
                 seedBool,
@@ -70,6 +75,7 @@ pairedmeanhtestOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
             self$.addOption(private$..plots)
             self$.addOption(private$..reps)
             self$.addOption(private$..dotHist)
+            self$.addOption(private$..showCounts)
             self$.addOption(private$..seedBool)
             self$.addOption(private$..rngSeed)
         }),
@@ -80,6 +86,7 @@ pairedmeanhtestOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
         plots = function() private$..plots$value,
         reps = function() private$..reps$value,
         dotHist = function() private$..dotHist$value,
+        showCounts = function() private$..showCounts$value,
         seedBool = function() private$..seedBool$value,
         rngSeed = function() private$..rngSeed$value),
     private = list(
@@ -89,6 +96,7 @@ pairedmeanhtestOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
         ..plots = NA,
         ..reps = NA,
         ..dotHist = NA,
+        ..showCounts = NA,
         ..seedBool = NA,
         ..rngSeed = NA)
 )
@@ -172,7 +180,8 @@ pairedmeanhtestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
                     "reps",
                     "rngSeed",
                     "seedBool",
-                    "dotHist")))
+                    "dotHist",
+                    "showCounts")))
             self$add(jmvcore::Table$new(
                 options=options,
                 name="htest",
@@ -251,6 +260,8 @@ pairedmeanhtestBase <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
 #'   plots
 #' @param reps a number (default: 100), the number of parametric bootstraps
 #' @param dotHist .
+#' @param showCounts \code{TRUE} or \code{FALSE} (default), whether to print
+#'   the count above each bar or dot stack of the simulation plot
 #' @param seedBool \code{TRUE} or \code{FALSE} (default), whether to seed the
 #'   random number generator
 #' @param rngSeed a number (default: 8675309), for seeding the random number
@@ -278,6 +289,7 @@ pairedmeanhtest <- function(
     plots = FALSE,
     reps = 100,
     dotHist = "dotplot",
+    showCounts = FALSE,
     seedBool = FALSE,
     rngSeed = 8675309) {
 
@@ -296,6 +308,7 @@ pairedmeanhtest <- function(
         plots = plots,
         reps = reps,
         dotHist = dotHist,
+        showCounts = showCounts,
         seedBool = seedBool,
         rngSeed = rngSeed)
 

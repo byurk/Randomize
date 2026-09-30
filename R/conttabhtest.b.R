@@ -101,7 +101,7 @@ ContTabHTestClass <- R6::R6Class(
         .computePval = function(perms, x2) {
             reps <- self$options$reps
             pval <- compute_null_pval(perms, x2, "greater")
-            list(x2 = as.numeric(x2), reps = reps, p = pval)
+            list(x2 = as.numeric(x2), reps = reps, p = format_sim_pval(pval, reps))
         },
 
         .computePerms = function(mat){
@@ -218,7 +218,7 @@ ContTabHTestClass <- R6::R6Class(
         .preparePlot = function(perms, x2) {
             permplot <- self$results$Plot
             dotHist <- self$options$dotHist
-            permplot$setState(list(df=strip_infer(perms), obs_stat=as.numeric(x2), direction="greater", dotHist=dotHist,
+            permplot$setState(list(df=strip_infer(perms), obs_stat=as.numeric(x2), direction="greater", dotHist=dotHist, showCounts=self$options$showCounts, domain=c(0, Inf),
                                           xlab="X\u00B2", obs_label="Observed\nX\u00B2"))
         },
         .permPlot = function(image, ggtheme, theme, ...) {
@@ -228,7 +228,8 @@ ContTabHTestClass <- R6::R6Class(
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                            xlab = "X\u00B2",
                            obs_label = "Observed\nX\u00B2",
-                           domain = c(0, Inf))
+                           domain = c(0, Inf),
+                           show_counts = isTRUE(st$showCounts))
         },
 
         #### Helper functions ----

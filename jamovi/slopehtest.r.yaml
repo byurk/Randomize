@@ -73,6 +73,7 @@ items:
           - rngSeed
           - seedBool
           - dotHist
+          - showCounts
 
     - name: htest
       title: Slope - Hypothesis Test

@@ -113,7 +113,7 @@ TwoPropHTestClass <- R6::R6Class(
             reps <- self$options$reps
             direction <- map_direction(self$options$hypothesis)
             pval <- compute_null_pval(perms, dp, direction)
-            list(obsDiff = dp, reps = reps, p = pval, direction = direction)
+            list(obsDiff = dp, reps = reps, p = format_sim_pval(pval, reps), direction = direction)
         },
 
         .computePerms = function(mat){
@@ -247,7 +247,7 @@ TwoPropHTestClass <- R6::R6Class(
         .preparePlot = function(perms, dp, direction) {
             permplot <- self$results$Plot
             dotHist <- self$options$dotHist
-            permplot$setState(list(df=strip_infer(perms), obs_stat=dp, direction=direction, dotHist=dotHist,
+            permplot$setState(list(df=strip_infer(perms), obs_stat=dp, direction=direction, dotHist=dotHist, showCounts=self$options$showCounts, domain=c(-1, 1),
                                           xlab="difference (group 1 - group 2)", obs_label="Observed\nDifference"))
         },
         .permPlot = function(image, ggtheme, theme, ...) {
@@ -257,7 +257,8 @@ TwoPropHTestClass <- R6::R6Class(
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                            xlab = "difference (group 1 - group 2)",
                            obs_label = "Observed\nDifference",
-                           domain = c(-1, 1))
+                           domain = c(-1, 1),
+                           show_counts = isTRUE(st$showCounts))
         },
 
         #### Helper functions ----

@@ -93,6 +93,7 @@ items:
           - rngSeed
           - seedBool
           - dotHist
+          - showCounts
 
     - name: CITable
       title: Simulation Results

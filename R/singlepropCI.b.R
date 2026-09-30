@@ -69,10 +69,21 @@ SinglePropCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
             total  <- results$total
             levels <- results$levels
 
+            set_seed_if(self$options$seedBool, self$options$rngSeed)
+
+            if (any(counts == 0)) {
+                # infer::specify() drops unused factor levels, so a level
+                # with no observations makes the response look
+                # single-level and calculate() refuses to compute a
+                # proportion.  Resample directly instead: a bootstrap
+                # proportion from a binary sample is binomial with the
+                # observed proportion as its success probability.
+                return(data.frame(replicate = seq_len(reps),
+                                  stat = stats::rbinom(reps, total, counts[1] / total) / total))
+            }
+
             df <- tibble::tibble(level=levels, count=counts) %>%
                 tidyr::uncount(count)
-
-            set_seed_if(self$options$seedBool, self$options$rngSeed)
 
             boot <- df %>%
                 infer::specify(response = level, success = levels[1]) %>%
@@ -215,7 +226,7 @@ SinglePropCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
 
             obs_stat <- counts[1] / total
 
-            bootplot$setState(list(df=strip_infer(boot), obs_stat=obs_stat, confLevel = confLevel, ciType = ciType, dotHist=dotHist,
+            bootplot$setState(list(df=strip_infer(boot), obs_stat=obs_stat, confLevel = confLevel, ciType = ciType, dotHist=dotHist, showCounts=self$options$showCounts,
                                           xlab="proportion", stat_label="bootstrap proportions", clamp=c(0, 1)))
 
         },
@@ -228,7 +239,8 @@ SinglePropCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
             p <- plot_boot_dist(st$df, st$obs_stat, st$confLevel, st$ciType,
                                 st$dotHist, xlab = "proportion",
                                 stat_label = "bootstrap proportions",
-                                clamp = c(0, 1))
+                                clamp = c(0, 1),
+                                show_counts = isTRUE(st$showCounts))
             return(p)
         },
 
@@ -244,6 +256,22 @@ SinglePropCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
             if (length(column) == 0) {
                 jmvcore::reject(
                     jmvcore::format("Variable '{resp}' contains no data", resp=resp),
+                    code=''
+                )
+            }
+
+            results <- private$.counts(resp)
+            if (length(results$counts) != 2) {
+                jmvcore::reject(
+                    jmvcore::format(
+                        "Variable '{resp}' must have exactly 2 levels (found {n}). A proportion is only defined for a binary variable.",
+                        resp=resp, n=length(results$counts)),
+                    code=''
+                )
+            }
+            if (any(is.na(results$counts)) || results$total <= 0) {
+                jmvcore::reject(
+                    jmvcore::format("Counts for '{resp}' must be non-negative numbers with a positive total", resp=resp),
                     code=''
                 )
             }

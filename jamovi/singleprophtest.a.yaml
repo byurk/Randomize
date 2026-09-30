@@ -64,6 +64,15 @@ options:
           name:  histogram
       default: dotplot
 
+    - name: showCounts
+      title: Show counts on plot
+      type: Bool
+      default: false
+      description:
+          R: >
+            `TRUE` or `FALSE` (default), whether to print the count above
+            each bar or dot stack of the simulation plot
+
     - name: seedBool
       title: Seed random number generator
       type: Bool

@@ -36,6 +36,12 @@ assert_not_na <- function(val, label = "value") {
         stop(paste(label, "is NA or NULL"))
 }
 
+# A simulation p-value of 0 is reported as the string "< 1/reps"
+# (e.g. "< .001"); recover a numeric bound for range checks
+p_num <- function(p) {
+    if (is.character(p)) as.numeric(paste0("0", sub("^<\\s*", "", p))) else p
+}
+
 # ============================================================
 # Test data
 # ============================================================
@@ -195,8 +201,9 @@ test("two-sided", {
                     dotHist = "histogram", seedBool = TRUE, rngSeed = 123)
     tbl <- r$htest$asDF
     assert_not_na(tbl$p, "p-value")
-    # Should be significant (true slope = 2)
-    stopifnot(tbl$p < 0.05)
+    # Should be significant (true slope = 2); with 500 reps and no
+    # permutation as extreme the p-value is reported as "< .002"
+    stopifnot(p_num(tbl$p) < 0.05)
 })
 
 cat("\n=== Testing SinglePropCI ===\n")
@@ -228,7 +235,7 @@ test("clean data", {
                         seedBool = TRUE, rngSeed = 123)
     tbl <- r$htest$asDF
     assert_not_na(tbl$p, "p-value")
-    stopifnot(tbl$p >= 0 && tbl$p <= 1)
+    stopifnot(p_num(tbl$p) >= 0 && p_num(tbl$p) <= 1)
 })
 
 cat("\n=== Testing TwoPropCI ===\n")
@@ -260,7 +267,7 @@ test("clean data", {
                       seedBool = TRUE, rngSeed = 123, compare = "rows")
     tbl <- r$simtable$asDF
     assert_not_na(tbl$p, "p-value")
-    stopifnot(tbl$p >= 0 && tbl$p <= 1)
+    stopifnot(p_num(tbl$p) >= 0 && p_num(tbl$p) <= 1)
 })
 
 # ============================================================
@@ -361,6 +368,163 @@ test("dotplot variant with toggles", {
     assert_is_ggplot(p_bare)
     stopifnot(count_layers(p_full, "GeomVline") >= 1)
     stopifnot(count_layers(p_bare, "GeomVline") == 0)
+})
+
+# ============================================================
+# Issue regressions
+# ============================================================
+
+cat("\n=== #12: a level with zero count ===\n")
+test("SinglePropHTest, counts 5 / 0", {
+    r <- SinglePropHTest(data = data.frame(x = c(5, 0)), resp = "x", areCounts = TRUE,
+                         testValue = 0.5, alt = "greater", reps = 200,
+                         dotHist = "dotplot", seedBool = TRUE, rngSeed = 1)
+    tbl <- r$simtable$asDF
+    stopifnot(tbl$obsProp == 1)
+    # P(5 heads in 5 fair flips) = 1/32: the simulated p must land near it
+    stopifnot(p_num(tbl$p) > 0, p_num(tbl$p) < 0.15)
+    stopifnot(all(r$Plot$state$df$stat >= 0 & r$Plot$state$df$stat <= 1))
+    assert_is_ggplot(plot(r))
+})
+test("SinglePropHTest, counts 0 / 5", {
+    r <- SinglePropHTest(data = data.frame(x = c(0, 5)), resp = "x", areCounts = TRUE,
+                         testValue = 0.5, alt = "less", reps = 200,
+                         dotHist = "histogram", seedBool = TRUE, rngSeed = 1)
+    stopifnot(r$simtable$asDF$obsProp == 0)
+    assert_is_ggplot(plot(r))
+})
+test("SinglePropHTest, factor level never observed", {
+    d <- data.frame(y = factor(rep("H", 5), levels = c("H", "T")))
+    r <- SinglePropHTest(data = d, resp = "y", testValue = 0.5, alt = "greater",
+                         reps = 200, seedBool = TRUE, rngSeed = 1)
+    stopifnot(r$simtable$asDF$obsProp == 1)
+    stopifnot(r$summtable$asDF$count == c(5, 0))
+})
+test("SinglePropCI, counts 5 / 0", {
+    r <- SinglePropCI(data = data.frame(x = c(5, 0)), resp = "x", areCounts = TRUE,
+                      reps = 200, confLevel = 95, ciType = "bootperc",
+                      dotHist = "dotplot", seedBool = TRUE, rngSeed = 1)
+    tbl <- r$simtable$asDF
+    stopifnot(tbl$obsProp == 1, tbl$cil == 1, tbl$ciu == 1)
+    assert_is_ggplot(plot(r))
+})
+test("SinglePropHTest rejects a variable with 3 levels", {
+    d <- data.frame(y = factor(c("a", "b", "c", "a")))
+    msg <- tryCatch({
+        SinglePropHTest(data = d, resp = "y", testValue = 0.5, reps = 50)
+        ""
+    }, error = function(e) conditionMessage(e))
+    stopifnot(grepl("exactly 2 levels", msg))
+})
+
+cat("\n=== #10: p = 0 reported as < 1/reps ===\n")
+test("format_sim_pval", {
+    stopifnot(identical(format_sim_pval(0, 100), "< .01"))
+    stopifnot(identical(format_sim_pval(0, 1000), "< .001"))
+    stopifnot(identical(format_sim_pval(0, 5000), "< .0002"))
+    stopifnot(identical(format_sim_pval(0, 300), "< .0033"))
+    stopifnot(identical(format_sim_pval(0.034, 100), 0.034))
+})
+test("SinglePropHTest reports < .01 with 100 reps and no extreme sims", {
+    r <- SinglePropHTest(data = data.frame(x = c(19, 1)), resp = "x", areCounts = TRUE,
+                         testValue = 0.5, alt = "greater", reps = 100,
+                         seedBool = TRUE, rngSeed = 1)
+    stopifnot(identical(r$simtable$asDF$p, "< .01"))
+    stopifnot(identical(results_table(r)$p, "< .01"))
+})
+test("twomeanhtest reports < .001 with 1000 reps and no extreme sims", {
+    d <- data.frame(score = c(rnorm(30, 0, 1), rnorm(30, 8, 1)),
+                    group = factor(rep(c("A", "B"), each = 30)))
+    r <- twomeanhtest(data = d, vars = "score", group = "group",
+                      hypothesis = "different", reps = 1000,
+                      seedBool = TRUE, rngSeed = 1)
+    stopifnot(identical(r$htest$asDF$p, "< .001"))
+})
+
+cat("\n=== #13 / #8: model-based calculator ===\n")
+test("normal, Z = -1.5, right tail: area and shading both start at -1.5", {
+    r <- modelBased(distro = "ndistro", areaBool = TRUE, obsStat = -1.5, tail = "right")
+    assert_close(r$areaTable$asDF$area, pnorm(-1.5, lower.tail = FALSE), 1e-6)
+    b <- ggplot2::ggplot_build(plot(r))
+    # the shaded area layer comes first; its left edge must be the observed value
+    shade <- b$data[[1]]
+    assert_close(min(shade$x), -1.5, 1e-9)
+    stopifnot(max(shade$x) > 3)
+})
+test("normal, Z = -1.5, left tail", {
+    r <- modelBased(distro = "ndistro", areaBool = TRUE, obsStat = -1.5, tail = "left")
+    assert_close(r$areaTable$asDF$area, pnorm(-1.5), 1e-6)
+    shade <- ggplot2::ggplot_build(plot(r))$data[[1]]
+    assert_close(max(shade$x), -1.5, 1e-9)
+})
+test("t, both tails", {
+    r <- modelBased(distro = "tdistro", dF = 7, areaBool = TRUE, obsStat = 2.2, tail = "both")
+    assert_close(r$areaTable$asDF$area, 2 * pt(-2.2, 7), 1e-6)
+    stopifnot(r$areaTable$asDF$df == 7)
+})
+test("chi-square: right tail regardless of tail option", {
+    r <- modelBased(distro = "chisq", dF = 4, areaBool = TRUE, obsStat = 9.5, tail = "left")
+    assert_close(r$areaTable$asDF$area, pchisq(9.5, 4, lower.tail = FALSE), 1e-6)
+    stopifnot(r$areaTable$asDF$df == 4)
+    b <- ggplot2::ggplot_build(plot(r))
+    shade <- b$data[[1]]
+    assert_close(min(shade$x), 9.5, 1e-9)
+    stopifnot(min(b$data[[2]]$x) >= 0)   # density curve never below zero
+    assert_is_ggplot(plot(r))
+})
+test("F: area, df columns, no CI multiplier", {
+    r <- modelBased(distro = "fdistro", dF = 3, dF2 = 24, areaBool = TRUE, obsStat = 3.1,
+                    CIBool = TRUE, confLevel = 95)
+    tbl <- r$areaTable$asDF
+    assert_close(tbl$area, pf(3.1, 3, 24, lower.tail = FALSE), 1e-6)
+    stopifnot(tbl$df1 == 3, tbl$df2 == 24)
+    stopifnot(nrow(r$multTable$asDF) == 0)
+})
+test("CI multiplier for normal and t", {
+    r <- modelBased(distro = "ndistro", CIBool = TRUE, confLevel = 90)
+    assert_close(r$multTable$asDF$critVal, qnorm(0.95), 1e-6)
+    r <- modelBased(distro = "tdistro", dF = 12, CIBool = TRUE, confLevel = 95)
+    assert_close(r$multTable$asDF$critVal, qt(0.975, 12), 1e-6)
+    stopifnot(r$multTable$asDF$df == 12)
+})
+
+cat("\n=== #7: counts on bars / dot stacks ===\n")
+test("showCounts option adds one label per bar (histogram)", {
+    r <- twomeanhtest(data = clean_data, vars = "score", group = "group",
+                      hypothesis = "different", reps = 300,
+                      dotHist = "histogram", seedBool = TRUE, rngSeed = 123,
+                      showCounts = TRUE)
+    p <- plot(r)
+    # the observed-value label is itself a text layer; counts add one more
+    r0 <- twomeanhtest(data = clean_data, vars = "score", group = "group",
+                       hypothesis = "different", reps = 300,
+                       dotHist = "histogram", seedBool = TRUE, rngSeed = 123)
+    n0 <- count_layers(plot(r0), "GeomText")
+    stopifnot(count_layers(p, "GeomText") == n0 + 1)
+    b <- ggplot2::ggplot_build(p)
+    bars <- b$data[[1]]
+    labs <- b$data[[which(vapply(p$layers, function(l) inherits(l$geom, "GeomText"), logical(1)))[1]]]
+    stopifnot(nrow(labs) == nrow(bars))
+    stopifnot(sum(as.numeric(labs$label)) == 300)
+    # the option can also be forced from R on an analysis run without it
+    stopifnot(count_layers(plot(r0, show_counts = TRUE), "GeomText") == n0 + 1)
+})
+test("showCounts labels every dot stack (bootstrap dotplot)", {
+    r <- SinglePropCI(data = cat_data, resp = "outcome", reps = 300,
+                      confLevel = 95, ciType = "bootperc", dotHist = "dotplot",
+                      seedBool = TRUE, rngSeed = 123, showCounts = TRUE)
+    p <- plot(r)
+    b <- ggplot2::ggplot_build(p)
+    labs <- b$data[[which(vapply(p$layers, function(l) inherits(l$geom, "GeomText"), logical(1)))[1]]]
+    stopifnot(sum(as.numeric(labs$label)) == 300)
+    stopifnot(length(unique(labs$x)) == length(unique(b$data[[1]]$x)))
+})
+test("bare mode still draws no counts", {
+    r <- twomeanhtest(data = clean_data, vars = "score", group = "group",
+                      hypothesis = "different", reps = 300,
+                      dotHist = "histogram", seedBool = TRUE, rngSeed = 123,
+                      showCounts = TRUE)
+    stopifnot(count_layers(plot(r, show_lines = FALSE, show_counts = FALSE), "GeomText") == 0)
 })
 
 cat("\n\n============================\n")

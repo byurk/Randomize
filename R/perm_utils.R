@@ -88,6 +88,28 @@ compute_null_pval <- function(perms, obs_stat, direction) {
         dplyr::pull()
 }
 
+#' Format a simulation p-value for a results table
+#'
+#' A simulation p-value of exactly zero means none of the \code{reps}
+#' simulated statistics was as extreme as the observed one, so all the
+#' simulation can say is that the p-value is below \code{1/reps}.  Jamovi
+#' would otherwise print such a value according to the number of decimal
+#' places displayed (e.g. \code{0.0000} for 100 reps, or \code{< .001}
+#' for 10 reps), which misstates the resolution of the simulation.
+#'
+#' @param p Numeric p-value from \code{\link{compute_null_pval}}.
+#' @param reps Number of simulated samples.
+#' @return \code{p} unchanged when positive; otherwise a string such as
+#'   \code{"< .01"} (100 reps) or \code{"< .001"} (1000 reps).
+#' @keywords internal
+format_sim_pval <- function(p, reps) {
+    if (is.null(p) || is.na(p) || p > 0)
+        return(p)
+    thr <- signif(1 / reps, 2)
+    txt <- sub("0+$", "", sprintf("%.10f", thr))
+    paste0("< ", sub("^0", "", txt))
+}
+
 #' Plot a null distribution with p-value shading
 #'
 #' Creates either a dotplot or histogram of simulated null-distribution
@@ -120,6 +142,8 @@ compute_null_pval <- function(perms, obs_stat, direction) {
 #'   \code{c(0, Inf)} for chi-square or F, \code{c(0, 1)} for a
 #'   proportion).  Bars and dot columns are trimmed so nothing is drawn
 #'   at impossible values.
+#' @param show_counts Logical; if \code{TRUE}, print the count above
+#'   each bar or dot stack.  Default \code{FALSE}.
 #'
 #' @return A \code{ggplot} object.
 #'
@@ -132,7 +156,8 @@ plot_null_dist <- function(perms, obs_stat, direction,
                            show_label = TRUE,
                            show_caption = TRUE,
                            show_tail = TRUE,
-                           domain = NULL) {
+                           domain = NULL,
+                           show_counts = FALSE) {
     dotHist <- match.arg(dotHist)
 
     if (direction == "less") {
@@ -240,9 +265,11 @@ plot_null_dist <- function(perms, obs_stat, direction,
 
         max_stack <- max(dots$y)
         # At least 0.6 above the tallest stack so the top dot (semi-height
-        # up to 0.45) is never clipped by the y limit
-        y_top <- max(max_stack * (if (show_label) 1.3 else 1.06),
-                     max_stack + 0.6)
+        # up to 0.45) is never clipped by the y limit; count labels need
+        # a little more headroom
+        y_top <- max(max_stack * (if (show_label) 1.3 else 1.06) *
+                         (if (show_counts) 1.08 else 1),
+                     max_stack + 0.6 + (if (show_counts) 0.8 else 0))
 
         p <- ggplot2::ggplot(dots) +
             stack_dots(dots, a = a) +
@@ -257,8 +284,17 @@ plot_null_dist <- function(perms, obs_stat, direction,
                 limits = c(0, y_top),
                 expand = ggplot2::expansion(mult = c(0.01, 0.02))) +
             ggplot2::theme(text = ggplot2::element_text(size = 14))
+
+        if (show_counts) {
+            tops <- dots |>
+                dplyr::group_by(idx) |>
+                dplyr::summarize(x = x[1], n = max(y), fill = fill[1],
+                                 .groups = "drop")
+            p <- p + count_labels(tops$x, tops$n + 0.5, tops$n, tops$fill)
+        }
     } else {
-        y_top <- max(bars$n) * (if (show_label) 1.2 else 1.04)
+        y_top <- max(bars$n) * (if (show_label) 1.2 else 1.04) *
+            (if (show_counts) 1.08 else 1)
 
         p <- ggplot2::ggplot(bars) +
             ggplot2::geom_rect(
@@ -273,6 +309,9 @@ plot_null_dist <- function(perms, obs_stat, direction,
                 limits = c(0, y_top),
                 expand = ggplot2::expansion(mult = c(0, 0.02))) +
             ggplot2::theme(text = ggplot2::element_text(size = 14))
+
+        if (show_counts)
+            p <- p + count_labels(bars$mid, bars$n, bars$n, bars$fill)
     }
 
     if (show_line && obs_in)
@@ -310,4 +349,21 @@ plot_null_dist <- function(perms, obs_stat, direction,
             ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))
 
     p
+}
+
+#' Count labels above bars or dot stacks
+#'
+#' @param x,y Label positions (the top of each bar or stack).
+#' @param n Counts to print.
+#' @param extreme Logical per label; \code{TRUE} labels are drawn in the
+#'   tail-shading red so a student can read the p-value numerator
+#'   straight off the plot.
+#' @return A \code{geom_text} layer.
+#' @keywords internal
+count_labels <- function(x, y, n, extreme = FALSE) {
+    d <- data.frame(x = x, y = y, n = n,
+                    col = ifelse(rep_len(extreme, length(x)), "#d9534f", "grey25"))
+    ggplot2::geom_text(
+        data = d, ggplot2::aes(x = x, y = y, label = n),
+        color = d$col, vjust = -0.35, size = 3, inherit.aes = FALSE)
 }

@@ -74,6 +74,7 @@ items:
           - rngSeed
           - seedBool
           - dotHist
+          - showCounts
 
     - name: CITable
       title: Slope - Bootstrap CI

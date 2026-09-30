@@ -114,14 +114,35 @@ vline_positions <- function(built) {
 # occupied bins must sit at a regular spacing with no absent bin between
 # them.  (A lone extreme outlier may still have its own separated bar
 # beyond the window -- that is honest empty space, not a binning gap.)
-assert_gap_free <- function(el, stats) {
+#
+# When every bin holds exactly one achievable value (single_value), an
+# empty bin is a value that genuinely never occurred and is allowed --
+# except between two well-populated bins (both >= 5), where it would
+# read as a binning error.
+assert_gap_free <- function(el, stats, single_value = FALSE) {
     win <- stats::quantile(stats, c(0.001, 0.999), names = FALSE)
-    mids <- sort(unique(round((el$xmin + el$xmax) / 2, 12)))
+    mid_all <- round((el$xmin + el$xmax) / 2, 12)
+    h <- tapply(el$height, mid_all, sum)
+    mids <- sort(as.numeric(names(h)))
     if (length(mids) < 3) return(invisible())
     step <- min(diff(mids))
+    if (single_value) {
+        gap <- diff(mids) > 1.5 * step
+        n_l <- as.numeric(h[as.character(mids[-length(mids)])])
+        n_r <- as.numeric(h[as.character(mids[-1])])
+        if (any(gap & n_l >= 5 & n_r >= 5))
+            stop("empty single-value bin between two populated bins")
+        return(invisible())
+    }
     inwin <- mids[mids >= win[1] - step & mids <= win[2] + step]
     if (length(inwin) > 1 && any(diff(inwin) > 1.5 * step))
         stop("empty bin (gap) inside the central window")
+}
+
+# Does the plot use one bin per achievable lattice value?
+is_single_value <- function(stats, anchor, align, sign = 1) {
+    b <- choose_binning(stats, anchor, align = align, sign = sign)
+    b$lattice && abs(b$bw - b$res) <= b$res * 1e-9
 }
 
 check_null_invariants <- function(s, mode) {
@@ -152,10 +173,12 @@ check_null_invariants <- function(s, mode) {
     # legitimately straddles the line, pure by value identity).
     u <- sort(unique(s$stats))
     sparse <- length(u) >= 2 && length(u) <= 8
+    sgn0 <- if (ptail == "lt") -1 else 1
     if (sparse) {
         el$halfw <- (el$xmax - el$xmin) / 2
     } else {
-        assert_gap_free(el, s$stats)
+        assert_gap_free(el, s$stats,
+                        single_value = is_single_value(s$stats, s$obs, "edge", sgn0))
     }
 
     # Nothing placed at impossible values.  Grouped bars are trimmed to
@@ -249,6 +272,43 @@ for (nm in names(null_sc)) {
     test(paste0(nm, " [dot]"), check_null_invariants(null_sc[[nm]], "dotplot"))
 }
 
+cat("\n=== Dense lattices: one column per value, tie stack on the line (#9, #11) ===\n")
+for (nm in c("prop_n20_greater", "prop_n30_greater", "prop_n25_two_sided",
+             "prop_n50_two_sided", "prop_n100_greater", "prop_n200_greater")) {
+    test(nm, {
+        s <- null_sc[[nm]]
+        df <- data.frame(stat = s$stats)
+        res <- min(diff(sort(unique(s$stats))))
+        sgn <- if (s$direction == "two_sided" &&
+                   mean(s$stats > s$obs) >= mean(s$stats < s$obs)) -1 else 1
+        if (!is_single_value(s$stats, s$obs, "edge", sgn))
+            stop("bins group several achievable values")
+        # dotplot: a column of dots sits exactly on the observed value,
+        # and (ties count toward the p-value) it is red
+        built <- build_checked(plot_null_dist(df, s$obs, s$direction, "dotplot",
+                                              xlab = s$xlab, domain = s$domain))
+        d <- built$data[[1]]
+        on_line <- abs(d$x - s$obs) < res * 1e-6
+        if (sum(abs(s$stats - s$obs) < res * 1e-6) > 0) {
+            if (!any(on_line)) stop("no dot stack centered on the observed value")
+            if (any(d$fill[on_line] != RED)) stop("tie stack is not red")
+        }
+        # histogram: the number of bars equals the number of distinct values
+        built <- build_checked(plot_null_dist(df, s$obs, s$direction, "histogram",
+                                              xlab = s$xlab, domain = s$domain))
+        if (nrow(built$data[[1]]) != length(unique(s$stats)))
+            stop("bars do not correspond one-to-one to achievable values")
+    })
+}
+test("prop_n500_greater groups lattice steps (too many for one column each)", {
+    s <- null_sc$prop_n500_greater
+    if (is_single_value(s$stats, s$obs, "edge", 1))
+        stop("expected grouped bins for ~75 lattice steps")
+    b <- choose_binning(s$stats, s$obs, align = "edge", sign = 1)
+    steps <- diff(stats::quantile(s$stats, c(0.005, 0.995), names = FALSE)) / b$res
+    if (steps / (b$bw / b$res) > 50) stop("too many columns")
+})
+
 cat("\n=== Toggle stability: bare mode draws identical bars ===\n")
 for (nm in c("prop_n20_greater", "cont_two_sided", "chisq_2x2")) {
     test(nm, {
@@ -305,7 +365,8 @@ for (nm in names(boot_sc)) {
             if (sparse) {
                 el$halfw <- (el$xmax - el$xmin) / 2
             } else {
-                assert_gap_free(el, s$stats)
+                assert_gap_free(el, s$stats,
+                                single_value = is_single_value(s$stats, s$obs, "center"))
             }
             if (!is.null(s$clamp)) {
                 bars_el <- el[el$halfw == 0, ]

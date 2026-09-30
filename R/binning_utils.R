@@ -30,10 +30,27 @@ NULL
 #' @param sign +1 bins rightward from the anchor, -1 mirrors (used when
 #'   the extreme tail is the lower one).
 #' @param target_bins Preferred number of bins for continuous data.
-#' @param max_empty Highest tolerated fraction of interior empty bins.
-#'   The default 0 means histograms and dotplots never show gaps; a
-#'   genuinely detached outlier still gets its own bar with honest empty
-#'   space via the windowed second pass.
+#' @param max_empty Highest tolerated fraction of interior empty bins
+#'   for non-lattice data.  The default 0 means histograms and dotplots
+#'   of continuous statistics never show gaps; a genuinely detached
+#'   outlier still gets its own bar with honest empty space via the
+#'   windowed second pass.  Lattice data are handled differently: see
+#'   Details.
+#'
+#' @details
+#' For densely occupied lattice data (proportions \eqn{k/n}, where every
+#' lattice point in the body of the distribution is achievable) the bin
+#' width is always a whole number of lattice steps, so an empty bin is
+#' never a binning artifact -- it is a value that genuinely never
+#' occurred in the simulation.  Such honest gaps (typically in the
+#' tails) therefore do not force coarser bins.  Binning starts from one
+#' bin per achievable value whenever the central 99\% of
+#' the simulations spans no more than about 1.6 times the target bin
+#' count, and coarsens only when the result shows a sawtooth (mixed
+#' lattices such as a difference in proportions with unequal group sizes)
+#' or an empty bin in the body of the distribution (both nearest occupied
+#' neighbours holding at least 5 simulations).  One bin per value is what
+#' lets a dot stack sit exactly on the observed-value line.
 #'
 #' @return A list with \code{bw} (bin width), \code{off} (half-resolution
 #'   offset that keeps lattice values away from bin edges), \code{lattice}
@@ -86,15 +103,73 @@ choose_binning <- function(stats, anchor, align = c("edge", "center"),
         mean(dip)
     }
 
+    # An empty bin between two well-populated bins (each holding at least
+    # min_n simulations).  For lattice data this is the only kind of gap
+    # worth coarsening for: a hole in the body of the distribution looks
+    # like a binning error even when it is real, whereas an empty value in
+    # a sparse tail is exactly what a student should see.
+    body_gap <- function(counts, min_n = 5) {
+        occ <- which(counts > 0)
+        if (length(occ) < 2) return(FALSE)
+        left <- occ[-length(occ)]
+        right <- occ[-1]
+        any(right - left > 1 & counts[left] >= min_n & counts[right] >= min_n)
+    }
+
     # Few simulations cannot fill many bins; scale the target with sample
     # size (~2*sqrt(n), capped) so classroom-scale runs get chunky bars
     target_bins <- min(target_bins, max(8, ceiling(2 * sqrt(length(stats)))))
 
-    # Try successively fewer bins until interior empty bins are rare and
-    # there is no strong sawtooth.  For lattice data the candidate width
-    # snaps to a multiple of the lattice spacing, which removes aliasing
-    # immediately; for irregular discrete data (e.g. chi-square) wider
-    # bins absorb the gaps.
+    ks <- unique(c(target_bins, 24, 20, 16, 13, 10, 8, 6, 5))
+    ks <- ks[ks <= target_bins]
+
+    # A lattice is "dense" when the achievable values actually fill it:
+    # proportions k/n occupy every lattice point in the body of the
+    # distribution.  Chi-square statistics also lie on a (very fine)
+    # rational lattice but occupy only a sparse, irregular subset of it,
+    # so their empty bins are binning artifacts, not honest zero counts;
+    # they take the non-lattice ladder below.
+    qs <- stats::quantile(stats, c(0.005, 0.995), names = FALSE)
+    steps <- (qs[2] - qs[1]) / res
+    if (lattice) {
+        inwin <- u[u >= qs[1] & u <= qs[2]]
+        dense <- length(inwin) >= 0.6 * (steps + 1)
+    } else {
+        dense <- FALSE
+    }
+
+    if (dense) {
+        # One bin per achievable value if the central 99% of the
+        # simulations fits in ~1.6x the target bin count; otherwise the
+        # smallest whole number of lattice steps that does.  Coarsen from
+        # there only for a sawtooth or a body gap, and never beyond the
+        # coarsest width the non-lattice ladder would use.
+        max_cols <- ceiling(1.6 * target_bins)
+        m <- max(1L, as.integer(ceiling(steps / max_cols)))
+        m_max <- max(m, as.integer(round((span / min(ks)) / res)))
+        while (m < m_max) {
+            counts <- bin_counts(m * res, 0, 1)
+            if (m == 1L) {
+                # single-value bins: gaps are honest zero counts
+                ok <- !body_gap(counts)
+            } else {
+                # grouped bins: same gap-free rule as the ladder below
+                # (full range, else the central 99.8%)
+                ok <- frac_empty(counts) <= max_empty ||
+                    frac_empty(bin_counts(m * res, 0.001, 0.999)) <= max_empty
+            }
+            if (ok && frac_zigzag(counts) <= 0.2) break
+            m <- m + 1L
+        }
+        bw <- m * res
+        return(list(bw = bw, off = min(res, bw) / 2, lattice = TRUE, res = res))
+    }
+
+    # Everything else: try successively fewer bins until interior empty
+    # bins are rare and there is no strong sawtooth.  For sparse lattice
+    # data (e.g. chi-square) the candidate width still snaps to a
+    # multiple of the lattice spacing, which removes aliasing
+    # immediately; wider bins absorb the gaps.
     #
     # Two passes: the first evaluates occupancy over the FULL range, so
     # ordinary distributions come out with no gaps anywhere.  Only when
@@ -102,8 +177,6 @@ choose_binning <- function(stats, anchor, align = c("edge", "center"),
     # second pass exclude the extreme 0.1% per side -- the outlier keeps
     # its own bar with honest empty space rather than forcing chunky
     # bins on the whole distribution.
-    ks <- unique(c(target_bins, 24, 20, 16, 13, 10, 8, 6, 5))
-    ks <- ks[ks <= target_bins]
     try_ladder <- function(lo, hi) {
         for (k in ks) {
             cand <- if (lattice) res * max(1, round((span / k) / res)) else span / k

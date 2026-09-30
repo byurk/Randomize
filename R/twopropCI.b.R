@@ -256,7 +256,7 @@ TwoPropCIClass <- R6::R6Class(
             confLevel <- self$options$confLevel
             ciType <- self$options$ciType
 
-            bootplot$setState(list(df=strip_infer(boots), obs_stat=dp, confLevel = confLevel, ciType = ciType, dotHist=dotHist,
+            bootplot$setState(list(df=strip_infer(boots), obs_stat=dp, confLevel = confLevel, ciType = ciType, dotHist=dotHist, showCounts=self$options$showCounts,
                                           xlab="difference (group 1 - group 2)", stat_label="bootstrap differences"))
 
         },
@@ -269,7 +269,8 @@ TwoPropCIClass <- R6::R6Class(
             p <- plot_boot_dist(st$df, st$obs_stat, st$confLevel, st$ciType,
                                 st$dotHist,
                                 xlab = "difference (group 1 - group 2)",
-                                stat_label = "bootstrap differences")
+                                stat_label = "bootstrap differences",
+                                show_counts = isTRUE(st$showCounts))
             return(p)
         },
 

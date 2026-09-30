@@ -68,10 +68,22 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
             total  <- results$total
             levels <- results$levels
 
+            set_seed_if(self$options$seedBool, self$options$rngSeed)
+
+            if (any(counts == 0)) {
+                # infer::specify() drops unused factor levels, so a level
+                # with no observations (e.g. 5 heads, 0 tails) makes the
+                # response look single-level and calculate() refuses to
+                # compute a proportion.  Draw the null samples directly
+                # instead: the proportion of successes in `total` draws
+                # with probability testValue is exactly what
+                # generate(type = "draw") produces.
+                return(data.frame(replicate = seq_len(reps),
+                                  stat = stats::rbinom(reps, total, testValue) / total))
+            }
+
             df <- tibble::tibble(level=levels, count=counts) %>%
                 tidyr::uncount(count)
-
-            set_seed_if(self$options$seedBool, self$options$rngSeed)
 
             boot <- df %>%
                 infer::specify(response = level, success = levels[1]) %>%
@@ -96,7 +108,8 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
 
             pval <- compute_null_pval(boot, counts[1] / total, direction)
 
-            list(obsProp = counts[1] / total, reps = reps, p = pval, direction = direction)
+            list(obsProp = counts[1] / total, reps = reps,
+             p = format_sim_pval(pval, reps), direction = direction)
         },
 
         #### Init tables/plots functions ----
@@ -200,7 +213,7 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
             resp <- self$options$resp
             results <- private$.counts(resp)
             obs_stat <- results$counts[1] / results$total
-            bootplot$setState(list(df=strip_infer(boot), obs_stat=obs_stat, direction=direction, dotHist=dotHist,
+            bootplot$setState(list(df=strip_infer(boot), obs_stat=obs_stat, direction=direction, dotHist=dotHist, showCounts=self$options$showCounts, domain=c(0, 1),
                                           xlab="proportion", obs_label="Observed\nProportion"))
         },
         .bootPlot = function(image, ggtheme, theme, ...) {
@@ -210,7 +223,8 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                            xlab = "proportion",
                            obs_label = "Observed\nProportion",
-                           domain = c(0, 1))
+                           domain = c(0, 1),
+                           show_counts = isTRUE(st$showCounts))
         },
 
         #### Helper functions ----
@@ -225,6 +239,22 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
             if (length(column) == 0) {
                 jmvcore::reject(
                     jmvcore::format("Variable '{resp}' contains no data", resp=resp),
+                    code=''
+                )
+            }
+
+            results <- private$.counts(resp)
+            if (length(results$counts) != 2) {
+                jmvcore::reject(
+                    jmvcore::format(
+                        "Variable '{resp}' must have exactly 2 levels (found {n}). A proportion is only defined for a binary variable.",
+                        resp=resp, n=length(results$counts)),
+                    code=''
+                )
+            }
+            if (any(is.na(results$counts)) || results$total <= 0) {
+                jmvcore::reject(
+                    jmvcore::format("Counts for '{resp}' must be non-negative numbers with a positive total", resp=resp),
                     code=''
                 )
             }

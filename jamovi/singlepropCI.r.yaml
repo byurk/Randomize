@@ -60,6 +60,7 @@ items:
           - seedBool
           - rngSeed
           - dotHist
+          - showCounts
 
     - name: simtable
       title: Simulation Results

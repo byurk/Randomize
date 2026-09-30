@@ -82,7 +82,7 @@ multimeanhtestClass <- R6::R6Class(
             htestTable$setRow(rowKey=depVarName, list(
               "reps"=self$options$reps,
               "oF"=Fobs,
-              "p"=res$pval))
+              "p"=format_sim_pval(res$pval, self$options$reps)))
             }
             
             if (self$options$desc) {
@@ -185,7 +185,7 @@ multimeanhtestClass <- R6::R6Class(
           .preparePlot = function(perms, oF) {
             permplot <- self$results$simplot
             dotHist <- self$options$dotHist
-            permplot$setState(list(df=strip_infer(perms), obs_stat=oF, direction="greater", dotHist=dotHist,
+            permplot$setState(list(df=strip_infer(perms), obs_stat=oF, direction="greater", dotHist=dotHist, showCounts=self$options$showCounts, domain=c(0, Inf),
                                           xlab="F", obs_label="Observed\nF"))
         },
           .permPlot = function(image, ggtheme, theme, ...) {
@@ -195,7 +195,8 @@ multimeanhtestClass <- R6::R6Class(
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                            xlab = "F",
                            obs_label = "Observed\nF",
-                           domain = c(0, Inf))
+                           domain = c(0, Inf),
+                           show_counts = isTRUE(st$showCounts))
         },
           .formula=function() {
             jmvcore:::composeFormula(self$options$vars, self$options$group)

@@ -63,6 +63,7 @@ items:
           - rngSeed
           - seedBool
           - dotHist
+          - showCounts
 
     - name: htest
       title: Paired Means - Hypothesis Test

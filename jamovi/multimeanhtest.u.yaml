@@ -47,6 +47,8 @@ children:
             children:
               - type: ComboBox
                 name: dotHist
+              - type: CheckBox
+                name: showCounts
           - type: LayoutBox
             margin: large
             children:

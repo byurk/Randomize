@@ -88,6 +88,8 @@ compute_boot_ci <- function(boot, obs_stat, conf_level, ci_type,
 #'   marking the CI bounds. Default \code{TRUE}.
 #' @param show_caption Logical; if \code{FALSE}, omit the caption explaining
 #'   how the CI was constructed. Default \code{TRUE}.
+#' @param show_counts Logical; if \code{TRUE}, print the count above
+#'   each bar or dot stack.  Default \code{FALSE}.
 #'
 #' @return A \code{ggplot} object.
 #'
@@ -98,7 +100,8 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
                            stat_label = "bootstrap statistics",
                            clamp = NULL,
                            show_lines = TRUE,
-                           show_caption = TRUE) {
+                           show_caption = TRUE,
+                           show_counts = FALSE) {
     dotHist <- match.arg(dotHist)
     ci <- compute_boot_ci(boot, obs_stat, conf_level, ci_type, clamp)
     cil <- ci$cil
@@ -172,8 +175,10 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
         dots$x <- dot_x
 
         # At least 0.6 above the tallest stack so the top dot (semi-height
-        # up to 0.45) is never clipped by the y limit
-        y_top <- max(max(dots$y) * 1.06, max(dots$y) + 0.6)
+        # up to 0.45) is never clipped by the y limit; count labels need
+        # a little more headroom
+        y_top <- max(max(dots$y) * (if (show_counts) 1.14 else 1.06),
+                     max(dots$y) + 0.6 + (if (show_counts) 0.8 else 0))
 
         p <- ggplot2::ggplot(dots) +
             stack_dots(dots, a = a, fill = "grey35") +
@@ -187,6 +192,13 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
                 limits = c(0, y_top),
                 expand = ggplot2::expansion(mult = c(0.01, 0.02))) +
             ggplot2::theme(text = ggplot2::element_text(size = 14))
+
+        if (show_counts) {
+            tops <- dots |>
+                dplyr::group_by(idx) |>
+                dplyr::summarize(x = x[1], n = max(y), .groups = "drop")
+            p <- p + count_labels(tops$x, tops$n + 0.5, tops$n)
+        }
     } else {
         p <- ggplot2::ggplot(bars) +
             ggplot2::geom_rect(
@@ -198,8 +210,11 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
             ggplot2::xlab(xlab) +
             ggplot2::scale_x_continuous(limits = xlims) +
             ggplot2::scale_y_continuous(
-                expand = ggplot2::expansion(mult = c(0, 0.04))) +
+                expand = ggplot2::expansion(mult = c(0, if (show_counts) 0.12 else 0.04))) +
             ggplot2::theme(text = ggplot2::element_text(size = 14))
+
+        if (show_counts)
+            p <- p + count_labels((bars$xmin + bars$xmax) / 2, bars$n, bars$n)
     }
 
     if (show_lines)
