@@ -113,6 +113,12 @@ An edge-case sweep (`scratchpad edge_sweep.R` pattern: every analysis on constan
 - `compute_null_pval()` muffles infer's "p-value of 0" warning (the table reports `< 1/reps`).
 - Known, left alone: a Z of 10⁶ or F(1, 1) in the model-based calculator draws an unreadable spike (nonsense input); permutation tests on constant data show one all-red column at 0 with p = 1 (correct, just odd).
 
+## Student-readiness round (develop, 2026-09-30, third testing round)
+- **Statistical validation** (`scratchpad stat_validation.R` pattern, 38 checks): the formula-free resamplers are distributionally identical to `infer`'s (KS tests); every simulation p-value lands within sampling error of its exact/large-sample reference (binomial, Fisher, `chisq.test(simulate.p.value)`, pooled t, ANOVA F, regression t); sidedness is consistent (p_less + p_greater ≥ 1, two-sided = 2 × min ≤ 1); "Group 1 > Group 2" is the right tail of mean(level 1) − mean(level 2); compare rows/columns and weighted counts match hand calculation; percentile CI coverage ≈ 0.92–0.95 at n = 30.
+- **Success level**: the proportion analyses report the proportion of the alphabetically first level (Yes/No → "No", 0/1 → "0"), the same limitation jamovi's own binomial test has. Brian decided (2026-09-30) NOT to add a success chooser so students face the same constraint as elsewhere in Jamovi, hoping for an upstream jamovi fix; a `type: Level, variable: (resp)` option with a `LevelSelector` compiles fine if that changes (needs `default: null`, and the R wrapper still gets no default — unresolved).
+- **README examples** run end-to-end (the quick example now sets `desc = TRUE, plots = TRUE` so the later `plot(r, "desc")` works). Base R's `pdf()` device warns about the ≤ ≥ × glyphs in captions; Jamovi (ragg) and Quarto (png/cairo) render them fine.
+- **CI**: `gh workflow run build-modules.yml --ref develop` builds all three platforms (win-x64 4.1 MB, macOS 2.1 MB each).
+
 ## Plot binning rework (fix/plot-quality branch)
 Distribution plots previously produced histograms with irregular gaps/widths
 (binwidth aliasing against discrete statistics) and dotplots with a crushed

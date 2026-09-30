@@ -64,7 +64,8 @@ d <- data.frame(
     group = factor(rep(c("Control", "Treatment"), each = 25))
 )
 
-# Two-sample permutation test
+# Two-sample permutation test (desc/plots = TRUE also fill the
+# descriptive table and the means plot used further down)
 r <- twomeanhtest(
     data = d,
     vars = "score",
@@ -73,7 +74,9 @@ r <- twomeanhtest(
     reps = 1000,
     dotHist = "dotplot",
     seedBool = TRUE,
-    rngSeed = 42
+    rngSeed = 42,
+    desc = TRUE,
+    plots = TRUE
 )
 
 # Print the results table
@@ -140,6 +143,9 @@ Hypothesis test analyses accept:
 | Option | Description |
 |--------|-------------|
 | `hypothesis` | `"different"`, `"oneGreater"`, `"twoGreater"` (two-sample); `"notequal"`, `"greater"`, `"less"` (slope/proportion) |
+
+Proportion analyses report the proportion of the first level of the response
+variable (alphabetical for text data), matching jamovi's own binomial test.
 
 ### Analysis examples
 
