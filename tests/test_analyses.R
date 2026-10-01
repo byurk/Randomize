@@ -1030,6 +1030,31 @@ test("render callbacks cope with a plot state from an earlier build", {
     if (!grepl("group 1", p$labels$x)) stop("two-prop fallback label missing")
 })
 
+# descriptive plots draw the observations behind the mean / median
+# markers (deterministic spread, no RNG), and the regression plots carry
+# the fitted equation
+test("descriptive plots show the observations; regression plots show the equation", {
+    r <- twomeanhtest(data = clean_data, vars = "score", group = "group", reps = 50, seedBool = TRUE, rngSeed = 1, desc = TRUE, plots = TRUE)
+    st <- r$descplot$get(key = r$descplot$itemKeys[[1]])$desc$state
+    if (sum(st$type == "point") != sum(!is.na(clean_data$score))) stop("one point row per observation expected")
+    s0 <- .Random.seed; b <- ggplot2::ggplot_build(plot(r, "desc"))
+    if (!identical(s0, .Random.seed)) stop("rendering the descriptive plot must not touch the RNG")
+    if (length(b$data) < 2 || nrow(b$data[[1]]) != sum(st$type == "point")) stop("observations layer missing")
+    if (any(abs(b$data[[1]]$x - round(b$data[[1]]$x)) > 0.18 + 1e-9)) stop("points spread beyond their group")
+    # a state saved by an earlier build (no point rows) still renders
+    img <- r$descplot$get(key = r$descplot$itemKeys[[1]])$desc
+    img$setState(st[st$type != "point", ]); ggplot2::ggplot_build(img$plot$fun())
+    r <- pairedmeanCI(data = clean_data, pairs = list(list(i1 = "measure1", i2 = "measure2")), reps = 50, seedBool = TRUE, rngSeed = 1, desc = TRUE, plots = TRUE)
+    ggplot2::ggplot_build(plot(r, "desc"))
+    r <- slopehtest(data = reg_data, dep = "y", indep = "x", reps = 50, seedBool = TRUE, rngSeed = 1, plots = TRUE)
+    p <- plot(r, "line")
+    lab <- Filter(function(l) inherits(l$geom, "GeomLabel"), p$layers)
+    if (length(lab) != 1) stop("expected one equation label")
+    cf <- stats::coef(lm(y ~ x, data = reg_data))
+    txt <- lab[[1]]$aes_params$label
+    if (!grepl(format(signif(cf[[2]], 3)), txt, fixed = TRUE)) stop(paste("equation does not show the slope:", txt))
+})
+
 # ============================================================
 # Jamovi 2.7 formula sandbox
 # ============================================================

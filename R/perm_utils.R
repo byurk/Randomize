@@ -689,3 +689,27 @@ permute_F <- function(dep, group, reps) {
     stat <- vapply(seq_len(reps), function(i) f_stat(dep, sample(group)), numeric(1))
     data.frame(replicate = seq_len(reps), stat = stat)
 }
+
+#' The fitted regression equation, as a boxed label in an empty corner
+#'
+#' Connects the slope in the table to the picture: "\u0177 = 3.02 + 0.41 x".
+#' Sits top-left for a rising line, top-right for a falling one (the
+#' corner the line leaves empty).  Returns NULL when the fit is undefined.
+#'
+#' @param d Data frame with \code{indep} and \code{dep} columns.
+#' @param indep_name Name of the predictor, used in the equation.
+#' @keywords internal
+fitted_line_label <- function(d, indep_name) {
+    d <- d[is.finite(d$indep) & is.finite(d$dep), , drop = FALSE]
+    if (nrow(d) < 2 || stats::var(d$indep) == 0) return(NULL)
+    cf <- stats::coef(stats::lm(dep ~ indep, data = d))
+    a <- cf[[1]]; b <- cf[[2]]
+    if (!all(is.finite(cf))) return(NULL)
+    f <- function(x) format(signif(x, 3))
+    eq <- sprintf("\u0177 = %s %s %s %s", f(a), if (b < 0) "\u2212" else "+", f(abs(b)), shorten_label(indep_name))
+    rising <- b >= 0
+    ggplot2::annotate("label", x = if (rising) -Inf else Inf, y = Inf,
+                      hjust = if (rising) -0.05 else 1.05, vjust = 1.3,
+                      label = eq, size = 4, fill = "white", label.size = 0,
+                      label.padding = grid::unit(0.2, "lines"))
+}

@@ -159,7 +159,8 @@ slopehtestClass <- R6::R6Class(
             ggplot2::geom_point(alpha = 0.8, size=2.5, shape = 21, color = theme$color[1], fill = theme$color[2]) +
             ggplot2::geom_smooth(method = "lm", se = FALSE, color = theme$color[1]) +
             ggplot2::labs(x=indepName, y=depName) +
-            ggtheme
+            ggtheme +
+            fitted_line_label(image$state, indepName)
             
             return(plot)
           },

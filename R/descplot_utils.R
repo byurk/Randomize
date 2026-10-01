@@ -31,7 +31,9 @@ build_desc_plot_data <- function(dep, group) {
     medianPlotData <- cbind(medianPlotData, cie = NA)
     medianPlotData <- cbind(medianPlotData, type = 'median')
 
-    rbind(meanPlotData, medianPlotData)
+    stats <- rbind(meanPlotData, medianPlotData)
+    # the observations themselves, drawn behind the markers
+    rbind(stats, data.frame(group = group, stat = dep, cie = NA, type = 'point'))
 }
 
 #' Build plot data for paired mean/median descriptive plots
@@ -58,8 +60,10 @@ build_paired_desc_plot_data <- function(col1, col2, name1, name2) {
     medianPlotData <- cbind(medianPlotData, cie = NA)
     medianPlotData <- cbind(medianPlotData, type = 'median')
 
-    plotData <- rbind(meanPlotData, medianPlotData)
-    plotData$group <- factor(plotData$group, levels = unique(plotData$group))
+    plotData <- rbind(meanPlotData, medianPlotData,
+                      data.frame(group = rep(c(name1, name2), c(length(col1), length(col2))),
+                                 stat = c(col1, col2), cie = NA, type = 'point'))
+    plotData$group <- factor(plotData$group, levels = c(name1, name2))
     plotData
 }
 
@@ -74,11 +78,32 @@ build_paired_desc_plot_data <- function(col1, col2, name1, name2) {
 plot_desc_stats <- function(plotData, xlab, ylab = NULL,
                             ggtheme, theme) {
     pd <- ggplot2::position_dodge(0.2)
+    # the observations (type 'point'; absent from states saved by an
+    # earlier build) are drawn first, small and translucent, spread
+    # sideways by a fixed low-discrepancy sequence rather than random
+    # jitter: the picture is identical on every re-render and drawing it
+    # never touches the RNG
+    pts <- plotData[plotData$type == 'point', , drop = FALSE]
+    stats <- plotData[plotData$type != 'point', , drop = FALSE]
+    stats$type <- factor(stats$type, levels = c('mean', 'median'))
+    lv <- levels(factor(plotData$group))
+    stats$xpos <- as.integer(factor(stats$group, levels = lv))
 
-    plot <- ggplot2::ggplot(data = plotData, ggplot2::aes(x = group, y = stat, shape = type)) +
-        ggplot2::geom_point(ggplot2::aes(x = group, y = stat, shape = type),
+    plot <- ggplot2::ggplot(data = stats, ggplot2::aes(x = xpos, y = stat, shape = type))
+    if (nrow(pts) > 0) {
+        g <- as.integer(factor(pts$group, levels = lv))
+        k <- stats::ave(seq_along(g), g, FUN = seq_along)
+        pts$xpos <- g + ((k * 0.6180339887) %% 1 - 0.5) * 0.36
+        plot <- plot + ggplot2::geom_point(
+            data = pts, ggplot2::aes(x = xpos, y = stat), inherit.aes = FALSE,
+            color = "grey55", alpha = 0.45, size = 1.6)
+    }
+    plot <- plot +
+        ggplot2::geom_point(ggplot2::aes(x = xpos, y = stat, shape = type),
                             color = theme$color[1], fill = theme$fill[1],
                             size = 3, position = pd) +
+        ggplot2::scale_x_continuous(breaks = seq_along(lv), labels = lv,
+                                    limits = c(0.5, length(lv) + 0.5)) +
         ggplot2::labs(x = xlab, y = ylab) +
         ggplot2::scale_shape_manual(
             name = '',
