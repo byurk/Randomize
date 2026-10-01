@@ -45,6 +45,8 @@ pairedmeanCIClass <- R6::R6Class(
             res <- createError(.('One or both variables are not numeric'))
           } else if (any(is.infinite(column1)) | any(is.infinite(column2))) {
             res <- createError(.('One or both variables contain infinite values'))
+          } else if (n < 2) {
+            res <- createError(.('At least 2 complete pairs are needed (rows with a missing value are dropped)'))
           } else {
             boots <- cached_sims(CITable,
                 list(dif = dataCI$dif, reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),

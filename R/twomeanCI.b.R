@@ -54,6 +54,11 @@ twomeanCIClass <- R6::R6Class(
         res <- createError(.('Variable is not numeric'))
       } else if (any(is.infinite(dataCI$dep))) {
         res <- createError(.('Variable contains infinite values'))
+      } else if (any(n == 0)) {
+        # every value of one group missing: the level survives droplevels()
+        # (it is applied before the NA rows go) and every resampled
+        # statistic would be NaN
+        res <- createError(jmvcore::format(.('Group \'{g}\' has no non-missing observations'), g = groupLevels[n == 0][1]))
       } else {
         boots <- cached_sims(CITable,
             list(dep = dataCI$dep, group = as.character(dataCI$group), reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),

@@ -55,6 +55,12 @@ TwoPropCIClass <- R6::R6Class(
                     jmvcore::reject(.('Counts may not be negative'))
                 if (any(is.infinite(data$.COUNTS)))
                     jmvcore::reject(.('Counts may not be infinite'))
+                # a missing count beside present row / column values is an
+                # error, not an empty cell (xtabs would carry the NA into
+                # chisq.test, which then dies); rows where the row / column
+                # value itself is missing are simply omitted
+                if (!is.null(countsName) && any(is.na(data$.COUNTS) & !is.na(data[[rowVarName]]) & !is.na(data[[colVarName]])))
+                    jmvcore::reject(.("Count variable '{v}' is missing a value in a row where '{rv}' and '{cv}' are present"), code='', v=countsName, rv=rowVarName, cv=colVarName)
             }
 
             mats <- conttab_matrices(data) # counts arranged as in a contingency table with standardized formatting

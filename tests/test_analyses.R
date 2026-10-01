@@ -851,6 +851,76 @@ test("permutation and bootstrap helpers return well-formed distributions", {
 })
 
 # ============================================================
+# Missing values (bug-hunt round 7)
+# ============================================================
+cat("\n=== Missing values ===\n")
+
+# jamovi pads shorter columns with blanks, so a 2-row count column beside
+# longer data arrives with trailing NAs; the "values are counts" check
+# must look at the non-missing values (it used to reject "found 5 rows")
+test("counts column padded with blanks is accepted", {
+    d <- data.frame(x = c(12, 8, NA, NA, NA), other = 1:5)
+    r <- SinglePropHTest(data = d, resp = "x", areCounts = TRUE, testValue = 0.5, reps = 200, seedBool = TRUE, rngSeed = 1)
+    assert_close(results_table(r)$obsProp, 0.6, 1e-9)
+    r <- SinglePropCI(data = d, resp = "x", areCounts = TRUE, reps = 200, seedBool = TRUE, rngSeed = 1)
+    assert_close(results_table(r)$obsProp, 0.6, 1e-9)
+    expect_reject(SinglePropHTest(data = data.frame(x = c(3, NA)), resp = "x", areCounts = TRUE, reps = 50), "exactly 2 counts")
+})
+
+# padded rows (NA in every column) are dropped; a missing count beside
+# present row / column values is an error, not an empty cell (it used
+# to reach chisq.test as NA: "all entries of 'x' must be nonnegative")
+test("table analyses: padded rows dropped, a missing count rejected", {
+    padded <- data.frame(g = c("A","A","B","B", NA, NA), o = c("y","n","y","n", NA, NA), n = c(10, 5, 4, 11, NA, NA))
+    holed  <- data.frame(g = c("A","A","B","B"), o = c("y","n","y","n"), n = c(10, NA, 4, 11))
+    for (f in list(TwoPropHTest, TwoPropCI, ContTabHTest)) {
+        r <- f(data = padded, rows = "g", cols = "o", counts = "n", reps = 100, seedBool = TRUE, rngSeed = 1)
+        if (r$freqs$asDF[[".total[count]"]][3] != 30) stop("padded table total should be 30")
+        expect_reject(f(data = holed, rows = "g", cols = "o", counts = "n", reps = 100), "missing a value in a row where")
+    }
+})
+
+# a group whose values are all missing keeps its level (droplevels runs
+# before the NA rows go); every resampled statistic was NaN and infer's
+# get_p_value() threw "All calculated statistics were NaN"
+test("two-means analyses: a group with every value missing gets a footnote", {
+    d <- data.frame(score = c(rnorm(10), rep(NA, 10)), group = factor(rep(c("A", "B"), each = 10)))
+    r <- twomeanhtest(data = d, vars = "score", group = "group", reps = 100, desc = TRUE)
+    expect_footnote(r$htest, "no non-missing")
+    r <- twomeanCI(data = d, vars = "score", group = "group", reps = 100)
+    expect_footnote(r$CITable, "no non-missing")
+})
+
+# a single complete pair reached infer's specify() -> t.test() and died
+# with "not enough 'x' observations"
+test("paired analyses: fewer than 2 complete pairs gets a footnote", {
+    set.seed(5)
+    d <- data.frame(pre = c(1.2, NA, NA, NA), post = c(0.8, 1.1, NA, 2))
+    r <- pairedmeanhtest(data = d, pairs = list(list(i1 = "pre", i2 = "post")), reps = 100)
+    expect_footnote(r$htest, "At least 2 complete pairs")
+    r <- pairedmeanCI(data = d, pairs = list(list(i1 = "pre", i2 = "post")), reps = 100)
+    expect_footnote(r$CITable, "At least 2 complete pairs")
+    d$pre[2] <- 0.5
+    r <- pairedmeanhtest(data = d, pairs = list(list(i1 = "pre", i2 = "post")), reps = 100, seedBool = TRUE, rngSeed = 1, desc = TRUE)
+    if (desc_table(r)$num[1] != 2) stop("two complete pairs expected")
+    assert_not_na(p_num(results_table(r)$p))
+})
+
+# the descriptives, the observed statistic and the test all use the same
+# complete cases (missing in the response OR the group)
+test("two-means descriptives and statistic use the complete cases", {
+    set.seed(3)
+    d <- data.frame(score = rnorm(40, 10, 2), group = factor(rep(c("A", "B"), each = 20)))
+    d$score[c(1, 25)] <- NA; d$group[c(2, 30)] <- NA
+    cc <- d[complete.cases(d), ]
+    r <- twomeanhtest(data = d, vars = "score", group = "group", reps = 200, seedBool = TRUE, rngSeed = 1, desc = TRUE)
+    dt <- desc_table(r)
+    if (!all(c(dt$num1, dt$num2) == as.vector(table(cc$group)))) stop("group sizes differ from complete cases")
+    assert_close(results_table(r)$md, diff(rev(tapply(cc$score, cc$group, mean))), 1e-9)
+    assert_not_na(p_num(results_table(r)$p))
+})
+
+# ============================================================
 # Jamovi 2.7 formula sandbox
 # ============================================================
 # Jamovi 2.7 replaces stats::as.formula with jmvcore::asFormula, which
