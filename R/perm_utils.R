@@ -713,3 +713,15 @@ fitted_line_label <- function(d, indep_name) {
                       label = eq, size = 4, fill = "white", label.size = 0,
                       label.padding = grid::unit(0.2, "lines"))
 }
+
+#' Is a sample constant, allowing for floating-point dust?
+#'
+#' "post = pre + 1" computed in floating point differs from pair to pair
+#' by an ulp or two; infer's \code{t.test()} still refuses it ("data are
+#' essentially constant"), so the constant-sample bypasses must use a
+#' tolerance rather than \code{sd(x) == 0}.
+#' @keywords internal
+is_constant <- function(x) {
+    x <- x[is.finite(x)]
+    length(x) > 0 && diff(range(x)) <= 1e-9 * max(1, abs(mean(x)))
+}

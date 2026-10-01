@@ -944,6 +944,13 @@ test("paired analyses: constant differences give the sign-flip null / point CI",
     d$post <- d$pre
     r <- pairedmeanhtest(data = d, pairs = list(list(i1 = "pre", i2 = "post")), reps = 100)
     assert_close(p_num(results_table(r)$p), 1, 1e-9)
+    # a computed column (post = pre + 1 in floating point) differs from pair
+    # to pair by an ulp; infer's t.test still calls that constant
+    set.seed(8); d <- data.frame(pre = rnorm(500, 60, 10)); d$post <- d$pre + 1
+    r <- pairedmeanhtest(data = d, pairs = list(list(i1 = "pre", i2 = "post")), reps = 100, seedBool = TRUE, rngSeed = 1)
+    assert_close(results_table(r)$md, -1, 1e-9)
+    r <- pairedmeanCI(data = d, pairs = list(list(i1 = "pre", i2 = "post")), reps = 100, seedBool = TRUE, rngSeed = 1)
+    assert_close(results_table(r)$cil, -1, 1e-6)
 })
 
 # every pair gets its own row, simulation plot and descriptive plot (only
@@ -1058,6 +1065,29 @@ test("descriptive plots show the observations; regression plots show the equatio
     cf <- stats::coef(lm(y ~ x, data = reg_data))
     txt <- lab[[1]]$aes_params$label
     if (!grepl(format(signif(cf[[2]], 3)), txt, fixed = TRUE)) stop(paste("equation does not show the slope:", txt))
+})
+
+# large data sets: the descriptive plot keeps at most 2000 observations
+# per group (evenly spaced order statistics) so the plot state stays far
+# below Jamovi's 4 MB message limit; pairs are thinned together
+test("descriptive plot thins large data sets and says so", {
+    set.seed(3); n <- 30000
+    d <- data.frame(score = rnorm(n), group = factor(rep(c("A", "B"), length.out = n)))
+    r <- twomeanhtest(data = d, vars = "score", group = "group", reps = 50, seedBool = TRUE, rngSeed = 1, desc = TRUE, plots = TRUE)
+    st <- r$descplot$get(key = r$descplot$itemKeys[[1]])$desc$state
+    if (sum(st$type == "point") != 4000) stop("expected 2000 points per group")
+    if (length(serialize(st, NULL)) > 300000) stop("descriptive plot state too large")
+    pts <- st[st$type == "point" & st$group == "A", "stat"]
+    if (abs(stats::median(pts) - stats::median(d$score[d$group == "A"])) > 0.02) stop("thinned points misrepresent the distribution")
+    p <- plot(r, "desc"); if (!grepl("4,000 of 30,000", p$labels$caption)) stop(paste("caption:", p$labels$caption))
+    dp <- data.frame(pre = rnorm(n)); dp$post <- dp$pre + 1
+    r <- pairedmeanCI(data = dp, pairs = list(list(i1 = "pre", i2 = "post")), reps = 50, seedBool = TRUE, rngSeed = 1, desc = TRUE, plots = TRUE)
+    st <- r$descplot$get(key = r$descplot$itemKeys[[1]])$desc$state
+    a <- st[st$type == "point" & st$group == "pre", ]; b <- st[st$type == "point" & st$group == "post", ]
+    if (nrow(a) != 2000 || !isTRUE(all.equal(b$stat[order(b$pair)] - a$stat[order(a$pair)], rep(1, 2000)))) stop("pairs not thinned together")
+    # small data: nothing thinned, no caption
+    r <- twomeanhtest(data = clean_data, vars = "score", group = "group", reps = 50, desc = TRUE, plots = TRUE)
+    if (!is.null(plot(r, "desc")$labels$caption)) stop("no caption expected for small data")
 })
 
 # ============================================================

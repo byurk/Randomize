@@ -184,10 +184,10 @@ pairedmeanhtestClass <- R6::R6Class(
                 # constant differences (every post = pre + c); the paired
                 # permutation is a random sign flip of each difference, so
                 # draw those directly in that case
-                if (stats::sd(dataHTest$dif) == 0) {
+                if (is_constant(dataHTest$dif)) {
                     n <- nrow(dataHTest)
                     signs <- matrix(sample(c(-1, 1), n * reps, replace = TRUE), nrow = reps)
-                    return(data.frame(replicate = seq_len(reps), stat = rowMeans(signs) * dataHTest$dif[1]))
+                    return(data.frame(replicate = seq_len(reps), stat = rowMeans(signs) * mean(dataHTest$dif)))
                 }
 
                 perms <- dataHTest %>%

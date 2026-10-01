@@ -77,7 +77,7 @@ SingleMeanCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
             # infer::specify() runs t.test() internally, which refuses a
             # constant sample; every bootstrap mean of a constant sample
             # is that constant, so draw it directly
-            if (stats::sd(varData) == 0)
+            if (is_constant(varData))
                 return(data.frame(replicate = seq_len(reps), stat = rep(mean(varData), reps)))
 
             boot <- df %>%

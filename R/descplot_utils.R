@@ -32,8 +32,27 @@ build_desc_plot_data <- function(dep, group) {
     medianPlotData <- cbind(medianPlotData, type = 'median')
 
     stats <- rbind(meanPlotData, medianPlotData)
-    # the observations themselves, drawn behind the markers
-    rbind(stats, data.frame(group = group, stat = dep, cie = NA, type = 'point'))
+    # the observations themselves, drawn behind the markers -- at most
+    # DESC_MAX_POINTS per group (see thin_points), or a large data set's
+    # plot state would push the analysis past Jamovi's 4 MB message limit
+    keep <- unlist(lapply(split(seq_along(dep), group), function(i) thin_points(dep[i], i)))
+    out <- rbind(stats, data.frame(group = group[keep], stat = dep[keep], cie = NA, type = 'point'))
+    attr(out, "n_total") <- length(dep); attr(out, "n_shown") <- length(keep)
+    out
+}
+
+# Observations kept for a descriptive plot: all of them up to this many
+# per group, beyond that evenly spaced order statistics (the shape of
+# the distribution survives; a 100 000-row data set would otherwise
+# store ~3 MB of points in the plot state)
+DESC_MAX_POINTS <- 2000
+
+#' @rdname build_desc_plot_data
+#' @keywords internal
+thin_points <- function(x, idx = seq_along(x), max_n = DESC_MAX_POINTS) {
+    if (length(x) <= max_n) return(idx)
+    o <- order(x)
+    idx[o[round(seq(1, length(x), length.out = max_n))]]
 }
 
 #' Build plot data for paired mean/median descriptive plots
@@ -60,13 +79,18 @@ build_paired_desc_plot_data <- function(col1, col2, name1, name2) {
     medianPlotData <- cbind(medianPlotData, cie = NA)
     medianPlotData <- cbind(medianPlotData, type = 'median')
 
+    # pairs are thinned together (by the rank of measure 1) so every
+    # kept observation still has its partner
+    keep <- thin_points(col1)
+    c1 <- col1[keep]; c2 <- col2[keep]
     plotData <- rbind(meanPlotData, medianPlotData,
-                      data.frame(group = rep(c(name1, name2), c(length(col1), length(col2))),
-                                 stat = c(col1, col2), cie = NA, type = 'point'))
+                      data.frame(group = rep(c(name1, name2), c(length(c1), length(c2))),
+                                 stat = c(c1, c2), cie = NA, type = 'point'))
     # which observation of measure 1 goes with which of measure 2, so the
     # plot can join each pair with a line
-    plotData$pair <- c(rep(NA, 4), seq_along(col1), seq_along(col2))
+    plotData$pair <- c(rep(NA, 4), seq_along(c1), seq_along(c2))
     plotData$group <- factor(plotData$group, levels = c(name1, name2))
+    attr(plotData, "n_total") <- length(col1); attr(plotData, "n_shown") <- length(c1)
     plotData
 }
 
@@ -113,6 +137,11 @@ plot_desc_stats <- function(plotData, xlab, ylab = NULL,
         plot <- plot + ggplot2::geom_point(
             data = pts, ggplot2::aes(x = xpos, y = stat), inherit.aes = FALSE,
             color = "grey55", alpha = 0.45, size = 1.6)
+        n_total <- attr(plotData, "n_total"); n_shown <- attr(plotData, "n_shown")
+        if (!is.null(n_total) && !is.null(n_shown) && n_shown < n_total)
+            plot <- plot + ggplot2::labs(caption = sprintf("showing %s of %s observations (evenly spaced by value)",
+                                                           formatC(n_shown, format = "d", big.mark = ","), formatC(n_total, format = "d", big.mark = ","))) +
+                ggplot2::theme(plot.caption = ggplot2::element_text(color = "grey40", hjust = 0))
     }
     # the markers are filled (the scatterplot's blue) with a dark outline
     # so they stand off the grey observations behind them
