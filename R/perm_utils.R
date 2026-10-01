@@ -25,6 +25,17 @@ strip_infer <- function(x) {
     data.frame(stat = x$stat)
 }
 
+#' Round a statistic to 10 significant digits
+#'
+#' Permutation statistics computed by different arithmetic paths (a
+#' difference of two proportions, say) can land one ulp apart from a
+#' mathematically equal observed statistic.  Every comparison against
+#' the observed value -- the p-value, the tail shading, the tie column --
+#' goes through this so such values are ties, as they should be.
+#' @param x Numeric vector.
+#' @keywords internal
+snap_stat <- function(x) signif(x, 10)
+
 #' Replace floating-point dust with exact zero
 #'
 #' @param x Numeric vector.
@@ -128,6 +139,12 @@ map_direction <- function(hypothesis) {
 #'
 #' @keywords internal
 compute_null_pval <- function(perms, obs_stat, direction) {
+    # Snap away floating-point dust first: a simulated difference in
+    # proportions that mathematically equals the observed one can differ
+    # from it by one ulp (15/25 - 11/25 vs 0.16) and would then be
+    # counted on the wrong side of >= / <=
+    perms$stat <- snap_stat(perms$stat)
+    obs_stat <- snap_stat(obs_stat)
     # infer warns when p = 0; the tables report that case as "< 1/reps"
     # (format_sim_pval), so the warning is noise for R users
     withCallingHandlers(
@@ -213,6 +230,10 @@ plot_null_dist <- function(perms, obs_stat, direction,
                            show_counts = FALSE,
                            plot_width = 400) {
     dotHist <- match.arg(dotHist)
+    # same snapping as the p-value, so the shading and the tie column
+    # agree with the number in the table
+    perms$stat <- snap_stat(perms$stat)
+    obs_stat <- snap_stat(obs_stat)
 
     if (direction == "less") {
         ptail <- "lt"
@@ -265,29 +286,48 @@ plot_null_dist <- function(perms, obs_stat, direction,
         bars$mid <- u[bars$idx]
     } else {
         b <- choose_binning(perms$stat, obs_stat, align = "edge", sign = sgn)
-        idx <- bin_index(perms$stat, obs_stat, b$bw, b$off, sgn, "edge")
-        idx[extreme] <- pmax(idx[extreme], 0L)
-        idx[!extreme] <- pmin(idx[!extreme], -1L)
-        a <- 0.42 * b$bw
-        dot_x <- dot_column_x(perms$stat, idx, b, obs_stat, sgn, "edge")
-        # a bin straddling a domain bound would place its column at an
-        # impossible value; clamp the center to the bound instead
-        if (!is.null(domain))
-            dot_x <- pmin(pmax(dot_x, domain[1]), domain[2])
-
-        bars <- data.frame(idx = idx, fill = fill) |>
-            dplyr::count(idx, fill)
-        xr <- bin_xrange(bars$idx, obs_stat, b$bw, sgn, "edge")
-        bars$xmin <- xr$xmin
-        bars$xmax <- xr$xmax
-        bars$mid <- xr$mid
-
-        # Trim grouped bins to the statistic's domain so no bar implies
-        # impossible values (e.g. negative chi-square).  Single-value
-        # bins are left alone: each bar starts exactly at its value (the
-        # value-at-edge convention), which is already honest.
         single_val <- b$lattice && abs(b$bw - b$res) <= b$res * 1e-9
-        if (!is.null(domain) && !single_val) {
+        a <- 0.42 * b$bw
+        if (single_val) {
+            # One achievable value per column: index each value by its
+            # lattice offset from the observed value and draw the bar (or
+            # dot stack) centred on the value itself, like the dot stacks
+            # always were.  A column holds one value, so it is one colour
+            # by construction, and the tie column straddles the line
+            # (shaded, since ties count toward the p-value) whichever
+            # tail is extreme -- an edge-anchored bar would have to jump
+            # to the other side of the line with the direction, dragging
+            # its neighbour with it.
+            idx <- as.integer(round((perms$stat - obs_stat) / b$res))
+            vals <- stats::ave(perms$stat, idx, FUN = function(v) v[1])
+            dot_x <- vals
+            bars <- data.frame(idx = idx, fill = fill, v = vals) |>
+                dplyr::count(idx, fill, v)
+            bars$mid <- bars$v
+            bars$xmin <- bars$v - b$bw / 2
+            bars$xmax <- bars$v + b$bw / 2
+            bars$v <- NULL
+        } else {
+            idx <- bin_index(perms$stat, obs_stat, b$bw, b$off, sgn, "edge")
+            idx[extreme] <- pmax(idx[extreme], 0L)
+            idx[!extreme] <- pmin(idx[!extreme], -1L)
+            dot_x <- dot_column_x(perms$stat, idx, b, obs_stat, sgn, "edge")
+            # a bin straddling a domain bound would place its column at an
+            # impossible value; clamp the center to the bound instead
+            if (!is.null(domain))
+                dot_x <- pmin(pmax(dot_x, domain[1]), domain[2])
+
+            bars <- data.frame(idx = idx, fill = fill) |>
+                dplyr::count(idx, fill)
+            xr <- bin_xrange(bars$idx, obs_stat, b$bw, sgn, "edge")
+            bars$xmin <- xr$xmin
+            bars$xmax <- xr$xmax
+            bars$mid <- xr$mid
+        }
+
+        # Trim bars to the statistic's domain so no bar implies
+        # impossible values (e.g. a proportion above 1)
+        if (!is.null(domain)) {
             bars$xmin <- pmax(bars$xmin, domain[1])
             bars$xmax <- pmin(bars$xmax, domain[2])
             bars$mid <- (bars$xmin + bars$xmax) / 2

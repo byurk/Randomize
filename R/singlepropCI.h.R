@@ -51,6 +51,7 @@ SinglePropCIOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
                 "reps",
                 reps,
                 min=1,
+                max=100000,
                 default=100)
             private$..dotHist <- jmvcore::OptionList$new(
                 "dotHist",

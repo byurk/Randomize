@@ -430,6 +430,17 @@ test("ContTabHTest zaps floating-point dust in X2", {
     stopifnot(p_num(results_table(r)$p) == 1)
 })
 
+cat("\n=== Floating-point ties count as ties ===\n")
+test("a simulated difference one ulp below the observed one is a tie", {
+    s <- c(15/25 - 11/25, 0.16, 4/25, 0.60 - 0.44)   # all mathematically 0.16
+    stopifnot(any(s < 0.16))                           # the arithmetic really does differ
+    stopifnot(compute_null_pval(data.frame(stat = s), 0.16, "greater") == 1)
+    stopifnot(compute_null_pval(data.frame(stat = s), 0.16, "less") == 1)
+    p <- plot_null_dist(data.frame(stat = s), 0.16, "greater", "histogram")
+    b <- ggplot2::ggplot_build(p)$data[[1]]
+    stopifnot(nrow(b) == 1, b$fill == "#ff8c8c")       # one bar, shaded
+})
+
 cat("\n=== #10: p = 0 reported as < 1/reps ===\n")
 test("format_sim_pval", {
     stopifnot(identical(format_sim_pval(0, 100), "< .01"))

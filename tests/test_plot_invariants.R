@@ -158,6 +158,9 @@ is_single_value <- function(stats, anchor, align, sign = 1) {
 }
 
 check_null_invariants <- function(s, mode) {
+    # the plot snaps statistics to 10 significant digits before any
+    # comparison with the observed value; judge the invariants the same way
+    s$stats <- signif(s$stats, 10); s$obs <- signif(s$obs, 10)
     df <- data.frame(stat = s$stats)
     p <- plot_null_dist(df, s$obs, s$direction, mode,
                         xlab = s$xlab, obs_label = "Observed\nValue",
@@ -185,11 +188,14 @@ check_null_invariants <- function(s, mode) {
     # legitimately straddles the line, pure by value identity).
     sparse <- is_sparse_values(s$stats)
     sgn0 <- if (ptail == "lt") -1 else 1
+    single_value <- !sparse && is_single_value(s$stats, s$obs, "edge", sgn0)
     if (sparse) {
         el$halfw <- (el$xmax - el$xmin) / 2
     } else {
-        assert_gap_free(el, s$stats,
-                        single_value = is_single_value(s$stats, s$obs, "edge", sgn0))
+        assert_gap_free(el, s$stats, single_value = single_value)
+        # one-value-per-bar: bars are value-centred like dot stacks, so
+        # side purity is judged by centre (the tie bar straddles the line)
+        if (single_value) el$halfw <- (el$xmax - el$xmin) / 2
     }
 
     # Nothing placed at impossible values.  Grouped bars are trimmed to
@@ -304,11 +310,22 @@ for (nm in c("prop_n20_greater", "prop_n30_greater", "prop_n25_two_sided",
             if (!any(on_line)) stop("no dot stack centered on the observed value")
             if (any(d$fill[on_line] != RED)) stop("tie stack is not red")
         }
-        # histogram: the number of bars equals the number of distinct values
+        # histogram: the number of bars equals the number of distinct values,
+        # each centred on its value, identically for every direction
         built <- build_checked(plot_null_dist(df, s$obs, s$direction, "histogram",
                                               xlab = s$xlab, domain = s$domain))
-        if (nrow(built$data[[1]]) != length(unique(s$stats)))
+        bb <- built$data[[1]]
+        if (nrow(bb) != length(unique(s$stats)))
             stop("bars do not correspond one-to-one to achievable values")
+        ctr <- sort(round((bb$xmin + bb$xmax) / 2, 9))
+        if (!isTRUE(all.equal(ctr, sort(round(unique(s$stats), 9)), tolerance = 1e-6)))
+            stop("single-value bars are not centred on their values")
+        for (other in setdiff(c("less", "greater", "two_sided"), s$direction)) {
+            b2 <- build_checked(plot_null_dist(df, s$obs, other, "histogram", xlab = s$xlab, domain = s$domain))$data[[1]]
+            if (!isTRUE(all.equal(sort(round(bb$xmin, 9)), sort(round(b2$xmin, 9)))) ||
+                !isTRUE(all.equal(sort(bb$ymax), sort(b2$ymax))))
+                stop(paste("bars differ for direction", other))
+        }
     })
 }
 for (nm in c("prop_n200_greater", "prop_n500_greater", "rounded_diff_5000")) {
