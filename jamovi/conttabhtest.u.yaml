@@ -102,5 +102,6 @@ children:
             children:
               - type: TextBox
                 name: rngSeed
+                width: large
                 format: number
                 enable: (seedBool)
