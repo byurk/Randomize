@@ -1010,6 +1010,26 @@ test("single mean CI: nominal-integer column (jamovi factor with values) is conv
     expect_reject(SingleMeanCI(data = data.frame(y = ft), resp = "y", reps = 50), "not numeric|requires a numeric")
 })
 
+# plot states saved by an earlier build lack xlab / obs_label / area;
+# the render callbacks must fall back to the old wording, not fail
+test("render callbacks cope with a plot state from an earlier build", {
+    r <- twomeanhtest(data = clean_data, vars = "score", group = "group", reps = 100, seedBool = TRUE, rngSeed = 1)
+    img <- sim_img(r); st <- img$state; st$xlab <- NULL; st$obs_label <- NULL; img$setState(st)
+    p <- img$plot$fun(); b <- ggplot2::ggplot_build(p)
+    if (!grepl("group 1", p$labels$x)) stop("expected the generic axis label, got: ", p$labels$x)
+    r <- SinglePropCI(data = cat_data, resp = "outcome", reps = 100, seedBool = TRUE, rngSeed = 1)
+    img <- r$Plot; st <- img$state; st$xlab <- NULL; st$obs_label <- NULL; img$setState(st)
+    p <- img$plot$fun(); ggplot2::ggplot_build(p)
+    if (p$labels$x != "proportion") stop("expected 'proportion', got: ", p$labels$x)
+    r <- modelBased(distro = "tdistro", dF = 9, areaBool = TRUE, obsStat = 2)
+    img <- r$Plot; st <- img$state; st$area <- NULL; img$setState(st)
+    p <- img$plot$fun(); ggplot2::ggplot_build(p)
+    r2 <- TwoPropHTest(data = cat_data, rows = "group", cols = "outcome", reps = 100, seedBool = TRUE, rngSeed = 1)
+    img <- r2$Plot; st <- img$state; st$xlab <- NULL; img$setState(st)
+    p <- img$plot$fun(); ggplot2::ggplot_build(p)
+    if (!grepl("group 1", p$labels$x)) stop("two-prop fallback label missing")
+})
+
 # ============================================================
 # Jamovi 2.7 formula sandbox
 # ============================================================
