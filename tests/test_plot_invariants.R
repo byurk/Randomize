@@ -398,6 +398,35 @@ test("below 300 reps no bin in the central 98% is ever empty", {
     }
 })
 
+cat("\n=== Direction invariance: the alternative never changes the bars (except the tie column) ===\n")
+test("rounded data: less / greater / two-sided give the same histogram apart from ties at the line", {
+    set.seed(41)
+    sc <- round(c(rnorm(13, 10, 2), rnorm(12, 10, 2)), 1); g <- rep(c("A", "B"), c(13, 12))
+    obs <- mean(sc[g == "A"]) - mean(sc[g == "B"])
+    s <- permute_diff_means(sc, g, c("A", "B"), 1000)$stat
+    ties <- sum(abs(s - obs) < 1e-9)
+    if (ties == 0) stop("test data should produce ties at the observed value")
+    heights <- function(dir) {
+        e <- ggplot2::ggplot_build(plot_null_dist(data.frame(stat = s), obs, dir, "histogram"))$data[[1]]
+        e <- e[order(e$xmin), ]; list(xmin = round(e$xmin, 9), h = e$ymax)
+    }
+    a <- heights("less"); b <- heights("greater")
+    if (!identical(a$xmin, b$xmin)) stop("bar edges depend on the direction")
+    d <- a$h - b$h
+    moved <- which(d != 0)
+    # only the two bars touching the observed value may differ, and by the tie count
+    if (length(moved) > 2 || any(abs(d[moved]) != ties)) stop("bar heights depend on the direction beyond the tie column")
+    if (length(moved) == 2 && !(abs(a$xmin[moved[1]] + (a$xmin[moved[2]] - a$xmin[moved[1]]) - obs) < 1e-6))
+        stop("the bars that differ are not the ones at the observed value")
+    # continuous data: strictly identical
+    s2 <- s + runif(1000, -1e-4, 1e-4); obs2 <- obs + 3e-5
+    e1 <- ggplot2::ggplot_build(plot_null_dist(data.frame(stat = s2), obs2, "less", "histogram"))$data[[1]]
+    e2 <- ggplot2::ggplot_build(plot_null_dist(data.frame(stat = s2), obs2, "greater", "histogram"))$data[[1]]
+    m1 <- unname(as.matrix(e1[order(e1$xmin), c("xmin", "ymax")]))
+    m2 <- unname(as.matrix(e2[order(e2$xmin), c("xmin", "ymax")]))
+    if (!isTRUE(all.equal(m1, m2))) stop("continuous data: bars depend on the direction")
+})
+
 cat("\n=== Toggle stability: bare mode draws identical bars ===\n")
 for (nm in c("prop_n20_greater", "cont_two_sided", "chisq_2x2")) {
     test(nm, {

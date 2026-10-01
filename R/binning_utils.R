@@ -222,8 +222,21 @@ bin_index <- function(stats, anchor, bw, off, sign = 1, align = "edge") {
     # is only needed (and only safe) when it is strictly less than half
     # a bin.
     if (align == "center" && 2 * off >= bw * (1 - 1e-9)) off <- 0
-    s <- sign * (stats - anchor) + if (align == "center") bw / 2 else 0
-    as.integer(floor((s + off) / bw))
+    if (align == "center")
+        return(as.integer(floor((stats - anchor + bw / 2 + off) / bw)))
+    # Edge alignment: assign on the SAME partition whichever tail is
+    # extreme (the nudge always points right), then relabel for a
+    # mirrored grid.  Nudging in the tail direction instead moved every
+    # lattice value that sits exactly on a bin edge (every m-th value
+    # when bw = m lattice steps, as with rounded data) to the other side
+    # of that edge, so switching the alternative from "less" to
+    # "greater" redrew the histogram with different bar heights from
+    # identical simulations.  Only the tie column (values equal to the
+    # anchor) may move with the direction, and plot_null_dist's extreme
+    # clamp handles that.
+    idx <- as.integer(floor((stats - anchor + off) / bw))
+    if (sign < 0) idx <- -idx - 1L
+    idx
 }
 
 #' Convert bin indices back to x-axis intervals
