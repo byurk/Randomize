@@ -28,7 +28,13 @@ conttab_clean_data <- function(data, rowVarName, colVarName,
 
     if (!is.null(countsName)) {
         columns[['.COUNTS']] <- jmvcore::toNumeric(data[[countsName]])
-    } else if (!is.null(weights)) {
+    } else if (!is.null(weights) && length(weights) == nrow(data)) {
+        # jamovi's weights column.  With weightsSupport = 'auto' (the
+        # default) jmvcore has already expanded the rows by the weights
+        # before .run() -- but it leaves the original, now shorter,
+        # weights attribute on the data.  Using it then crashed xtabs
+        # ("variable lengths differ") and would have weighted twice.
+        # Only honour the attribute when it still matches the rows.
         columns[['.COUNTS']] <- jmvcore::toNumeric(weights)
     } else {
         columns[['.COUNTS']] <- as.integer(rep(1, nrow(data)))

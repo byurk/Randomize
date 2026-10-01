@@ -1,5 +1,7 @@
 exportPattern("^[[:alpha:]]+")
 S3method(plot, Group)
+S3method(makeContent, randomize_dotstack)
+importFrom(grid, makeContent)
 import(dplyr)
 import(ggplot2)
 import(infer)

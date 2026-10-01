@@ -475,6 +475,23 @@ test("cache ignores a corrupt cached object", {
     stopifnot(is.data.frame(r), nrow(r) == 3)
 })
 
+cat("\n=== jamovi weights variable ===\n")
+test("a jamovi weights column weights the table analyses once, not twice, and does not crash", {
+    d <- data.frame(g = factor(c("A","A","B","B")), o = factor(c("Y","N","Y","N")), w = c(30, 10, 15, 25))
+    attr(d, "jmv-weights") <- d$w; attr(d, "jmv-weights-name") <- "w"
+    r <- ContTabHTest(data = d, rows = "g", cols = "o", reps = 100, seedBool = TRUE, rngSeed = 1, compare = "rows")
+    ft <- r$freqs$asDF
+    stopifnot(abs(results_table(r)$x2 - chisq.test(matrix(c(10, 25, 30, 15), 2))$statistic) < 1e-9)
+    r2 <- TwoPropHTest(data = d, rows = "g", cols = "o", hypothesis = "different", reps = 100, seedBool = TRUE, rngSeed = 1, compare = "rows")
+    stopifnot(abs(results_table(r2)$obsDiff - (10/40 - 25/40)) < 1e-9)
+    r3 <- TwoPropCI(data = d, rows = "g", cols = "o", reps = 100, seedBool = TRUE, rngSeed = 1, compare = "rows")
+    stopifnot(abs(results_table(r3)$obsDiff - (10/40 - 25/40)) < 1e-9)
+    dm <- data.frame(score = c(1, 2, 10, 11), group = factor(c("A","A","B","B")), w = c(3, 1, 1, 3))
+    attr(dm, "jmv-weights") <- dm$w; attr(dm, "jmv-weights-name") <- "w"
+    r4 <- twomeanhtest(data = dm, vars = "score", group = "group", hypothesis = "different", reps = 50, seedBool = TRUE, rngSeed = 1, desc = TRUE)
+    stopifnot(r4$desc$asDF[["num[1]"]] == 4, abs(results_table(r4)$md - (mean(c(1,1,1,2)) - mean(c(10,11,11,11)))) < 1e-9)
+})
+
 cat("\n=== #10: p = 0 reported as < 1/reps ===\n")
 test("format_sim_pval", {
     stopifnot(identical(format_sim_pval(0, 100), "< .01"))
