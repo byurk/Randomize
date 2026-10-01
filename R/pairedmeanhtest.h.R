@@ -169,21 +169,23 @@ pairedmeanhtestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
                                 visible="(plots)",
                                 renderFun=".descplot",
                                 clearWith=list()))}))$new(options=options)))
-            self$add(jmvcore::Image$new(
+            self$add(jmvcore::Array$new(
                 options=options,
                 name="simplot",
                 title="Randomized mean differences",
-                renderFun=".permPlot",
-                width=400,
-                height=350,
-                clearWith=list(
-                    "pairs",
-                    "hypothesis",
-                    "reps",
-                    "rngSeed",
-                    "seedBool",
-                    "dotHist",
-                    "showCounts")))
+                items="(pairs)",
+                template=jmvcore::Image$new(
+                    options=options,
+                    renderFun=".permPlot",
+                    width=400,
+                    height=350,
+                    clearWith=list(
+                        "hypothesis",
+                        "reps",
+                        "rngSeed",
+                        "seedBool",
+                        "dotHist",
+                        "showCounts"))))
             self$add(jmvcore::Table$new(
                 options=options,
                 name="htest",
@@ -271,7 +273,7 @@ pairedmeanhtestBase <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
 #' \tabular{llllll}{
 #'   \code{results$desc} \tab \tab \tab \tab \tab a table containing the descriptives \cr
 #'   \code{results$descplot} \tab \tab \tab \tab \tab descriptives plot \cr
-#'   \code{results$simplot} \tab \tab \tab \tab \tab a plot showing the distribution of mean differences \cr
+#'   \code{results$simplot} \tab \tab \tab \tab \tab a plot showing the distribution of mean differences, one per pair \cr
 #'   \code{results$htest} \tab \tab \tab \tab \tab a table containing the permutation test results \cr
 #' }
 #'

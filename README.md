@@ -169,6 +169,10 @@ r <- pairedmeanhtest(data = d,
 plot(r)
 ```
 
+Several pairs can be given; each gets its own table row and simulation
+plot (`r$simplot` is then an array keyed by the pairs, and `plot(r)` shows
+the first pair's).
+
 #### Slope hypothesis test
 
 ```r

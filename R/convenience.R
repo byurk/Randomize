@@ -13,9 +13,17 @@ find_image <- function(x, which) {
     if (which == "sim") {
         # Simulation / bootstrap distribution plot
         # Different analyses use different names
-        if (!is.null(x[["simplot"]])) return(x[["simplot"]])
-        if (!is.null(x[["Plot"]]))    return(x[["Plot"]])
-        return(NULL)
+        img <- x[["simplot"]]
+        if (is.null(img)) img <- x[["Plot"]]
+        if (is.null(img)) return(NULL)
+        # the paired analyses draw one plot per pair (an Array keyed by
+        # the pairs); return the first pair's plot
+        if (inherits(img, "Array")) {
+            keys <- img$itemKeys
+            if (length(keys) == 0) return(NULL)
+            img <- img$get(key = keys[[1]])
+        }
+        return(img)
     }
 
     if (which == "desc") {

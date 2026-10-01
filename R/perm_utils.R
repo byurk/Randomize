@@ -177,6 +177,7 @@ format_sim_pval <- function(p, reps) {
         return(p)
     thr <- signif(1 / reps, 2)
     txt <- sub("0+$", "", sprintf("%.10f", thr))
+    txt <- sub("\\.$", "", txt)      # reps = 1: "< 1", not "< 1."
     paste0("< ", sub("^0", "", txt))
 }
 

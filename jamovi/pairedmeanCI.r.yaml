@@ -51,20 +51,22 @@ items:
 
     - name: simplot
       title: Bootstrap mean differences
-      type: Image
-      description: a plot showing the distribution of mean differences
-      renderFun: .bootPlot
-      width: 400
-      height: 350
-      clearWith:
-          - pairs
-          - confLevel
-          - ciType
-          - reps
-          - rngSeed
-          - seedBool
-          - dotHist
-          - showCounts
+      type: Array
+      description: a plot showing the distribution of mean differences, one per pair
+      items: (pairs)
+      template:
+          type: Image
+          renderFun: .bootPlot
+          width: 400
+          height: 350
+          clearWith:
+              - confLevel
+              - ciType
+              - reps
+              - rngSeed
+              - seedBool
+              - dotHist
+              - showCounts
 
     - name: CITable
       title: Paired Means - Confidence Interval

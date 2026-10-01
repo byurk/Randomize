@@ -16,7 +16,7 @@ pairedmeanCIClass <- R6::R6Class(
       if(length(pairs) > 0){
         
         
-        pair <- pairs[[1]]
+        for (pair in pairs) {
         
         if(!any(sapply(pair,length)== 0)){
           
@@ -53,7 +53,7 @@ pairedmeanCIClass <- R6::R6Class(
                 function() tidyr::drop_na(private$.computeBoots(dataCI)), slot = paste(name1, name2))
             res <- private$.computeCI(boots, m1-m2)
             res <- within(res, rm(se, zcrit))
-            private$.preparePlot(boots, m1-m2)
+            private$.preparePlot(pair, boots, m1-m2)
           }
           
           if (isError(res)) {
@@ -79,8 +79,8 @@ pairedmeanCIClass <- R6::R6Class(
               
               if (self$options$desc) {
                 
-                row1Key <- paste0(pair$i1, 1)
-                row2Key <- paste0(pair$i2, 1)
+                row1Key <- paste(pair$i1, pair$i2, 1)
+                row2Key <- paste(pair$i1, pair$i2, 2)
                 
                 descTable$setRow(rowKey=row1Key, list(
                   "name"=name1,
@@ -114,6 +114,7 @@ pairedmeanCIClass <- R6::R6Class(
                     }
                   }
                 }
+                  }  # for (pair in pairs)
               }
               
             },
@@ -146,19 +147,20 @@ pairedmeanCIClass <- R6::R6Class(
               
               if(length(pairs) > 0){
                 
-                pair <- pairs[[1]]
+                for (pair in pairs) {
                 
                 simtable$setRow(rowKey=pair, list(
                   `var1`=pair$i1,
                   `var2`=pair$i2))
                   
-                  row1Key <- paste0(pair$i1, 1)
-                  row2Key <- paste0(pair$i2, 1)
+                  row1Key <- paste(pair$i1, pair$i2, 1)
+                  row2Key <- paste(pair$i1, pair$i2, 2)
                   descTable$addRow(row1Key)
                   descTable$addRow(row2Key)
                   
                   plots$get(pair)$setTitle(paste0(pair, collapse=' - '))
                   
+                    }  # for (pair in pairs)
                 }
                 
               },
@@ -201,9 +203,10 @@ pairedmeanCIClass <- R6::R6Class(
                 plot_desc_stats(image$state, xlab = NULL, ylab = NULL,
                                 ggtheme = ggtheme, theme = theme)
               },
-              .preparePlot = function(boots, dm) {
-                
-                bootplot <- self$results$simplot
+              .preparePlot = function(pair, boots, dm) {
+
+                bootplot <- self$results$simplot$get(key=pair)
+                bootplot$setTitle(paste(pair$i1, "\u2212", pair$i2))
                 dotHist <- self$options$dotHist
                 confLevel <- self$options$confLevel
                 ciType <- self$options$ciType

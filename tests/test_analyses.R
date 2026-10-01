@@ -36,6 +36,14 @@ assert_not_na <- function(val, label = "value") {
         stop(paste(label, "is NA or NULL"))
 }
 
+# The simulation plot: a single Image for most analyses, but the paired
+# analyses draw one per pair (an Array keyed by the pairs); take the first
+sim_img <- function(r) {
+    img <- if (!is.null(r[["simplot"]])) r$simplot else r$Plot
+    if (inherits(img, "Array")) img <- img$get(key = img$itemKeys[[1]])
+    img
+}
+
 # A simulation p-value of 0 is reported as the string "< 1/reps"
 # (e.g. "< .001"); recover a numeric bound for range checks
 p_num <- function(p) {
@@ -598,7 +606,7 @@ test("an enlarged plot magnifies all text (plot_width)", {
     r <- twomeanhtest(data = clean_data, vars = "score", group = "group",
                       hypothesis = "different", reps = 300,
                       dotHist = "histogram", seedBool = TRUE, rngSeed = 123)
-    st <- r$simplot$state
+    st <- sim_img(r)$state
     p400 <- plot_null_dist(st$df, st$obs_stat, st$direction, "histogram", show_counts = TRUE)
     p800 <- plot_null_dist(st$df, st$obs_stat, st$direction, "histogram", show_counts = TRUE,
                            plot_width = 800)
@@ -691,7 +699,7 @@ test("a single simulation keeps the observed value on the axis", {
                       reps = 1, dotHist = "dotplot", seedBool = TRUE, rngSeed = 1)
     p <- plot(r); b <- ggplot2::ggplot_build(p)
     xr <- b$layout$panel_params[[1]]$x.range
-    obs <- r$simplot$state$obs_stat
+    obs <- sim_img(r)$state$obs_stat
     stopifnot(obs >= xr[1], obs <= xr[2])
     stopifnot(count_layers(p, "GeomVline") == 1)   # dashed line, not an edge arrow
 })
@@ -715,14 +723,14 @@ test("re-running an analysis with unchanged inputs keeps the simulations (unseed
     # option changed
     r <- twomeanhtest(data = clean_data, vars = "score", group = "group", hypothesis = "different", reps = 200,
                       dotHist = "histogram", seedBool = FALSE)
-    s1 <- r$simplot$state$df$stat
+    s1 <- sim_img(r)$state$df$stat
     stopifnot(identical(r$htest$state$sims$sims$stat, s1))
     r$analysis$.__enclos_env__$private$.run()
-    stopifnot(identical(r$simplot$state$df$stat, s1))
+    stopifnot(identical(sim_img(r)$state$df$stat, s1))
     # and the cache key covers the data: a different data set gets new draws
     r2 <- twomeanhtest(data = na_data, vars = "score", group = "group", hypothesis = "different", reps = 200,
                        dotHist = "histogram", seedBool = FALSE)
-    stopifnot(!identical(r2$simplot$state$df$stat, s1))
+    stopifnot(!identical(sim_img(r2)$state$df$stat, s1))
 })
 test("edited data invalidates the cache even when no option changed", {
     holder <- jmvcore::Table$new(options = jmvcore::Options$new(), name = "t", title = "t")
@@ -735,7 +743,7 @@ cat("\n=== Option-change matrix: only simulation inputs redraw the simulations =
 # For every analysis, change each option in place and re-run (as jamovi does on
 # every option change). Options that do not determine the simulations must leave
 # them untouched; options that do must produce new draws (unseeded).
-sim_state <- function(r) { img <- if (!is.null(r[["simplot"]])) r$simplot else r$Plot; img$state$df$stat }
+sim_state <- function(r) sim_img(r)$state$df$stat
 set_opt <- function(r, name, value) { o <- r$analysis$options$option(name); o$value <- value }
 rerun <- function(r) r$analysis$.__enclos_env__$private$.run()
 check_matrix <- function(label, r, keep, change) {
@@ -929,13 +937,34 @@ test("paired analyses: constant differences give the sign-flip null / point CI",
     assert_close(results_table(r)$md, -2, 1e-9)
     p <- p_num(results_table(r)$p)            # exact sign-test p = 0.5^10
     if (p > 0.01) stop(paste("p should be about 0.001, got", p))
-    st <- r$simplot$state$df$stat
+    st <- sim_img(r)$state$df$stat
     if (length(unique(st)) > 11 || any(abs(st) > 2 + 1e-9)) stop("sign-flip null should take at most 11 values in [-2, 2]")
     r <- pairedmeanCI(data = d, pairs = list(list(i1 = "pre", i2 = "post")), reps = 200, seedBool = TRUE, rngSeed = 1)
     rt <- results_table(r); assert_close(rt$cil, -2, 1e-9); assert_close(rt$ciu, -2, 1e-9)
     d$post <- d$pre
     r <- pairedmeanhtest(data = d, pairs = list(list(i1 = "pre", i2 = "post")), reps = 100)
     assert_close(p_num(results_table(r)$p), 1, 1e-9)
+})
+
+# every pair gets its own row, simulation plot and descriptive plot (only
+# the first pair used to be analysed; the other rows stayed blank)
+test("paired analyses: every pair is analysed, one simulation plot per pair", {
+    set.seed(2); d <- data.frame(a = rnorm(20), b = rnorm(20, 0.5), c = rnorm(20, 1))
+    pairs <- list(list(i1 = "a", i2 = "b"), list(i1 = "a", i2 = "c"), list(i1 = "b", i2 = "a"))
+    r <- pairedmeanhtest(data = d, pairs = pairs, reps = 300, seedBool = TRUE, rngSeed = 1, desc = TRUE, plots = TRUE, hypothesis = "oneGreater")
+    tb <- r$htest$asDF
+    if (any(is.na(tb$md)) || nrow(tb) != 3) stop("every pair needs a filled row")
+    assert_close(tb$md[3], -tb$md[1], 1e-12)
+    if (length(r$simplot$itemKeys) != 3) stop("one simulation plot per pair")
+    for (k in r$simplot$itemKeys) if (is.null(r$simplot$get(key = k)$state)) stop("plot state missing for a pair")
+    if (nrow(desc_table(r)) != 6) stop("two descriptive rows per pair")
+    if (!inherits(plot(r), "ggplot")) stop("plot(r) must return the first pair's plot")
+    r1 <- pairedmeanhtest(data = d, pairs = pairs[1], reps = 300, seedBool = TRUE, rngSeed = 1, hypothesis = "oneGreater")
+    if (!identical(r1$htest$asDF$p[1], tb$p[1])) stop("single-pair result changed")
+    r2 <- pairedmeanCI(data = d, pairs = pairs, reps = 300, seedBool = TRUE, rngSeed = 1, desc = TRUE, plots = TRUE)
+    tb2 <- r2$CITable$asDF
+    if (any(is.na(tb2$cil)) || length(r2$simplot$itemKeys) != 3) stop("CI: every pair needs a row and a plot")
+    assert_close(tb2$cil[3], -tb2$ciu[1], 1e-12)
 })
 
 # ============================================================
