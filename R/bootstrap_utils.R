@@ -187,6 +187,7 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
     }
 
     pad <- 0.03 * (max(bars$xmax, ciu, obs_stat) - min(bars$xmin, cil, obs_stat))
+    if (few) pad <- max(pad, a)   # a dot at a clamp bound stays whole
     xlims <- c(min(bars$xmin, cil, obs_stat) - pad, max(bars$xmax, ciu, obs_stat) + pad)
     ts <- text_scale(plot_width)
 

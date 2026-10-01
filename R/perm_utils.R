@@ -379,6 +379,8 @@ plot_null_dist <- function(perms, obs_stat, direction,
     x_lo <- max(min(dat_lo, obs_stat), cap_lo)
     x_hi <- min(max(dat_hi, obs_stat), cap_hi)
     pad <- 0.03 * (x_hi - x_lo)
+    # a dot drawn at a domain bound (few reps) must not be cut by the panel
+    if (few) pad <- max(pad, a)
     xlims <- c(x_lo - pad, x_hi + pad)
 
     fill_scale <- ggplot2::scale_fill_manual(
@@ -561,10 +563,14 @@ diff_label <- function(what, levels = NULL, outcome = NULL) {
     if (is.null(levels) || length(levels) < 2)
         return(sprintf("difference in %s (group 1 \u2212 group 2)", what))
     lv <- shorten_label(levels)
-    if (is.null(outcome))
-        sprintf("difference in %s (%s \u2212 %s)", what, lv[1], lv[2])
-    else
+    if (is.null(outcome)) {
+        one <- sprintf("difference in %s (%s \u2212 %s)", what, lv[1], lv[2])
+        # long group names: second line, or the title runs off the panel
+        if (nchar(one) <= 36) one
+        else sprintf("difference in %s\n(%s \u2212 %s)", what, lv[1], lv[2])
+    } else {
         sprintf("difference in proportion of %s\n(%s \u2212 %s)", shorten_label(outcome), lv[1], lv[2])
+    }
 }
 
 #' @rdname diff_label
