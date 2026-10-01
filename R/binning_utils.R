@@ -459,23 +459,52 @@ lattice_info <- function(stats) {
 #' @return A list with \code{idx} (group index per simulation) and
 #'   \code{centers} (x position of each group, sorted).
 #' @keywords internal
-sparse_groups <- function(stats, extreme = NULL, tol = NULL) {
+sparse_groups <- function(stats, extreme = NULL) {
     u <- sort(unique(stats))
     ui <- match(stats, u)
     cnt <- tabulate(ui, nbins = length(u))
     if (length(u) == 1)
         return(list(idx = ui, centers = u))
     d <- diff(u)
-    # tol: an absolute merge distance (a dot width, for a handful of
-    # simulations drawn at their own values); otherwise relative to the
-    # typical gap
-    thr <- if (is.null(tol)) 0.25 * stats::median(d) else tol
+    thr <- 0.25 * stats::median(d)
     new_group <- d >= thr
     if (!is.null(extreme)) {
         ext_u <- extreme[match(seq_along(u), ui)]
         new_group <- new_group | (ext_u[-1] != ext_u[-length(u)])
     }
     grp <- cumsum(c(TRUE, new_group))
+    centers <- as.numeric(tapply(u * cnt, grp, sum) / tapply(cnt, grp, sum))
+    list(idx = grp[ui], centers = centers)
+}
+
+#' Stack near-coincident values without drifting
+#'
+#' For a handful of simulations drawn at their own values: values within
+#' \code{tol} of the first value of a cluster share a stack at the
+#' cluster's count-weighted mean, so no dot is displaced by more than
+#' \code{tol}.  (Chaining from each value to the next, as
+#' \code{\link{sparse_groups}} does for sparse lattices, would let a dense
+#' cluster collapse into one tall stack far from most of its values.)
+#' A cluster never crosses the observed value: \code{extreme} splits it.
+#'
+#' @param stats Numeric vector of simulated statistics.
+#' @param extreme Logical vector, one per statistic.
+#' @param tol Maximum distance from a cluster's first value.
+#' @return A list with \code{idx} (cluster per statistic) and
+#'   \code{centers}.
+#' @keywords internal
+cluster_near <- function(stats, extreme = NULL, tol) {
+    u <- sort(unique(stats))
+    ui <- match(stats, u)
+    cnt <- tabulate(ui, nbins = length(u))
+    ext_u <- if (is.null(extreme)) rep(FALSE, length(u)) else extreme[match(seq_along(u), ui)]
+    grp <- integer(length(u)); g <- 0L; start <- -Inf; start_ext <- NA
+    for (i in seq_along(u)) {
+        if (i == 1L || u[i] - start > tol || !identical(ext_u[i], start_ext)) {
+            g <- g + 1L; start <- u[i]; start_ext <- ext_u[i]
+        }
+        grp[i] <- g
+    }
     centers <- as.numeric(tapply(u * cnt, grp, sum) / tapply(cnt, grp, sum))
     list(idx = grp[ui], centers = centers)
 }

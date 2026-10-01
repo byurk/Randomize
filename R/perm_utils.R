@@ -296,9 +296,10 @@ plot_null_dist <- function(perms, obs_stat, direction,
         span <- diff(range(c(perms$stat, obs_stat)))
         if (span <= 0) span <- max(abs(perms$stat[1]), 1)
         a <- 0.02 * span
-        # values closer than a dot width share a stack (at their mean,
-        # never across the line) so neither dots nor count labels overlap
-        g <- sparse_groups(perms$stat, extreme, tol = 2 * a)
+        # values within a dot diameter of a cluster's first value share a
+        # stack (at their mean, never across the line) so neither dots nor
+        # count labels pile up; no dot moves more than a diameter
+        g <- cluster_near(perms$stat, extreme, tol = 2 * a)
         u <- g$centers
         idx <- g$idx
         dot_x <- u[idx]

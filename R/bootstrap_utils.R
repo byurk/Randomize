@@ -152,7 +152,7 @@ plot_boot_dist <- function(boot, obs_stat, conf_level, ci_type,
         span <- diff(range(c(boot$stat, obs_stat)))
         if (span <= 0) span <- max(abs(boot$stat[1]), 1)
         a <- 0.02 * span
-        g <- sparse_groups(boot$stat, tol = 2 * a)
+        g <- cluster_near(boot$stat, tol = 2 * a)
         u <- g$centers
         idx <- g$idx
         dot_x <- u[idx]
