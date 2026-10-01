@@ -63,6 +63,9 @@ build_paired_desc_plot_data <- function(col1, col2, name1, name2) {
     plotData <- rbind(meanPlotData, medianPlotData,
                       data.frame(group = rep(c(name1, name2), c(length(col1), length(col2))),
                                  stat = c(col1, col2), cie = NA, type = 'point'))
+    # which observation of measure 1 goes with which of measure 2, so the
+    # plot can join each pair with a line
+    plotData$pair <- c(rep(NA, 4), seq_along(col1), seq_along(col2))
     plotData$group <- factor(plotData$group, levels = c(name1, name2))
     plotData
 }
@@ -94,6 +97,19 @@ plot_desc_stats <- function(plotData, xlab, ylab = NULL,
         g <- as.integer(factor(pts$group, levels = lv))
         k <- stats::ave(seq_along(g), g, FUN = seq_along)
         pts$xpos <- g + ((k * 0.6180339887) %% 1 - 0.5) * 0.36
+        # paired data: a thin line joins the two members of each pair
+        # (both get the same sideways offset, so the lines run cleanly
+        # from one measure to the other; with hundreds of pairs they
+        # fuse into a band whose tilt still shows the typical change)
+        if ("pair" %in% names(pts) && any(!is.na(pts$pair))) {
+            a <- pts[g == 1L & !is.na(pts$pair), ]
+            b <- pts[g == 2L & !is.na(pts$pair), ]
+            seg <- merge(a[, c("pair", "xpos", "stat")], b[, c("pair", "xpos", "stat")], by = "pair", suffixes = c("", "_end"))
+            if (nrow(seg) > 0)
+                plot <- plot + ggplot2::geom_segment(
+                    data = seg, ggplot2::aes(x = xpos, y = stat, xend = xpos_end, yend = stat_end),
+                    inherit.aes = FALSE, color = "grey70", alpha = 0.5, linewidth = 0.3)
+        }
         plot <- plot + ggplot2::geom_point(
             data = pts, ggplot2::aes(x = xpos, y = stat), inherit.aes = FALSE,
             color = "grey55", alpha = 0.45, size = 1.6)

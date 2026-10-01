@@ -99,7 +99,7 @@ Use `plot()` to extract ggplot objects from any analysis result:
 plot(r)              # simulation/bootstrap distribution (all analyses)
 plot(r, show_counts = TRUE)  # label each bar / dot stack with its count
 plot(r, show_text = FALSE)   # no labels or caption (bootstrap: keeps the lines)
-plot(r, "desc")      # observations with mean/median markers (mean-comparison analyses)
+plot(r, "desc")      # observations with mean/median markers (mean-comparison analyses; paired: a line per pair)
 plot(r, "line")      # regression scatterplot with the fitted equation (slope analyses)
 ```
 

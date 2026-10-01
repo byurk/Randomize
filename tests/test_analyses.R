@@ -1045,7 +1045,12 @@ test("descriptive plots show the observations; regression plots show the equatio
     img <- r$descplot$get(key = r$descplot$itemKeys[[1]])$desc
     img$setState(st[st$type != "point", ]); ggplot2::ggplot_build(img$plot$fun())
     r <- pairedmeanCI(data = clean_data, pairs = list(list(i1 = "measure1", i2 = "measure2")), reps = 50, seedBool = TRUE, rngSeed = 1, desc = TRUE, plots = TRUE)
-    ggplot2::ggplot_build(plot(r, "desc"))
+    bp <- ggplot2::ggplot_build(plot(r, "desc"))
+    # paired: one line per complete pair, joining the two members' positions
+    segs <- Filter(function(d) all(c("xend", "yend") %in% names(d)), bp$data)
+    n_pairs <- sum(complete.cases(clean_data$measure1, clean_data$measure2))
+    if (length(segs) != 1 || nrow(segs[[1]]) != n_pairs) stop("expected one line per pair")
+    if (any(abs(segs[[1]]$xend - segs[[1]]$x - 1) > 1e-9)) stop("pair lines must join the same offset in both groups")
     r <- slopehtest(data = reg_data, dep = "y", indep = "x", reps = 50, seedBool = TRUE, rngSeed = 1, plots = TRUE)
     p <- plot(r, "line")
     lab <- Filter(function(l) inherits(l$geom, "GeomLabel"), p$layers)
