@@ -114,10 +114,12 @@ plot_desc_stats <- function(plotData, xlab, ylab = NULL,
             data = pts, ggplot2::aes(x = xpos, y = stat), inherit.aes = FALSE,
             color = "grey55", alpha = 0.45, size = 1.6)
     }
+    # the markers are filled (the scatterplot's blue) with a dark outline
+    # so they stand off the grey observations behind them
     plot <- plot +
         ggplot2::geom_point(ggplot2::aes(x = xpos, y = stat, shape = type),
-                            color = theme$color[1], fill = theme$fill[1],
-                            size = 3, position = pd) +
+                            color = theme$color[1], fill = theme$color[2],
+                            size = 3.2, stroke = 0.8, position = pd) +
         ggplot2::scale_x_continuous(breaks = seq_along(lv), labels = lv,
                                     limits = c(0.5, length(lv) + 0.5)) +
         ggplot2::labs(x = xlab, y = ylab) +
