@@ -186,7 +186,9 @@ check_null_invariants <- function(s, mode) {
     # bar/column per achievable value: gaps between values are honest,
     # and side purity is judged by centers (a bar AT the observed value
     # legitimately straddles the line, pure by value identity).
-    sparse <- is_sparse_values(s$stats)
+    # (a dotplot of a handful of simulations places every dot at its own
+    # value, the same honest-gaps class)
+    sparse <- is_sparse_values(s$stats) || (mode == "dotplot" && is_few_reps(s$stats))
     sgn0 <- if (ptail == "lt") -1 else 1
     single_value <- !sparse && is_single_value(s$stats, s$obs, "edge", sgn0)
     if (sparse) {
@@ -267,7 +269,9 @@ check_null_invariants <- function(s, mode) {
     # in the same column share identical x-extents, so collapse to unique
     # columns first.
     cols <- unique(el[, c("xmin", "xmax")])
-    if (nrow(cols) > 1) {
+    # (a handful of dots drawn at their own values may overlap honestly)
+    few_dots <- mode == "dotplot" && is_few_reps(s$stats) && !is_sparse_values(s$stats)
+    if (nrow(cols) > 1 && !few_dots) {
         ord <- cols[order(cols$xmin), ]
         # A dot column clamped to a domain bound may lean into its
         # neighbor's nominal extent; drawn glyphs are narrower than the
@@ -337,6 +341,30 @@ for (nm in c("prop_n200_greater", "prop_n500_greater", "rounded_diff_5000")) {
         if (diff(range(s$stats)) / b$bw > 30 + 1e-9) stop("more than 30 columns")
     })
 }
+
+cat("\n=== A handful of simulations: every dot at its own value ===\n")
+test("few continuous reps: dots sit exactly at their values (null and bootstrap)", {
+    set.seed(41)
+    x <- rnorm(12)
+    # (values within a dot width -- 4% of the span -- share a stack at
+    # their mean, so every dot is within that distance of its value)
+    tol <- 0.04 * diff(range(c(x, 0.3)))
+    for (dir in c("less", "greater", "two_sided")) {
+        d <- build_checked(plot_null_dist(data.frame(stat = x), 0.3, dir, "dotplot"))$data[[1]]
+        if (max(abs(sort(d$x) - sort(signif(x, 10)))) > tol)
+            stop("null dots are not at the simulated values")
+        ext <- if (dir == "less") d$x <= 0.3 else if (dir == "greater") d$x >= 0.3 else NULL
+        if (!is.null(ext) && any((d$fill == RED) != ext)) stop("a dot is shaded on the wrong side of the line")
+    }
+    d <- build_checked(plot_boot_dist(data.frame(stat = x + 5), 5, 95, "bootperc", "dotplot"))$data[[1]]
+    if (max(abs(sort(d$x) - sort(x + 5))) > tol) stop("bootstrap dots are not at the replicate values")
+    # exact ties stack; 26+ reps are binned as before
+    xt <- c(x, x[1:3])
+    d <- build_checked(plot_null_dist(data.frame(stat = xt), 0.3, "greater", "dotplot"))$data[[1]]
+    if (sum(d$y > 0.5) < 3) stop("tied values should stack")
+    d <- build_checked(plot_null_dist(data.frame(stat = rnorm(26)), 0.3, "greater", "dotplot"))$data[[1]]
+    if (length(unique(d$x)) >= 26) stop("26 reps should be binned")
+})
 
 cat("\n=== Sparse values: near-coincident values share a column ===\n")
 test("Yates-corrected 2x2 chi-square: no sliver bars", {
@@ -510,7 +538,7 @@ for (nm in names(boot_sc)) {
             # impossible values (clamp = domain bounds; bootstrap bars
             # are trimmed, value-centered elements judged by center,
             # grouped dot columns exempt as in the null checks)
-            sparse <- is_sparse_values(s$stats)
+            sparse <- is_sparse_values(s$stats) || (mode == "dotplot" && is_few_reps(s$stats))
             if (sparse) {
                 el$halfw <- (el$xmax - el$xmin) / 2
             } else {

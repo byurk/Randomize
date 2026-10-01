@@ -459,14 +459,17 @@ lattice_info <- function(stats) {
 #' @return A list with \code{idx} (group index per simulation) and
 #'   \code{centers} (x position of each group, sorted).
 #' @keywords internal
-sparse_groups <- function(stats, extreme = NULL) {
+sparse_groups <- function(stats, extreme = NULL, tol = NULL) {
     u <- sort(unique(stats))
     ui <- match(stats, u)
     cnt <- tabulate(ui, nbins = length(u))
     if (length(u) == 1)
         return(list(idx = ui, centers = u))
     d <- diff(u)
-    thr <- 0.25 * stats::median(d)
+    # tol: an absolute merge distance (a dot width, for a handful of
+    # simulations drawn at their own values); otherwise relative to the
+    # typical gap
+    thr <- if (is.null(tol)) 0.25 * stats::median(d) else tol
     new_group <- d >= thr
     if (!is.null(extreme)) {
         ext_u <- extreme[match(seq_along(u), ui)]

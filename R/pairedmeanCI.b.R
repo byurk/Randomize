@@ -226,6 +226,7 @@ pairedmeanCIClass <- R6::R6Class(
                                     st$dotHist,
                                     xlab = "mean difference",
                                     stat_label = "bootstrap differences",
+                                    obs_label = "Observed\nDifference",
                                     show_counts = isTRUE(st$showCounts),
                            plot_width = image$width)
                 return(p)

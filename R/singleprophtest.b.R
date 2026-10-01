@@ -218,15 +218,16 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
             resp <- self$options$resp
             results <- private$.counts(resp)
             obs_stat <- results$counts[1] / results$total
+            xlab <- if (self$options$areCounts) "proportion" else sprintf("proportion of %s", shorten_label(results$levels[1]))
             bootplot$setState(list(df=strip_infer(boot), obs_stat=obs_stat, direction=direction, dotHist=dotHist, showCounts=self$options$showCounts, domain=c(0, 1),
-                                          xlab="proportion", obs_label="Observed\nProportion"))
+                                          xlab=xlab, obs_label="Observed\nProportion"))
         },
         .bootPlot = function(image, ggtheme, theme, ...) {
             if (is.null(image$state))
                 return(FALSE)
             st <- image$state
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
-                           xlab = "proportion",
+                           xlab = state_or(st$xlab, "proportion"),
                            obs_label = "Observed\nProportion",
                            domain = c(0, 1),
                            show_counts = isTRUE(st$showCounts),

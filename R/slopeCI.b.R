@@ -204,6 +204,7 @@ slopeCIClass <- R6::R6Class(
                               st$dotHist,
                               xlab = "slope",
                               stat_label = "bootstrap slopes",
+                              obs_label = "Observed\nSlope",
                               show_counts = isTRUE(st$showCounts),
                            plot_width = image$width)
           return(p)

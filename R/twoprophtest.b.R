@@ -72,7 +72,14 @@ TwoPropHTestClass <- R6::R6Class(
             # as empty rows / columns in the table above but play no part
             # in the comparison
             full_dim <- dim(mat)
-            mat <- mat[rowSums(mat) > 0, colSums(mat) > 0, drop = FALSE]
+            # (subsetting an ftable drops its level names; keep them as
+            # dimnames so the plot can name the groups and the outcome)
+            keep_r <- rowSums(mat) > 0
+            keep_c <- colSums(mat) > 0
+            lev_r <- attr(mat, "row.vars")[[1]]
+            lev_c <- attr(mat, "col.vars")[[1]]
+            mat <- mat[keep_r, keep_c, drop = FALSE]
+            dimnames(mat) <- list(lev_r[keep_r], lev_c[keep_c])
             attr(mat, "full_dim") <- full_dim
 
             dp <- NULL
@@ -92,7 +99,7 @@ TwoPropHTestClass <- R6::R6Class(
                 simres <- private$.computePval(perms, dp$dp)
 
                 private$.populateSimTable(simres)
-                private$.preparePlot(perms, dp$dp, simres$direction)
+                private$.preparePlot(perms, dp$dp, simres$direction, mat)
 
             }
 
@@ -259,18 +266,19 @@ TwoPropHTestClass <- R6::R6Class(
 
         #### Plot functions ----
 
-        .preparePlot = function(perms, dp, direction) {
+        .preparePlot = function(perms, dp, direction, mat = NULL) {
             permplot <- self$results$Plot
             dotHist <- self$options$dotHist
+            m <- if (!is.null(mat) && self$options$compare == "columns") t(mat) else mat
             permplot$setState(list(df=strip_infer(perms), obs_stat=dp, direction=direction, dotHist=dotHist, showCounts=self$options$showCounts, domain=c(-1, 1),
-                                          xlab="difference (group 1 - group 2)", obs_label="Observed\nDifference"))
+                                          xlab=diff_label("proportions", rownames(m), colnames(m)[1]), obs_label="Observed\nDifference"))
         },
         .permPlot = function(image, ggtheme, theme, ...) {
             if (is.null(image$state))
                 return(FALSE)
             st <- image$state
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
-                           xlab = "difference (group 1 - group 2)",
+                           xlab = state_or(st$xlab, diff_label("proportions")),
                            obs_label = "Observed\nDifference",
                            domain = c(-1, 1),
                            show_counts = isTRUE(st$showCounts),

@@ -72,7 +72,14 @@ TwoPropCIClass <- R6::R6Class(
             # as empty rows / columns in the table above but play no part
             # in the comparison
             full_dim <- dim(mat)
-            mat <- mat[rowSums(mat) > 0, colSums(mat) > 0, drop = FALSE]
+            # (subsetting an ftable drops its level names; keep them as
+            # dimnames so the plot can name the groups and the outcome)
+            keep_r <- rowSums(mat) > 0
+            keep_c <- colSums(mat) > 0
+            lev_r <- attr(mat, "row.vars")[[1]]
+            lev_c <- attr(mat, "col.vars")[[1]]
+            mat <- mat[keep_r, keep_c, drop = FALSE]
+            dimnames(mat) <- list(lev_r[keep_r], lev_c[keep_c])
             attr(mat, "full_dim") <- full_dim
 
             dp <- NULL
@@ -92,7 +99,7 @@ TwoPropCIClass <- R6::R6Class(
                 simres <- private$.computeCI(boots, dp$dp)
 
                 private$.populateSimTable(simres)
-                private$.preparePlot(boots, dp$dp)
+                private$.preparePlot(boots, dp$dp, mat)
 
             }
 
@@ -258,7 +265,8 @@ TwoPropCIClass <- R6::R6Class(
 
         #### Plot functions ----
 
-        .preparePlot = function(boots, dp) {
+        .preparePlot = function(boots, dp, mat = NULL) {
+            m <- if (!is.null(mat) && self$options$compare == "columns") t(mat) else mat
 
             bootplot <- self$results$Plot
             dotHist <- self$options$dotHist
@@ -266,7 +274,7 @@ TwoPropCIClass <- R6::R6Class(
             ciType <- self$options$ciType
 
             bootplot$setState(list(df=strip_infer(boots), obs_stat=dp, confLevel = confLevel, ciType = ciType, dotHist=dotHist, showCounts=self$options$showCounts,
-                                          xlab="difference (group 1 - group 2)", stat_label="bootstrap differences"))
+                                          xlab=diff_label("proportions", rownames(m), colnames(m)[1]), stat_label="bootstrap differences", obs_label="Observed\nDifference"))
 
         },
         .bootPlot = function(image, ggtheme, theme, ...) {
@@ -277,8 +285,9 @@ TwoPropCIClass <- R6::R6Class(
             st <- image$state
             p <- plot_boot_dist(st$df, st$obs_stat, st$confLevel, st$ciType,
                                 st$dotHist,
-                                xlab = "difference (group 1 - group 2)",
+                                xlab = state_or(st$xlab, diff_label("proportions")),
                                 stat_label = "bootstrap differences",
+                                obs_label = "Observed\nDifference",
                                 show_counts = isTRUE(st$showCounts),
                            plot_width = image$width)
             return(p)

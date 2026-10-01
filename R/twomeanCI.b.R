@@ -65,7 +65,7 @@ twomeanCIClass <- R6::R6Class(
             function() tidyr::drop_na(private$.computeBoots(dataCI)))
         res <- private$.computeCI(boots, m[1]-m[2])
         res <- within(res, rm(se, zcrit))
-        private$.preparePlot(boots, m[1]-m[2])
+        private$.preparePlot(boots, m[1]-m[2], groupLevels)
       }
         
         if (isError(res)) {
@@ -176,7 +176,7 @@ twomeanCIClass <- R6::R6Class(
             return(boots)
 
         },
-          .preparePlot = function(boots, dm) {
+          .preparePlot = function(boots, dm, levels = NULL) {
 
             bootplot <- self$results$simplot
             dotHist <- self$options$dotHist
@@ -184,7 +184,7 @@ twomeanCIClass <- R6::R6Class(
             ciType <- self$options$ciType
 
             bootplot$setState(list(df=strip_infer(boots), obs_stat=dm, confLevel = confLevel, ciType = ciType, dotHist=dotHist, showCounts=self$options$showCounts,
-                                          xlab="difference (group 1 - group 2)", stat_label="bootstrap differences"))
+                                          xlab=diff_label("means", levels), stat_label="bootstrap differences", obs_label="Observed\nDifference"))
 
           },
           .bootPlot = function(image, ggtheme, theme, ...) {
@@ -195,8 +195,9 @@ twomeanCIClass <- R6::R6Class(
             st <- image$state
             p <- plot_boot_dist(st$df, st$obs_stat, st$confLevel, st$ciType,
                                 st$dotHist,
-                                xlab = "difference (group 1 - group 2)",
+                                xlab = state_or(st$xlab, diff_label("means")),
                                 stat_label = "bootstrap differences",
+                                obs_label = "Observed\nDifference",
                                 show_counts = isTRUE(st$showCounts),
                            plot_width = image$width)
             return(p)

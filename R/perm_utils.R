@@ -271,6 +271,7 @@ plot_null_dist <- function(perms, obs_stat, direction,
     # to the observed statistic lies on the line.  (Values that all but
     # coincide share a column; see sparse_groups.)
     sparse <- is_sparse_values(perms$stat)
+    few <- dotHist == "dotplot" && !sparse && is_few_reps(perms$stat)
 
     if (sparse) {
         g <- sparse_groups(perms$stat, extreme)
@@ -287,6 +288,29 @@ plot_null_dist <- function(perms, obs_stat, direction,
             bars$xmax <- pmin(bars$xmax, domain[2])
         }
         bars$mid <- u[bars$idx]
+    } else if (few) {
+        # A handful of simulations (a step-by-step classroom demo):
+        # every dot sits at its own value rather than at a bin centre,
+        # so the picture shows exactly where each simulation landed
+        # relative to the line.  Exact ties stack; near-ties overlap.
+        span <- diff(range(c(perms$stat, obs_stat)))
+        if (span <= 0) span <- max(abs(perms$stat[1]), 1)
+        a <- 0.02 * span
+        # values closer than a dot width share a stack (at their mean,
+        # never across the line) so neither dots nor count labels overlap
+        g <- sparse_groups(perms$stat, extreme, tol = 2 * a)
+        u <- g$centers
+        idx <- g$idx
+        dot_x <- u[idx]
+        bars <- data.frame(idx = idx, fill = fill) |>
+            dplyr::count(idx, fill)
+        bars$mid <- u[bars$idx]
+        bars$xmin <- bars$mid - a
+        bars$xmax <- bars$mid + a
+        if (!is.null(domain)) {
+            bars$xmin <- pmax(bars$xmin, domain[1])
+            bars$xmax <- pmin(bars$xmax, domain[2])
+        }
     } else {
         b <- choose_binning(perms$stat, obs_stat, align = "edge", sign = sgn)
         single_val <- b$lattice && abs(b$bw - b$res) <= b$res * 1e-9
@@ -393,12 +417,14 @@ plot_null_dist <- function(perms, obs_stat, direction,
                 expand = ggplot2::expansion(mult = c(0.01, 0.02))) +
             ggplot2::theme(text = ggplot2::element_text(size = 14 * ts))
 
+        cnt <- NULL
         if (show_counts) {
             tops <- dots |>
                 dplyr::group_by(idx) |>
                 dplyr::summarize(x = x[1], n = max(y) + 0.5, fill = fill[1],
                                  .groups = "drop")
-            p <- p + count_labels(tops$x, tops$n, tops$n, tops$fill, plot_width)
+            cnt <- count_labels(tops$x, tops$n, tops$n, tops$fill, plot_width,
+                                line_x = if (show_line) obs_stat else NULL)
         }
     } else {
         cnt_room <- if (!show_counts) 1 else if (counts_vertical(bars$n, plot_width)) 1.2 else 1.08
@@ -418,8 +444,8 @@ plot_null_dist <- function(perms, obs_stat, direction,
                 expand = ggplot2::expansion(mult = c(0, 0.02))) +
             ggplot2::theme(text = ggplot2::element_text(size = 14 * ts))
 
-        if (show_counts)
-            p <- p + count_labels(bars$mid, bars$n, bars$n, bars$fill, plot_width)
+        cnt <- if (show_counts) count_labels(bars$mid, bars$n, bars$n, bars$fill, plot_width,
+                                             line_x = if (show_line) obs_stat else NULL) else NULL
     }
 
     if (show_line && obs_in)
@@ -430,9 +456,11 @@ plot_null_dist <- function(perms, obs_stat, direction,
             hj <- inward_hjust(obs_stat, xlims)
             # keep the text clear of the dashed line when edge-justified
             lab_x <- obs_stat + (0.5 - hj) * 2 * (0.01 * W)
-            p <- p + ggplot2::annotate("text", x = lab_x, y = y_top,
+            p <- p + ggplot2::annotate("label", x = lab_x, y = y_top,
                                        vjust = "top", hjust = hj, size = 3.88 * ts,
-                                       label = obs_label, color = "red")
+                                       label = obs_label, color = "red",
+                                       fill = "white", label.size = 0,
+                                       label.padding = grid::unit(0.12, "lines"))
         }
     } else {
         # Observed value beyond the axis cap: a drawn arrow at the panel
@@ -455,6 +483,9 @@ plot_null_dist <- function(perms, obs_stat, direction,
     if (show_caption)
         p <- p + ggplot2::labs(caption = caption) +
             ggplot2::theme(plot.caption = ggplot2::element_text(color = "red", hjust = 0))
+    # count labels last, so their halos sit over the dashed line
+    if (!is.null(cnt))
+        p <- p + cnt
 
     p
 }
@@ -477,21 +508,75 @@ plot_null_dist <- function(perms, obs_stat, direction,
 #'   straight off the plot.
 #' @return A \code{geom_text} layer.
 #' @keywords internal
-count_labels <- function(x, y, n, extreme = FALSE, plot_width = 400) {
+count_labels <- function(x, y, n, extreme = FALSE, plot_width = 400, line_x = NULL) {
     d <- data.frame(x = x, y = y, n = n,
                     col = ifelse(rep_len(extreme, length(x)), "#d9534f", "grey25"))
     sz <- count_label_size(n, plot_width)
-    if (sz$vertical) {
-        ggplot2::geom_text(
-            data = d, ggplot2::aes(x = x, y = y, label = n),
-            color = d$col, angle = 90, hjust = -0.15, vjust = 0.5,
-            size = sz$size, inherit.aes = FALSE)
-    } else {
-        ggplot2::geom_text(
-            data = d, ggplot2::aes(x = x, y = y, label = n),
-            color = d$col, vjust = -0.35, size = sz$size, inherit.aes = FALSE)
+    common <- list(mapping = ggplot2::aes(x = x, y = y, label = n),
+                   size = sz$size, inherit.aes = FALSE)
+    if (sz$vertical)
+        common <- c(common, list(angle = 90, hjust = -0.15, vjust = 0.5))
+    else
+        common <- c(common, list(vjust = -0.35))
+    layers <- list(do.call(ggplot2::geom_text, c(common, list(data = d, color = d$col))))
+    # A white halo (a borderless label box with invisible text) under
+    # the labels that a vertical line would otherwise strike through:
+    # those within half a column of the observed value / CI limits.
+    # Only those -- drawn under every label, the box would erase bits of
+    # neighbouring dots in the valleys of a dense dotplot.
+    if (!is.null(line_x) && length(line_x) > 0) {
+        ux <- sort(unique(x))
+        half <- if (length(ux) > 1) 0.5 * min(diff(ux)) else Inf
+        near <- vapply(x, function(xi) any(abs(xi - line_x) <= half * (1 + 1e-9)), logical(1))
+        if (any(near)) {
+            halo <- c(common, list(data = d[near, ], fill = "white", colour = "white",
+                                   label.size = 0,
+                                   label.padding = grid::unit(0.08, "lines"),
+                                   label.r = grid::unit(0, "lines")))
+            layers <- c(list(do.call(ggplot2::geom_label, halo)), layers)
+        }
     }
+    layers
 }
+
+#' Is this a step-by-step handful of simulations?
+#'
+#' With this few replicates a dotplot places every dot at its own value
+#' (no binning), so the picture shows exactly where each simulation
+#' landed relative to the observed value.  The threshold is shared with
+#' the plot invariants.
+#' @param stats Numeric vector of simulated statistics.
+#' @keywords internal
+is_few_reps <- function(stats) length(stats) <= 25
+
+#' Axis label naming the groups (and outcome level) being compared
+#'
+#' @param what "means" or "proportions".
+#' @param levels The two group names, in the order of the subtraction.
+#' @param outcome For proportions, the outcome level whose proportion is
+#'   compared.
+#' @keywords internal
+diff_label <- function(what, levels = NULL, outcome = NULL) {
+    if (is.null(levels) || length(levels) < 2)
+        return(sprintf("difference in %s (group 1 \u2212 group 2)", what))
+    lv <- shorten_label(levels)
+    if (is.null(outcome))
+        sprintf("difference in %s (%s \u2212 %s)", what, lv[1], lv[2])
+    else
+        sprintf("difference in proportion of %s\n(%s \u2212 %s)", shorten_label(outcome), lv[1], lv[2])
+}
+
+#' @rdname diff_label
+#' @keywords internal
+shorten_label <- function(x, n = 18) {
+    x <- as.character(x)
+    ifelse(nchar(x) > n, paste0(substr(x, 1, n - 1), "\u2026"), x)
+}
+
+#' Value from a stored plot state, or a default for states written by an
+#' older build that lacks it
+#' @keywords internal
+state_or <- function(x, default) if (is.null(x)) default else x
 
 #' Size and orientation of count labels
 #'

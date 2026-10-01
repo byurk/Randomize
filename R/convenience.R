@@ -139,8 +139,10 @@ plot.Group <- function(x, which = c("sim", "desc", "line"),
         plot_boot_dist(st$df, st$obs_stat, st$confLevel, st$ciType,
                        st$dotHist, xlab = st$xlab,
                        stat_label = st$stat_label,
+                       obs_label = state_or(st$obs_label, "Observed\nStatistic"),
                        clamp = st$clamp,
                        show_lines = show_lines,
+                       show_label = show_lines && show_text,
                        show_caption = show_lines && show_text,
                        show_counts = show_counts)
     } else {

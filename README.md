@@ -25,7 +25,9 @@ distributions):
 Every analysis produces:
 
 - **Simulation plots** — dotplot or histogram of the bootstrap/permutation
-  distribution with CI bounds or p-value tail shading
+  distribution with CI bounds or p-value tail shading; axes name the groups
+  and the level being compared, bootstrap plots mark the observed statistic,
+  and up to 25 simulations are drawn one dot per value
 - **Results tables** — observed statistics, confidence intervals or p-values
 - **Descriptive statistics** — sample sizes, means, medians, SDs by group
 
@@ -96,6 +98,7 @@ Use `plot()` to extract ggplot objects from any analysis result:
 ```r
 plot(r)              # simulation/bootstrap distribution (all analyses)
 plot(r, show_counts = TRUE)  # label each bar / dot stack with its count
+plot(r, show_text = FALSE)   # no labels or caption (bootstrap: keeps the lines)
 plot(r, "desc")      # descriptive means/medians plot (mean-comparison analyses)
 plot(r, "line")      # regression scatterplot (slope analyses)
 ```

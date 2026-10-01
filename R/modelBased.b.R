@@ -19,7 +19,7 @@ modelBasedClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
                 resultsArea <- private$.computeArea()
 
                 private$.populateAreaTable(resultsArea)
-                private$.preparePlot()
+                private$.preparePlot(resultsArea$area)
 
             }
 
@@ -148,7 +148,7 @@ modelBasedClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
         },
 
         #### Plot functions ----
-        .preparePlot = function() {
+        .preparePlot = function(area = NULL) {
 
             areaPlot <- self$results$Plot
 
@@ -157,7 +157,8 @@ modelBasedClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
                 dF = self$options$dF,
                 dF2 = self$options$dF2,
                 tail = private$.tail(),
-                obsStat = self$options$obsStat))
+                obsStat = self$options$obsStat,
+                area = area))
 
         },
         .areaPlot = function(image, ggtheme, theme, ...) {
@@ -166,7 +167,7 @@ modelBasedClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
                 return(FALSE)
 
             st <- image$state
-            plot_model_density(st$distro, st$dF, st$dF2, st$obsStat, st$tail)
+            plot_model_density(st$distro, st$dF, st$dF2, st$obsStat, st$tail, area = st$area)
         }
         )
 )
@@ -188,10 +189,18 @@ modelBasedClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
 #'   and F ignore this and shade the right tail.
 #' @return A \code{ggplot} object.
 #' @keywords internal
-plot_model_density <- function(distro, dF, dF2 = NULL, obs = 0, tail = "right") {
+plot_model_density <- function(distro, dF, dF2 = NULL, obs = 0, tail = "right",
+                               area = NULL) {
 
     symmetric <- distro %in% c("ndistro", "tdistro")
     if (!symmetric) tail <- "right"
+
+    # name the axis after the distribution, with its degrees of freedom
+    axis_lab <- switch(distro,
+        ndistro = "Z",
+        tdistro = sprintf("t (df = %s)", format(dF)),
+        chisq   = sprintf("\u03c7\u00b2 (df = %s)", format(dF)),
+        fdistro = sprintf("F (df\u2081 = %s, df\u2082 = %s)", format(dF), format(dF2)))
 
     dfun <- switch(distro,
         ndistro = function(x) stats::dnorm(x),
@@ -257,20 +266,38 @@ plot_model_density <- function(distro, dF, dF2 = NULL, obs = 0, tail = "right") 
     for (s in shade)
         p <- p + ggplot2::geom_area(data = s, stat = "identity",
                                     fill = "red", alpha = 0.5)
+    # Headroom above the curve for the numbers: the observed value and
+    # the shaded area, printed in a white box at the dashed line so the
+    # plot can be read without the table
+    y_max <- if (is.null(y_cap)) max(curve$y) else y_cap
+    y_lab <- y_max * 1.22
+    lab <- sprintf("obs = %s", format(signif(obs, 4)))
+    if (!is.null(area) && is.finite(area))
+        lab <- paste0(lab, if (area < 1e-4) "\narea < 0.0001" else paste0("\narea = ", format(signif(area, 4))))
+    x_lab <- if (symmetric) obs else max(obs, min(x))
+    x_rng <- if (symmetric) range(x) else c(if (min(x) > xmax / 400) min(x) else 0, max(x))
+    hj <- inward_hjust(x_lab, x_rng)
+    x_lab <- x_lab + (0.5 - hj) * 2 * 0.01 * diff(x_rng)
+
     p <- p +
         ggplot2::geom_line() +
         ggplot2::geom_vline(xintercept = lines, linetype = "dashed", color = "red") +
+        ggplot2::annotate("label", x = x_lab, y = y_lab, label = lab,
+                          hjust = hj, vjust = "top", size = 5, color = "red",
+                          fill = "white", label.size = 0,
+                          label.padding = grid::unit(0.15, "lines")) +
         ggplot2::theme_classic() +
         ggplot2::scale_y_continuous(NULL, breaks = NULL,
-                                    expand = ggplot2::expansion(mult = c(0, 0.05))) +
-        ggplot2::xlab("") +
+                                    expand = ggplot2::expansion(mult = c(0, 0.02))) +
+        ggplot2::xlab(axis_lab) +
         ggplot2::theme(text = ggplot2::element_text(size = 18))
 
     if (!symmetric)
-        p <- p + ggplot2::scale_x_continuous(limits = c(if (min(x) > xmax / 400) min(x) else 0, max(x)),
+        p <- p + ggplot2::scale_x_continuous(limits = x_rng,
                                              expand = ggplot2::expansion(mult = c(0, 0.02)))
-    if (!is.null(y_cap))
-        p <- p + ggplot2::coord_cartesian(ylim = c(0, y_cap))
+    # the y axis always reaches the label (the capped case shows the
+    # spike running off the top, as before)
+    p <- p + ggplot2::coord_cartesian(ylim = c(0, y_lab))
 
     p
 }

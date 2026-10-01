@@ -64,7 +64,7 @@ twomeanhtestClass <- R6::R6Class(
             list(dep = dataHTest$dep, group = as.character(dataHTest$group), reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
             function() private$.computePerms(dataHTest))
         res <- private$.computePval(perms, m[1]-m[2])
-        private$.preparePlot(perms, m[1]-m[2], res$direction)
+        private$.preparePlot(perms, m[1]-m[2], res$direction, groupLevels)
       }
         
         if (isError(res)) {
@@ -174,13 +174,13 @@ twomeanhtestClass <- R6::R6Class(
             return('')
             super$.sourcifyOption(option)
           },
-          .preparePlot = function(perms, dm, direction) {
+          .preparePlot = function(perms, dm, direction, levels = NULL) {
 
             permplot <- self$results$simplot
             dotHist <- self$options$dotHist
 
             permplot$setState(list(df=strip_infer(perms), obs_stat=dm, direction=direction, dotHist=dotHist, showCounts=self$options$showCounts,
-                                          xlab="difference (group 1 - group 2)", obs_label="Observed\nDifference"))
+                                          xlab=diff_label("means", levels), obs_label="Observed\nDifference"))
 
         },
           .permPlot = function(image, ggtheme, theme, ...) {
@@ -190,7 +190,7 @@ twomeanhtestClass <- R6::R6Class(
 
             st <- image$state
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
-                           xlab = "difference (group 1 - group 2)",
+                           xlab = state_or(st$xlab, diff_label("means")),
                            obs_label = "Observed\nDifference",
                            show_counts = isTRUE(st$showCounts),
                            plot_width = image$width)

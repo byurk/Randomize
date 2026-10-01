@@ -172,6 +172,7 @@ SingleMeanCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
             p <- plot_boot_dist(st$df, st$obs_stat, st$confLevel, st$ciType,
                                 st$dotHist, xlab = "mean",
                                 stat_label = "bootstrap means",
+                                obs_label = "Observed\nMean",
                                 show_counts = isTRUE(st$showCounts),
                            plot_width = image$width)
             return(p)

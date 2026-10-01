@@ -231,7 +231,8 @@ SinglePropCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
             obs_stat <- counts[1] / total
 
             bootplot$setState(list(df=strip_infer(boot), obs_stat=obs_stat, confLevel = confLevel, ciType = ciType, dotHist=dotHist, showCounts=self$options$showCounts,
-                                          xlab="proportion", stat_label="bootstrap proportions", clamp=c(0, 1)))
+                                          xlab=if (self$options$areCounts) "proportion" else sprintf("proportion of %s", shorten_label(levels[1])),
+                                          stat_label="bootstrap proportions", obs_label="Observed\nProportion", clamp=c(0, 1)))
 
         },
         .bootPlot = function(image, ggtheme, theme, ...) {
@@ -241,8 +242,9 @@ SinglePropCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
 
             st <- image$state
             p <- plot_boot_dist(st$df, st$obs_stat, st$confLevel, st$ciType,
-                                st$dotHist, xlab = "proportion",
+                                st$dotHist, xlab = state_or(st$xlab, "proportion"),
                                 stat_label = "bootstrap proportions",
+                                obs_label = "Observed\nProportion",
                                 clamp = c(0, 1),
                                 show_counts = isTRUE(st$showCounts),
                            plot_width = image$width)
