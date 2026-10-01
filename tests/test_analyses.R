@@ -441,6 +441,40 @@ test("a simulated difference one ulp below the observed one is a tie", {
     stopifnot(nrow(b) == 1, b$fill == "#ff8c8c")       # one bar, shaded
 })
 
+cat("\n=== Filtered-out levels (unused factor levels) ===\n")
+test("proportion analyses drop unused levels beyond two, keep an empty second level", {
+    sp <- data.frame(ans = factor(c(rep("Yes", 13), rep("No", 7)), levels = c("No", "Yes", "Maybe")))
+    r <- SinglePropHTest(data = sp, resp = "ans", testValue = 0.5, reps = 100, seedBool = TRUE, rngSeed = 1)
+    stopifnot(nrow(r$summtable$asDF) == 2, abs(results_table(r)$obsProp - 0.35) < 1e-9)
+    r <- SinglePropCI(data = sp, resp = "ans", reps = 100, seedBool = TRUE, rngSeed = 1)
+    stopifnot(nrow(r$summtable$asDF) == 2)
+    one <- data.frame(ans = factor(rep("H", 5), levels = c("H", "T")))
+    r <- SinglePropHTest(data = one, resp = "ans", testValue = 0.5, reps = 100, seedBool = TRUE, rngSeed = 1)
+    stopifnot(nrow(r$summtable$asDF) == 2, results_table(r)$obsProp == 1)
+})
+test("two-proportion and chi-square analyses ignore empty rows/columns from hidden levels", {
+    tab <- data.frame(g = factor(rep(c("A","B","C"), each = 10)), o = factor(rep(c("Y","N"), 15)))
+    tab <- tab[tab$g != "C", ]
+    r <- TwoPropHTest(data = tab, rows = "g", cols = "o", hypothesis = "different", reps = 100, seedBool = TRUE, rngSeed = 1, compare = "rows")
+    stopifnot(nrow(r$simtable$asDF) == 1, nrow(r$freqs$asDF) == 3 + 1)   # table still shows C (plus total)
+    r <- TwoPropCI(data = tab, rows = "g", cols = "o", reps = 100, seedBool = TRUE, rngSeed = 1, compare = "rows")
+    stopifnot(nrow(r$simtable$asDF) == 1)
+    r <- ContTabHTest(data = tab, rows = "g", cols = "o", reps = 100, seedBool = TRUE, rngSeed = 1, compare = "rows")
+    stopifnot(nrow(r$simtable$asDF) == 1, is.finite(results_table(r)$x2))
+    # a genuinely empty level of a 2-level factor is still reported, not silently dropped
+    z <- data.frame(g = factor(c("A","A","A"), levels = c("A","B")), o = factor(c("Y","N","Y")))
+    r <- TwoPropHTest(data = z, rows = "g", cols = "o", hypothesis = "different", reps = 100, compare = "rows")
+    stopifnot(nrow(r$simtable$asDF) == 0)
+    txt <- gsub("\\s+", " ", paste(capture.output(print(r$diffProp)), collapse = " "))
+    stopifnot(grepl("empty row or column", txt))
+})
+test("cache ignores a corrupt cached object", {
+    holder <- jmvcore::Table$new(options = jmvcore::Options$new(), name = "t", title = "t")
+    holder$setState(list(sims = list(key = list(k = 1), sims = "not a data frame")))
+    r <- cached_sims(holder, list(k = 1), function() data.frame(stat = 1:3))
+    stopifnot(is.data.frame(r), nrow(r) == 3)
+})
+
 cat("\n=== #10: p = 0 reported as < 1/reps ===\n")
 test("format_sim_pval", {
     stopifnot(identical(format_sim_pval(0, 100), "< .01"))

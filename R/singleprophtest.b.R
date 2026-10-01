@@ -125,6 +125,8 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
             if(!is.null(resp)){
 
             varData <- jmvcore::naOmit(self$data[[resp]])
+            if (is.factor(varData) && nlevels(varData) > 2)
+                varData <- droplevels(varData)
 
             if (self$options$areCounts) {
 
@@ -283,6 +285,11 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
         .counts = function(var) {
 
             varData <- jmvcore::naOmit(self$data[[var]])
+            # a jamovi filter leaves the hidden levels on the factor; a
+            # 2-level factor with one empty level must still be allowed
+            # (5 heads, 0 tails), so only drop unused levels beyond two
+            if (is.factor(varData) && nlevels(varData) > 2)
+                varData <- droplevels(varData)
 
             if (self$options$areCounts) {
 

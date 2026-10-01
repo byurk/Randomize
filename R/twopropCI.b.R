@@ -62,8 +62,15 @@ TwoPropCIClass <- R6::R6Class(
 
             private$.populateContTable(mat) # fill in contingency table
 
+            # A jamovi filter leaves hidden levels on the factors; they show
+            # as empty rows / columns in the table above but play no part
+            # in the comparison
+            full_dim <- dim(mat)
+            mat <- mat[rowSums(mat) > 0, colSums(mat) > 0, drop = FALSE]
+            attr(mat, "full_dim") <- full_dim
+
             dp <- NULL
-            is_2x2 <- all(dim(mat) == 2) && all(rowSums(mat) > 0) && all(colSums(mat) > 0)
+            is_2x2 <- all(dim(mat) == 2)
 
             if (is_2x2) {
                 dp <- private$.diffProp(mat)
@@ -243,7 +250,7 @@ TwoPropCIClass <- R6::R6Class(
             } else {
                 diffProp$setRow(rowNo=othRowNo, list(
                     `v[dp]`=NaN))
-                diffProp$addFootnote(rowNo=othRowNo, 'v[dp]', if (all(dim(mat) == 2)) .('Not available: an empty row or column leaves a proportion undefined') else .('Available for 2x2 tables only'))
+                diffProp$addFootnote(rowNo=othRowNo, 'v[dp]', if (all(attr(mat, "full_dim") == 2)) .('Not available: an empty row or column leaves a proportion undefined') else .('Available for 2x2 tables only'))
             }
 
         },

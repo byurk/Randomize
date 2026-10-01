@@ -62,12 +62,15 @@ ContTabHTestClass <- R6::R6Class(
 
             private$.populateContTable(mat) # fill in contingency table
 
+            # hidden (filtered-out) levels show as empty rows / columns in
+            # the table but play no part in the test
+            mat <- mat[rowSums(mat) > 0, colSums(mat) > 0, drop = FALSE]
+
             suppressWarnings({
 
                 x2 <- NULL
 
-                #if (all(dim(mat) == 2) && all(rowSums(mat) > 0) && all(colSums(mat) > 0)) {
-                if (all(rowSums(mat) > 0) && all(colSums(mat) > 0)) {
+                if (all(dim(mat) >= 2)) {
                     x2 <- private$.computeX2(mat)
                     # chisq.test() returns floating-point dust (e.g.
                     # 1.1e-31) for tables whose statistic is exactly

@@ -72,7 +72,9 @@ zap_tiny <- function(x, tol = 1e-10) {
 cached_sims <- function(holder, key, compute, slot = "sims") {
     st <- holder$state
     entry <- if (is.list(st)) st[[slot]] else NULL
-    if (!is.null(entry) && identical(entry$key, key))
+    if (!is.null(entry) && identical(entry$key, key) &&
+        is.data.frame(entry$sims) && "stat" %in% names(entry$sims) &&
+        is.numeric(entry$sims$stat) && nrow(entry$sims) > 0)
         return(entry$sims)
     sims <- strip_infer(compute())
     if (!is.list(st)) st <- list()
