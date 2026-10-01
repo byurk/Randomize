@@ -1,7 +1,7 @@
 Package: Randomize
 Type: Package
 Title: Randomization-Based Inference for Introductory Statistics
-Version: 0.2.0
+Version: 0.3.0
 Authors@R: c(
     person("Brian", "Yurk", email = "yurk@hope.edu",
            role = c("aut", "cre")),

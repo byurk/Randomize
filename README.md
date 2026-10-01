@@ -200,6 +200,13 @@ r <- ContTabHTest(data = d, rows = "treatment", cols = "outcome",
 plot(r)
 ```
 
+## Upgrading from an earlier version
+
+Jamovi files (`.omv`) saved with an older Randomize keep their stored
+results when reopened; they are not recomputed automatically. After
+installing a new version, click an analysis and change any option (or
+re-add a variable) to re-run it with the new code.
+
 ## Development
 
 ```bash
