@@ -177,7 +177,17 @@ pairedmeanhtestClass <- R6::R6Class(
                 reps <- self$options$reps
                 
                 set_seed_if(self$options$seedBool, self$options$rngSeed)
-                
+
+                # infer::specify() runs t.test() internally, which refuses
+                # constant differences (every post = pre + c); the paired
+                # permutation is a random sign flip of each difference, so
+                # draw those directly in that case
+                if (stats::sd(dataHTest$dif) == 0) {
+                    n <- nrow(dataHTest)
+                    signs <- matrix(sample(c(-1, 1), n * reps, replace = TRUE), nrow = reps)
+                    return(data.frame(replicate = seq_len(reps), stat = rowMeans(signs) * dataHTest$dif[1]))
+                }
+
                 perms <- dataHTest %>%
                 infer::specify(response = dif) %>%
                 infer::hypothesize(null = "paired independence") %>%

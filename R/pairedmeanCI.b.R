@@ -179,8 +179,13 @@ pairedmeanCIClass <- R6::R6Class(
                 reps <- self$options$reps
     
                 set_seed_if(self$options$seedBool, self$options$rngSeed)
-    
-    
+
+                # infer::specify() runs t.test() internally, which refuses
+                # constant differences; every bootstrap mean of a constant
+                # sample is that constant, so draw it directly
+                if (stats::sd(df$dif) == 0)
+                    return(data.frame(replicate = seq_len(reps), stat = rep(df$dif[1], reps)))
+
                 boots <- df %>%
                     infer::specify(response = dif) %>%
                     infer::generate(reps = reps, type = "bootstrap") %>%

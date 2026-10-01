@@ -920,6 +920,24 @@ test("two-means descriptives and statistic use the complete cases", {
     assert_not_na(p_num(results_table(r)$p))
 })
 
+# constant differences (every post = pre + c, or pre == post): infer's
+# specify() runs t.test(), which refuses them ("data are essentially
+# constant"); the sign-flip permutation and the bootstrap are drawn directly
+test("paired analyses: constant differences give the sign-flip null / point CI", {
+    d <- data.frame(pre = 1:10 + 0.5, post = 1:10 + 2.5)
+    r <- pairedmeanhtest(data = d, pairs = list(list(i1 = "pre", i2 = "post")), reps = 2000, seedBool = TRUE, rngSeed = 1, hypothesis = "twoGreater")
+    assert_close(results_table(r)$md, -2, 1e-9)
+    p <- p_num(results_table(r)$p)            # exact sign-test p = 0.5^10
+    if (p > 0.01) stop(paste("p should be about 0.001, got", p))
+    st <- r$simplot$state$df$stat
+    if (length(unique(st)) > 11 || any(abs(st) > 2 + 1e-9)) stop("sign-flip null should take at most 11 values in [-2, 2]")
+    r <- pairedmeanCI(data = d, pairs = list(list(i1 = "pre", i2 = "post")), reps = 200, seedBool = TRUE, rngSeed = 1)
+    rt <- results_table(r); assert_close(rt$cil, -2, 1e-9); assert_close(rt$ciu, -2, 1e-9)
+    d$post <- d$pre
+    r <- pairedmeanhtest(data = d, pairs = list(list(i1 = "pre", i2 = "post")), reps = 100)
+    assert_close(p_num(results_table(r)$p), 1, 1e-9)
+})
+
 # ============================================================
 # Jamovi 2.7 formula sandbox
 # ============================================================
