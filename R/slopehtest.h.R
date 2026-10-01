@@ -219,7 +219,6 @@ slopehtestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
                 rows="(dep)",
                 clearWith=list(
                     "indep",
-                    "hypothesis",
                     "rngSeed",
                     "seedBool",
                     "reps"),

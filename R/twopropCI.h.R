@@ -246,8 +246,6 @@ TwoPropCIResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
                     "cols",
                     "counts",
                     "compare",
-                    "confLevel",
-                    "ciType",
                     "reps",
                     "rngSeed",
                     "seedBool"),

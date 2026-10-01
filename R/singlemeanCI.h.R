@@ -169,8 +169,6 @@ SingleMeanCIResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
                 title="Simulation Results",
                 clearWith=list(
                     "resp",
-                    "confLevel",
-                    "ciType",
                     "reps",
                     "seedBool",
                     "rngSeed"),

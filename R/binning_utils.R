@@ -84,6 +84,12 @@ choose_binning <- function(stats, anchor, align = c("edge", "center"),
         1 - sum(counts > 0) / length(counts)
     }
 
+    # Empty bins that count against a candidate width (see above)
+    gap_ok <- function(counts) {
+        if (length(stats) < 300) return(frac_empty(counts) <= max_empty)
+        !body_gap(counts, min_n = 5)
+    }
+
     # Fraction of interior bins that drop to half (or less) of both
     # substantial neighbors.  Detects sawtooth patterns, e.g. mixed
     # lattices like p1 - p2 with unequal n, where adjacent multiples of
@@ -159,18 +165,25 @@ choose_binning <- function(stats, anchor, align = c("edge", "center"),
     # multiple of the lattice spacing, which removes aliasing
     # immediately; wider bins absorb the gaps.
     #
-    # Occupancy is judged on the central 98% of the simulations.  Judging
-    # it on the full range made the bin count a lottery: one stray tail
-    # simulation leaving an empty bin behind it dropped a 1000-rep null
-    # from 30 bars to 16 or 13 on roughly two runs in three, so the same
-    # analysis looked different every time it ran.  The body of the
-    # distribution is always gap-free; the outer 1% per side may show an
-    # honest empty bin next to a lone extreme simulation.
+    # Occupancy is judged on the central 98% of the simulations, and --
+    # from 300 simulations up -- an empty bin only counts against a width
+    # when both of its nearest occupied neighbours hold at least 5
+    # simulations (a hole in the body of the distribution).  Judging the
+    # full range made the bin count a lottery: one stray tail simulation
+    # leaving an empty bin behind it dropped a 1000-rep null from 30 bars
+    # to 16 or 13 on roughly two runs in three.  With the window alone,
+    # heavy-tailed statistics (F, chi-square) still varied 20-30 bars at
+    # 300-1000 reps; the neighbour rule makes the count stable there and
+    # only ever permits an empty bin beside sparse ones (counts < 5),
+    # where it reads as honest sparseness, not a binning error.  Below
+    # 300 simulations every bin in the window must be occupied: the
+    # plots are chunky anyway and a gap next to a 3-count bar looks like
+    # a mistake.
     try_ladder <- function(lo, hi) {
         for (k in ks) {
             cand <- if (lattice) res * max(1, round((span / k) / res)) else span / k
             counts <- bin_counts(cand, lo, hi)
-            if (frac_empty(counts) <= max_empty && frac_zigzag(counts) <= 0.2)
+            if (gap_ok(counts) && frac_zigzag(counts) <= 0.2)
                 return(cand)
         }
         NULL

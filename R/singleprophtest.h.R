@@ -182,7 +182,6 @@ SinglePropHTestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
                     "resp",
                     "areCounts",
                     "testValue",
-                    "alt",
                     "reps",
                     "rngSeed",
                     "seedBool"),

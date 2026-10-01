@@ -102,8 +102,6 @@ items:
       rows: (vars)
       clearWith:
         - group
-        - confLevel
-        - ciType
         - rngSeed
         - seedBool
         - reps

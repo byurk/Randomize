@@ -137,8 +137,18 @@ assert_gap_free <- function(el, stats, single_value = FALSE) {
         return(invisible())
     }
     inwin <- mids[mids >= win[1] - step & mids <= win[2] + step]
-    if (length(inwin) > 1 && any(diff(inwin) > 1.5 * step))
-        stop("empty bin (gap) inside the central window")
+    if (length(inwin) > 1) {
+        gap <- diff(inwin) > 1.5 * step
+        if (length(stats) >= 300) {
+            # from 300 simulations up, a gap is tolerated when either
+            # flanking column is sparse (< 5): honest sparseness, not a
+            # binning artifact
+            hl <- as.numeric(h[as.character(inwin[-length(inwin)])])
+            hr <- as.numeric(h[as.character(inwin[-1])])
+            gap <- gap & hl >= 5 & hr >= 5
+        }
+        if (any(gap)) stop("empty bin (gap) between well-populated bins inside the central window")
+    }
 }
 
 # Does the plot use one bin per achievable lattice value?
@@ -359,17 +369,33 @@ test("5 continuous reps are binned; a 2x2 chi-square with ties is one column per
 })
 
 cat("\n=== Bin count is stable across re-runs of the same analysis ===\n")
-test("1000 continuous reps land on the target bin count run after run", {
-    set.seed(31)
-    sc <- c(rnorm(25, 10, 2), rnorm(25, 11, 2)); g <- rep(c("A", "B"), each = 25)
-    bars <- replicate(25, {
-        s <- permute_diff_means(sc, g, c("A", "B"), 1000)$stat
-        b <- choose_binning(s, 0.3, align = "edge", sign = 1)
-        round(diff(range(s)) / b$bw)
+for (case in list(list(nm = "normal 1000", gen = function() rnorm(1000)),
+                  list(nm = "normal 300", gen = function() rnorm(300)),
+                  list(nm = "chi-square(3) 1000", gen = function() rchisq(1000, 3)),
+                  list(nm = "F(3,20) 1000", gen = function() rf(1000, 3, 20)),
+                  list(nm = "t(2) heavy tails 1000", gen = function() rt(1000, 2)),
+                  list(nm = "F(3,20) 5000", gen = function() rf(5000, 3, 20)))) {
+    test(paste(case$nm, "reps land on the same bin count run after run"), {
+        set.seed(31)
+        bars <- replicate(25, {
+            s <- case$gen()
+            b <- choose_binning(s, stats::quantile(s, 0.9), align = "edge", sign = 1)
+            round(diff(range(s)) / b$bw)
+        })
+        if (length(unique(bars)) > 2 || min(bars) < 24)
+            stop(paste("bar counts across runs:", paste(sort(unique(bars)), collapse = " ")))
     })
-    # at most two distinct bar counts, and never fewer than 24
-    if (length(unique(bars)) > 2 || min(bars) < 24)
-        stop(paste("bar counts across runs:", paste(sort(unique(bars)), collapse = " ")))
+}
+test("below 300 reps no bin in the central 98% is ever empty", {
+    set.seed(32)
+    for (i in 1:20) {
+        s <- rchisq(100, 3)
+        b <- choose_binning(s, 2, align = "edge", sign = 1)
+        idx <- bin_index(s, 2, b$bw, b$off, 1, "edge")
+        q <- stats::quantile(idx, c(0.01, 0.99), type = 1, names = FALSE)
+        w <- idx[idx >= q[1] & idx <= q[2]]
+        if (any(tabulate(w - min(w) + 1) == 0)) stop("empty bin inside the window at 100 reps")
+    }
 })
 
 cat("\n=== Toggle stability: bare mode draws identical bars ===\n")

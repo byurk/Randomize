@@ -70,7 +70,6 @@ items:
           - resp
           - areCounts
           - testValue
-          - alt
           - reps
           - rngSeed
           - seedBool

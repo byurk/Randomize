@@ -65,8 +65,6 @@ items:
       description: a table of the simulation results
       clearWith:
           - resp
-          - confLevel
-          - ciType
           - reps
           - seedBool
           - rngSeed

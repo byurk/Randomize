@@ -83,8 +83,6 @@ items:
       rows: (dep)
       clearWith:
         - indep
-        - confLevel
-        - ciType
         - rngSeed
         - seedBool
         - reps

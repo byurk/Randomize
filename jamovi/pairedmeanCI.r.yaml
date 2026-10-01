@@ -72,8 +72,6 @@ items:
       type: Table
       rows: (pairs)
       clearWith:
-        - confLevel
-        - ciType
         - rngSeed
         - seedBool
         - reps

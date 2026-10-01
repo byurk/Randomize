@@ -182,8 +182,6 @@ SinglePropCIResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
                 clearWith=list(
                     "resp",
                     "areCounts",
-                    "confLevel",
-                    "ciType",
                     "reps",
                     "seedBool",
                     "rngSeed"),

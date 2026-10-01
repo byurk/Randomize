@@ -68,8 +68,6 @@ items:
           - cols
           - counts
           - compare
-          - confLevel
-          - ciType
           - reps
           - rngSeed
           - seedBool

@@ -199,8 +199,6 @@ pairedmeanCIResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
                 title="Paired Means - Confidence Interval",
                 rows="(pairs)",
                 clearWith=list(
-                    "confLevel",
-                    "ciType",
                     "rngSeed",
                     "seedBool",
                     "reps"),

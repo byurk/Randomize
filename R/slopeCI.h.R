@@ -229,8 +229,6 @@ slopeCIResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
                 rows="(dep)",
                 clearWith=list(
                     "indep",
-                    "confLevel",
-                    "ciType",
                     "rngSeed",
                     "seedBool",
                     "reps"),

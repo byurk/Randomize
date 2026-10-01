@@ -82,7 +82,6 @@ items:
       rows: (dep)
       clearWith:
         - indep
-        - hypothesis
         - rngSeed
         - seedBool
         - reps

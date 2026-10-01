@@ -669,6 +669,100 @@ test("edited data invalidates the cache even when no option changed", {
     stopifnot(a$stat == 1, b$stat == 2)
 })
 
+cat("\n=== Option-change matrix: only simulation inputs redraw the simulations ===\n")
+# For every analysis, change each option in place and re-run (as jamovi does on
+# every option change). Options that do not determine the simulations must leave
+# them untouched; options that do must produce new draws (unseeded).
+sim_state <- function(r) { img <- if (!is.null(r[["simplot"]])) r$simplot else r$Plot; img$state$df$stat }
+set_opt <- function(r, name, value) { o <- r$analysis$options$option(name); o$value <- value }
+rerun <- function(r) r$analysis$.__enclos_env__$private$.run()
+check_matrix <- function(label, r, keep, change) {
+    test(paste("matrix:", label), {
+        base <- sim_state(r)
+        for (nm in names(keep)) {
+            set_opt(r, nm, keep[[nm]]); rerun(r)
+            if (!identical(sim_state(r), base)) stop(paste("changing", nm, "redrew the simulations"))
+        }
+        for (nm in names(change)) {
+            before <- sim_state(r); set_opt(r, nm, change[[nm]]); rerun(r)
+            if (identical(sim_state(r), before)) stop(paste("changing", nm, "did not redraw the simulations"))
+        }
+    })
+}
+cat_tab <- data.frame(group = factor(rep(c("A","B"), each = 20)),
+                      outcome = factor(c(rep("Yes", 15), rep("No", 5), rep("Yes", 8), rep("No", 12))))
+check_matrix("twomeanhtest",
+    twomeanhtest(data = clean_data, vars = "score", group = "group", hypothesis = "different", reps = 150, seedBool = FALSE),
+    keep = list(hypothesis = "oneGreater", dotHist = "histogram", showCounts = TRUE, desc = TRUE, plots = TRUE),
+    change = list(reps = 160, seedBool = TRUE, rngSeed = 5))
+check_matrix("twomeanCI",
+    twomeanCI(data = clean_data, vars = "score", group = "group", reps = 150, seedBool = FALSE),
+    keep = list(confLevel = 90, ciType = "bootse", dotHist = "histogram", showCounts = TRUE, desc = TRUE, plots = TRUE),
+    change = list(reps = 160))
+check_matrix("pairedmeanhtest",
+    pairedmeanhtest(data = clean_data, pairs = list(list(i1 = "measure1", i2 = "measure2")), hypothesis = "different", reps = 150, seedBool = FALSE),
+    keep = list(hypothesis = "twoGreater", dotHist = "histogram", showCounts = TRUE, desc = TRUE, plots = TRUE),
+    change = list(reps = 160))
+check_matrix("pairedmeanCI",
+    pairedmeanCI(data = clean_data, pairs = list(list(i1 = "measure1", i2 = "measure2")), reps = 150, seedBool = FALSE),
+    keep = list(confLevel = 99, ciType = "bootse", dotHist = "histogram", showCounts = TRUE),
+    change = list(reps = 160))
+check_matrix("multimeanhtest",
+    multimeanhtest(data = multi_data, vars = "score", group = "group", reps = 150, seedBool = FALSE),
+    keep = list(dotHist = "histogram", showCounts = TRUE, desc = TRUE, plots = TRUE),
+    change = list(reps = 160))
+check_matrix("slopehtest",
+    slopehtest(data = reg_data, dep = "y", indep = "x", hypothesis = "notequal", reps = 150, seedBool = FALSE),
+    keep = list(hypothesis = "greater", dotHist = "histogram", showCounts = TRUE, coef = TRUE, modelfit = TRUE, plots = TRUE),
+    change = list(reps = 160))
+check_matrix("slopeCI",
+    slopeCI(data = reg_data, dep = "y", indep = "x", reps = 150, seedBool = FALSE),
+    keep = list(confLevel = 90, ciType = "bootse", dotHist = "histogram", showCounts = TRUE, coef = TRUE),
+    change = list(reps = 160))
+check_matrix("SingleMeanCI",
+    SingleMeanCI(data = clean_data, resp = "score", reps = 150, seedBool = FALSE),
+    keep = list(confLevel = 90, ciType = "bootse", dotHist = "histogram", showCounts = TRUE),
+    change = list(reps = 160))
+check_matrix("SinglePropHTest",
+    SinglePropHTest(data = cat_data, resp = "outcome", testValue = 0.5, alt = "notequal", reps = 150, seedBool = FALSE),
+    keep = list(alt = "greater", dotHist = "histogram", showCounts = TRUE),
+    change = list(testValue = 0.4, reps = 160))
+check_matrix("SinglePropCI",
+    SinglePropCI(data = cat_data, resp = "outcome", reps = 150, seedBool = FALSE),
+    keep = list(confLevel = 90, ciType = "bootse", dotHist = "histogram", showCounts = TRUE),
+    change = list(reps = 160))
+check_matrix("TwoPropHTest",
+    TwoPropHTest(data = cat_tab, rows = "group", cols = "outcome", hypothesis = "different", reps = 150, seedBool = FALSE, compare = "rows"),
+    keep = list(hypothesis = "oneGreater", dotHist = "histogram", showCounts = TRUE, obs = TRUE, exp = TRUE, pcRow = TRUE),
+    change = list(compare = "columns", reps = 160))
+check_matrix("TwoPropCI",
+    TwoPropCI(data = cat_tab, rows = "group", cols = "outcome", reps = 150, seedBool = FALSE, compare = "rows"),
+    keep = list(confLevel = 90, ciType = "bootse", dotHist = "histogram", showCounts = TRUE, exp = TRUE),
+    change = list(compare = "columns", reps = 160))
+check_matrix("ContTabHTest",
+    ContTabHTest(data = cat_tab, rows = "group", cols = "outcome", reps = 150, seedBool = FALSE, compare = "rows"),
+    keep = list(dotHist = "histogram", showCounts = TRUE, obs = TRUE, exp = TRUE, pcRow = TRUE, pcCol = TRUE, pcTot = TRUE),
+    change = list(reps = 160))
+
+test("cache holders' clearWith lists contain only simulation inputs (jamovi wipes state on these)", {
+    holders <- c(twomeanhtest = "htest", pairedmeanhtest = "htest", multimeanhtest = "htest", slopehtest = "htest",
+                 twomeanCI = "CITable", pairedmeanCI = "CITable", slopeCI = "CITable", singlemeanCI = "simtable",
+                 singleprophtest = "simtable", singlepropCI = "simtable", twoprophtest = "simtable",
+                 twopropCI = "simtable", conttabhtest = "simtable")
+    never <- c("hypothesis", "alt", "confLevel", "ciType", "dotHist", "showCounts", "desc", "plots",
+               "coef", "modelfit", "obs", "exp", "pcRow", "pcCol", "pcTot")
+    for (a in names(holders)) {
+        txt <- readLines(sprintf("jamovi/%s.r.yaml", a), warn = FALSE, encoding = "UTF-8")
+        start <- grep(sprintf("^\\s+- name:\\s+%s\\s*$", holders[[a]]), txt)[1]
+        nxt <- grep("^\\s+- name:", txt); nxt <- nxt[nxt > start]; end <- if (length(nxt)) nxt[1] - 1 else length(txt)
+        blk <- txt[start:end]; cw <- grep("^\\s+clearWith:", blk)
+        items <- sub("^\\s+- ", "", grep("^\\s+- \\w+\\s*$", blk[(cw + 1):length(blk)], value = TRUE))
+        items <- items[seq_len(match(FALSE, grepl("^\\w+$", items), nomatch = length(items) + 1) - 1)]
+        bad <- intersect(items, never)
+        if (length(bad)) stop(paste0(a, "/", holders[[a]], " clearWith has display/inference options: ", paste(bad, collapse = ", ")))
+    }
+})
+
 cat("\n=== Formula-free resampling matches the model-based statistics ===\n")
 test("f_stat equals anova(lm()) F", {
     f_ref <- anova(lm(score ~ group, data = multi_data))$F[1]

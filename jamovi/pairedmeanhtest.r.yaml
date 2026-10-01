@@ -71,7 +71,6 @@ items:
       type: Table
       rows: (pairs)
       clearWith:
-        - hypothesis
         - rngSeed
         - seedBool
         - reps

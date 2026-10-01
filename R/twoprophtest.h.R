@@ -236,7 +236,6 @@ TwoPropHTestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
                     "cols",
                     "counts",
                     "compare",
-                    "hypothesis",
                     "reps",
                     "rngSeed",
                     "seedBool"),

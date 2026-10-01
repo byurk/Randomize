@@ -231,7 +231,6 @@ twomeanhtestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
                 rows="(vars)",
                 clearWith=list(
                     "group",
-                    "hypothesis",
                     "rngSeed",
                     "seedBool",
                     "reps"),

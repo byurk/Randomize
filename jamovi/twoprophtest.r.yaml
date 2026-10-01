@@ -67,7 +67,6 @@ items:
           - cols
           - counts
           - compare
-          - hypothesis
           - reps
           - rngSeed
           - seedBool

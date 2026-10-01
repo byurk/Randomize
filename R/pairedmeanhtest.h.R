@@ -189,7 +189,6 @@ pairedmeanhtestResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6C
                 title="Paired Means - Hypothesis Test",
                 rows="(pairs)",
                 clearWith=list(
-                    "hypothesis",
                     "rngSeed",
                     "seedBool",
                     "reps"),
