@@ -137,12 +137,9 @@ plot_desc_stats <- function(plotData, xlab, ylab = NULL,
         plot <- plot + ggplot2::geom_point(
             data = pts, ggplot2::aes(x = xpos, y = stat), inherit.aes = FALSE,
             color = "grey55", alpha = 0.45, size = 1.6)
-        n_total <- attr(plotData, "n_total"); n_shown <- attr(plotData, "n_shown")
-        if (!is.null(n_total) && !is.null(n_shown) && n_shown < n_total)
-            plot <- plot + ggplot2::labs(caption = sprintf("showing %s of %s observations (evenly spaced by value)",
-                                                           formatC(n_shown, format = "d", big.mark = ","), formatC(n_total, format = "d", big.mark = ","))) +
-                ggplot2::theme(plot.caption = ggplot2::element_text(color = "grey40", hjust = 0))
     }
+    n_total <- attr(plotData, "n_total"); n_shown <- attr(plotData, "n_shown")
+    thinned <- nrow(pts) > 0 && !is.null(n_total) && !is.null(n_shown) && n_shown < n_total
     # the markers are filled (the scatterplot's blue) with a dark outline
     # so they stand off the grey observations behind them
     plot <- plot +
@@ -162,6 +159,14 @@ plot_desc_stats <- function(plotData, xlab, ylab = NULL,
             plot.title = ggplot2::element_text(margin = ggplot2::margin(b = 5.5 * 1.2)),
             plot.margin = ggplot2::margin(5.5, 5.5, 5.5, 5.5)
         )
+
+    # (after ggtheme, which would otherwise right-align the caption and
+    # push a long line off the 400-px image)
+    if (thinned)
+        plot <- plot + ggplot2::labs(caption = sprintf("showing %s of %s observations\n(evenly spaced by value)",
+                                                       formatC(n_shown, format = "d", big.mark = ","),
+                                                       formatC(n_total, format = "d", big.mark = ","))) +
+            ggplot2::theme(plot.caption = ggplot2::element_text(color = "grey40", hjust = 0, size = 9))
 
     plot
 }
