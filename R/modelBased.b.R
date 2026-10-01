@@ -45,7 +45,7 @@ modelBasedClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
                 ndistro = "standard normal distribution",
                 tdistro = jmvcore::format("t-distribution with df = {df}", df = self$options$dF),
                 chisq   = jmvcore::format("chi-square distribution with df = {df}", df = self$options$dF),
-                fdistro = jmvcore::format("F-distribution with df₁ = {df1}, df₂ = {df2}",
+                fdistro = jmvcore::format("F-distribution with df\u2081 = {df1}, df\u2082 = {df2}",
                                           df1 = self$options$dF, df2 = self$options$dF2))
         },
         # Effective tail: chi-square and F always use the right tail
@@ -100,9 +100,9 @@ modelBasedClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
 
             tail <- private$.tail()
             region <- switch(tail,
-                right = "Right-tail area (values ≥ observed) under the {d}",
-                left  = "Left-tail area (values ≤ observed) under the {d}",
-                both  = "Two-tail area (both tails beyond ±|observed|) under the {d}")
+                right = "Right-tail area (values \u2265 observed) under the {d}",
+                left  = "Left-tail area (values \u2264 observed) under the {d}",
+                both  = "Two-tail area (both tails beyond \u00b1|observed|) under the {d}")
 
             areatable$setNote('area', jmvcore::format(region, d = private$.distName()))
 

@@ -27,7 +27,7 @@ find_image <- function(x, which) {
     }
 
     if (which == "desc") {
-        # Descriptive (mean/median) plot — stored in an Array
+        # Descriptive (mean/median) plot - stored in an Array
         arr <- x[["descplot"]]
         if (is.null(arr)) return(NULL)
         # Get the first element, which contains a $desc sub-image
@@ -39,7 +39,7 @@ find_image <- function(x, which) {
     }
 
     if (which == "line") {
-        # Regression scatterplot — stored in an Array
+        # Regression scatterplot - stored in an Array
         arr <- x[["linplot"]]
         if (is.null(arr)) return(NULL)
         keys <- arr$itemKeys
