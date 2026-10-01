@@ -73,10 +73,22 @@ choose_binning <- function(stats, anchor, align = c("edge", "center"),
     res <- li$res
     lattice <- li$lattice
 
+    # Bin occupancy over the central window.  The window trims a fixed
+    # NUMBER of simulations from each end (floor(n * 1%) at lo = 0.01), on
+    # the values themselves, so it is the same set of simulations
+    # whichever tail is extreme.  (Taking quantiles of the bin indices
+    # kept one more simulation on one side than the other after the
+    # grid was mirrored, and that single tail simulation decided whether
+    # a width was gap-free -- so "less" and "greater" drew different bar
+    # widths from identical simulations on 90 of 200 100-rep samples.)
+    n <- length(stats)
+    ord <- order(stats)
     bin_counts <- function(bw, lo, hi) {
         idx <- bin_index(stats, anchor, bw, min(res, bw) / 2, sign, align)
-        qs <- stats::quantile(idx, c(lo, hi), type = 1, names = FALSE)
-        win <- idx[idx >= qs[1] & idx <= qs[2]]
+        d_lo <- floor(n * lo)
+        d_hi <- floor(n * (1 - hi))
+        keep <- ord[(d_lo + 1L):(n - d_hi)]
+        win <- idx[keep]
         tabulate(win - min(win) + 1L)
     }
 

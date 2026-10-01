@@ -399,6 +399,21 @@ test("below 300 reps no bin in the central 98% is ever empty", {
 })
 
 cat("\n=== Direction invariance: the alternative never changes the bars (except the tie column) ===\n")
+test("bin width never depends on the direction (rounded and continuous, 60 to 1000 reps)", {
+    sc <- round(c(rnorm(13, 10, 2), rnorm(12, 10, 2)), 1); g <- rep(c("A", "B"), c(13, 12))
+    obs <- mean(sc[g == "A"]) - mean(sc[g == "B"])
+    for (reps in c(60, 100, 300, 1000)) for (seed in 1:15) {
+        set.seed(seed)
+        s <- permute_diff_means(sc, g, c("A", "B"), reps)$stat
+        b1 <- choose_binning(s, obs, "edge", sign = 1); b2 <- choose_binning(s, obs, "edge", sign = -1)
+        if (abs(b1$bw - b2$bw) > 1e-12)
+            stop(sprintf("reps=%d seed=%d: width %.4f for greater vs %.4f for less", reps, seed, b1$bw, b2$bw))
+        s2 <- s + runif(reps, -1e-3, 1e-3)
+        b1 <- choose_binning(s2, obs + 2e-4, "edge", sign = 1); b2 <- choose_binning(s2, obs + 2e-4, "edge", sign = -1)
+        if (abs(b1$bw - b2$bw) > 1e-12)
+            stop(sprintf("continuous reps=%d seed=%d: width differs by direction", reps, seed))
+    }
+})
 test("rounded data: less / greater / two-sided give the same histogram apart from ties at the line", {
     set.seed(41)
     sc <- round(c(rnorm(13, 10, 2), rnorm(12, 10, 2)), 1); g <- rep(c("A", "B"), c(13, 12))
