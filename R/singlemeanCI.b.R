@@ -25,7 +25,7 @@ SingleMeanCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
                 xbar <- results$mean
 
                 boot <- cached_sims(self$results$simtable,
-                    list(x = jmvcore::naOmit(self$data[[self$options$resp]]), reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+                    list(x = private$.column(), reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
                     function() private$.computeBoots())
                 simres <- private$.computeCI(boot, xbar)
 
@@ -38,11 +38,23 @@ SingleMeanCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
         },
 
         #### Compute results ----
+        # The response without missing values, as numbers.  A jamovi
+        # column of integers with a nominal measure type arrives as a
+        # factor carrying a "values" attribute; toNumeric() recovers the
+        # numbers (the other mean analyses already do this).  A text
+        # column is refused with a message rather than a median() error.
+        .column = function() {
+            resp <- self$options$resp
+            x <- jmvcore::toNumeric(jmvcore::naOmit(self$data[[resp]]))
+            if (!is.numeric(x))
+                jmvcore::reject(jmvcore::format("Variable '{resp}' is not numeric", resp = resp), code = '')
+            x
+        },
         .computeSumm = function() {
 
             resp <- self$options$resp
 
-            varData <- jmvcore::naOmit(self$data[[resp]])
+            varData <- private$.column()
 
             descriptives <- list(var=resp, num=length(varData), mean=mean(varData), med=median(varData), sd=sd(varData))
 
@@ -53,7 +65,7 @@ SingleMeanCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
             resp <- self$options$resp
             reps <- self$options$reps
 
-            varData <- jmvcore::naOmit(self$data[[resp]])
+            varData <- private$.column()
 
             df <- tibble::tibble(val = varData)
 
@@ -186,7 +198,7 @@ SingleMeanCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
 
             if(!is.null(resp)){
 
-            column <- jmvcore::naOmit(data[[resp]])
+            column <- private$.column()
             if (length(column) == 0) {
                 jmvcore::reject(
                     jmvcore::format("Variable '{resp}' contains no data", resp=resp),

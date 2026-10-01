@@ -996,6 +996,20 @@ test("two-proportion CI: one rep on a tiny table runs; bootstrap matches infer's
     assert_close(mean(st), -0.3, 0.02)
 })
 
+# a jamovi column of integers with a nominal measure type arrives as a
+# factor with a "values" attribute; the single-mean CI fed it to median()
+# ("need numeric data") while every other mean analysis converts it
+test("single mean CI: nominal-integer column (jamovi factor with values) is converted", {
+    v <- c(12, 8, 5, 7, 9, 11, 6, 10)
+    f <- factor(v, levels = sort(unique(v))); attr(f, "values") <- sort(unique(v))
+    d <- data.frame(y = f)
+    r <- SingleMeanCI(data = d, resp = "y", reps = 100, seedBool = TRUE, rngSeed = 1)
+    assert_close(results_table(r)$obsMean, mean(v), 1e-9)
+    assert_not_na(results_table(r)$cil)
+    ft <- factor(c("a", "b", "a")); attr(ft, "values") <- NULL
+    expect_reject(SingleMeanCI(data = data.frame(y = ft), resp = "y", reps = 50), "not numeric|requires a numeric")
+})
+
 # ============================================================
 # Jamovi 2.7 formula sandbox
 # ============================================================
