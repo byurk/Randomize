@@ -140,20 +140,15 @@ TwoPropCIClass <- R6::R6Class(
             if (self$options$compare == "columns")
                 mat <- t(mat)
 
-            # create data from from contingency table for use with infer functions
-            df <- tibble::tibble(Group = c("G1", "G2", "G1", "G2"),
-                                 Outcome = c("O1", "O1", "O2", "O2"),
-                                 Count = c(mat[1,1], mat[2,1], mat[1,2], mat[2,2])) %>%
-                tidyr::uncount(Count)
-
             reps <- self$options$reps
 
             set_seed_if(self$options$seedBool, self$options$rngSeed)
 
-            boots <- df %>%
-                infer::specify(Outcome ~ Group, success = "O1") %>%
-                infer::generate(reps = reps, type = "bootstrap") %>%
-                infer::calculate(stat = "diff in props", order = c("G1", "G2"))
+            # Drawn directly rather than through infer: with a handful of
+            # rows and one or two reps a resample can contain a single
+            # group, and infer then errors ("G2 is not a level of the
+            # explanatory variable") instead of dropping that replicate.
+            boots <- bootstrap_diff_props(unclass(mat), reps)
 
             return(boots)
 

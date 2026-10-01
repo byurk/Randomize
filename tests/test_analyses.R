@@ -967,6 +967,35 @@ test("paired analyses: every pair is analysed, one simulation plot per pair", {
     assert_close(tb2$cil[3], -tb2$ciu[1], 1e-12)
 })
 
+# a group whose values are all missing (level kept, rows gone) made the
+# descriptives table choke on a zero-length summary
+test("F test: a group with every value missing gets n = 0 and a footnote", {
+    d <- data.frame(y = c(rnorm(6), rep(NA, 3)), g = factor(rep(c("A", "B", "C"), each = 3)))
+    r <- multimeanhtest(data = d, vars = "y", group = "g", reps = 50, desc = TRUE, plots = TRUE)
+    expect_footnote(r$htest, "at least 2 observations")
+    dt <- desc_table(r)
+    if (dt$num[dt$group == "C" | grepl("C$", rownames(dt))][1] != 0) stop("group C should report n = 0")
+})
+
+# a bootstrap resample of a handful of rows can contain one group only;
+# infer errored ("G2 is not a level of the explanatory variable") when
+# that was the only replicate, instead of dropping it
+test("two-proportion CI: one rep on a tiny table runs; bootstrap matches infer's", {
+    d <- data.frame(g = c("A","A","B","B"), o = c("y","n","y","n"), n = c(1, 2, 2, 0))
+    for (reps in c(1, 2, 5)) {
+        r <- TwoPropCI(data = d, rows = "g", cols = "o", counts = "n", reps = reps, seedBool = TRUE, rngSeed = 25)
+        assert_not_na(results_table(r)$obsDiff)
+    }
+    d2 <- data.frame(g = c("A","A","B","B"), o = c("y","n","y","n"), n = c(18, 12, 9, 21))
+    r <- TwoPropCI(data = d2, rows = "g", cols = "o", counts = "n", reps = 3000, seedBool = TRUE, rngSeed = 1)
+    st <- r$Plot$state$df$stat
+    df <- tibble::tibble(Group = c("G1","G2","G1","G2"), Outcome = c("O1","O1","O2","O2"), Count = c(12, 21, 18, 9)) |> tidyr::uncount(Count)
+    set.seed(2)
+    ib <- df |> infer::specify(Outcome ~ Group, success = "O1") |> infer::generate(reps = 3000, type = "bootstrap") |> infer::calculate(stat = "diff in props", order = c("G1", "G2"))
+    if (suppressWarnings(ks.test(st, ib$stat)$p.value) < 0.001) stop("bootstrap distribution differs from infer's")
+    assert_close(mean(st), -0.3, 0.02)
+})
+
 # ============================================================
 # Jamovi 2.7 formula sandbox
 # ============================================================

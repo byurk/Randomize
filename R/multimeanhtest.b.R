@@ -102,11 +102,17 @@ multimeanhtestClass <- R6::R6Class(
 
             for( level in groupLevels){
 
+              # a level whose values are all missing has no summary
+              # (tapply gives NULL); report n = 0 rather than a
+              # zero-length value the table refuses
+              dl <- desc[[level]]
+              if (is.null(dl)) dl <- c(n = 0, mean = NaN, median = NaN, sd = NaN)
+
               row <- list(
-                "num" = as.numeric(desc[[level]]['n']),
-                "mean" = as.numeric(desc[[level]]['mean']),
-                "median" = as.numeric(desc[[level]]['median']),
-                "sd" = as.numeric(desc[[level]]['sd'])
+                "num" = as.numeric(dl['n']),
+                "mean" = as.numeric(dl['mean']),
+                "median" = as.numeric(dl['median']),
+                "sd" = as.numeric(dl['sd'])
             )
 
             descTable$setRow(rowKey=paste0(depVarName,level), row)

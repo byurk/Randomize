@@ -256,3 +256,30 @@ bootstrap_diff_means <- function(dep, group, levels, reps) {
     out <- data.frame(replicate = seq_len(reps), stat = stat)
     out[is.finite(out$stat), ]
 }
+
+#' Bootstrap the difference in proportions from a 2x2 table (no infer)
+#'
+#' Resamples the rows of the data behind \code{mat} with replacement and
+#' returns \eqn{p_1 - p_2} (proportion of column 1 in row 1 minus row 2),
+#' the same distribution as \code{infer::generate(type = "bootstrap")} with
+#' \code{calculate("diff in props", order = c("G1", "G2"))}.  A resample
+#' that happens to contain only one group (possible with a handful of
+#' rows) is dropped, where infer would error outright when that was the
+#' only replicate.
+#'
+#' @param mat A 2x2 matrix of counts (rows = groups, columns = outcomes).
+#' @param reps Number of bootstrap replicates.
+#' @return A data frame with \code{replicate} and \code{stat} columns.
+#' @keywords internal
+bootstrap_diff_props <- function(mat, reps) {
+    g <- rep(c(1L, 2L), rowSums(mat))
+    o <- c(rep(c(1L, 2L), mat[1, ]), rep(c(1L, 2L), mat[2, ]))
+    n <- length(g)
+    stat <- vapply(seq_len(reps), function(i) {
+        s <- sample.int(n, n, replace = TRUE)
+        gs <- g[s]; os <- o[s]
+        mean(os[gs == 1L] == 1L) - mean(os[gs == 2L] == 1L)
+    }, numeric(1))
+    out <- data.frame(replicate = seq_len(reps), stat = stat)
+    out[is.finite(out$stat), ]
+}
