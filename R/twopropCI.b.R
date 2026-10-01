@@ -73,8 +73,9 @@ TwoPropCIClass <- R6::R6Class(
 
             if (is_2x2) {
 
-                boots <- private$.computeBoots(mat)
-                boots <- tidyr::drop_na(boots)
+                boots <- cached_sims(self$results$simtable,
+                    list(mat = unname(mat), compare = self$options$compare, reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+                    function() tidyr::drop_na(private$.computeBoots(mat)))
                 simres <- private$.computeCI(boots, dp$dp)
 
                 private$.populateSimTable(simres)

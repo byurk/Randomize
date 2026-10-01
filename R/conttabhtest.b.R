@@ -80,7 +80,9 @@ ContTabHTestClass <- R6::R6Class(
             private$.populateX2table(mat, x2) #, lor) # fill in the difference in proportion table
 
             if (!is.null(x2)) {
-                perms <- private$.computePerms(mat)
+                perms <- cached_sims(self$results$simtable,
+                    list(mat = unname(mat), compare = self$options$compare, reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+                    function() private$.computePerms(mat))
                 # same zap for the simulations, so the >= comparison
                 # against the observed value is unaffected
                 perms$stat <- zap_tiny(perms$stat)

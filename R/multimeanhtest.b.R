@@ -63,7 +63,9 @@ multimeanhtestClass <- R6::R6Class(
         # is rejected by Jamovi 2.7's formula sandbox (see ?resample_means)
         Fobs <- f_stat(dataHTest$dep, dataHTest$group)
 
-        perms <- private$.computePerms(dataHTest)
+        perms <- cached_sims(htestTable,
+            list(dep = dataHTest$dep, group = as.character(dataHTest$group), reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+            function() private$.computePerms(dataHTest))
         res <- private$.computePval(perms, Fobs)
         private$.preparePlot(perms, Fobs)
       }

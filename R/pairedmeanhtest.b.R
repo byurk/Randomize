@@ -48,7 +48,9 @@ pairedmeanhtestClass <- R6::R6Class(
           } else if (any(is.infinite(column1)) | any(is.infinite(column2))) {
             res <- createError(.('One or both variables contain infinite values'))
           } else {
-            perms <- private$.computePerms(dataHTest)
+            perms <- cached_sims(htestTable,
+                list(dif = dataHTest$dif, reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+                function() private$.computePerms(dataHTest), slot = paste(name1, name2))
             res <- private$.computePval(perms, m1-m2)
             private$.preparePlot(perms, m1-m2, res$direction)
           }

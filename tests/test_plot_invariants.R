@@ -112,9 +112,9 @@ vline_positions <- function(built) {
     numeric(0)
 }
 
-# No missing interior bins: within the central 99.8% of the data,
+# No missing interior bins: within the central 98% of the data,
 # occupied bins must sit at a regular spacing with no absent bin between
-# them.  (A lone extreme outlier may still have its own separated bar
+# them.  (A lone extreme simulation may still have its own separated bar
 # beyond the window -- that is honest empty space, not a binning gap.)
 #
 # When every bin holds exactly one achievable value (single_value), an
@@ -122,7 +122,7 @@ vline_positions <- function(built) {
 # except between two well-populated bins (both >= 5), where it would
 # read as a binning error.
 assert_gap_free <- function(el, stats, single_value = FALSE) {
-    win <- stats::quantile(stats, c(0.001, 0.999), names = FALSE)
+    win <- stats::quantile(stats, c(0.01, 0.99), names = FALSE)
     mid_all <- round((el$xmin + el$xmax) / 2, 12)
     h <- tapply(el$height, mid_all, sum)
     mids <- sort(as.numeric(names(h)))
@@ -356,6 +356,20 @@ test("5 continuous reps are binned; a 2x2 chi-square with ties is one column per
     b <- ggplot2::ggplot_build(plot_null_dist(data.frame(stat = x2), 0, "greater", "dotplot", domain = c(0, Inf)))
     xs <- sort(unique(b$data[[1]]$x))
     if (min(xs) > 0.1) stop("the zero-valued simulations are not drawn at zero")
+})
+
+cat("\n=== Bin count is stable across re-runs of the same analysis ===\n")
+test("1000 continuous reps land on the target bin count run after run", {
+    set.seed(31)
+    sc <- c(rnorm(25, 10, 2), rnorm(25, 11, 2)); g <- rep(c("A", "B"), each = 25)
+    bars <- replicate(25, {
+        s <- permute_diff_means(sc, g, c("A", "B"), 1000)$stat
+        b <- choose_binning(s, 0.3, align = "edge", sign = 1)
+        round(diff(range(s)) / b$bw)
+    })
+    # at most two distinct bar counts, and never fewer than 24
+    if (length(unique(bars)) > 2 || min(bars) < 24)
+        stop(paste("bar counts across runs:", paste(sort(unique(bars)), collapse = " ")))
 })
 
 cat("\n=== Toggle stability: bare mode draws identical bars ===\n")

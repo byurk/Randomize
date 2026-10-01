@@ -51,7 +51,9 @@ slopehtestClass <- R6::R6Class(
         r2 <- summary(lm1)$r.squared
         r <- cor(dataHTest$indep, dataHTest$dep)
 
-        perms <- private$.computePerms(dataHTest)
+        perms <- cached_sims(htestTable,
+            list(dep = dataHTest$dep, indep = dataHTest$indep, reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+            function() private$.computePerms(dataHTest))
         res <- private$.computePval(perms, b)
         private$.preparePlot(perms, b, res$direction)
       }

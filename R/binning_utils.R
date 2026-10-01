@@ -31,11 +31,11 @@ NULL
 #'   the extreme tail is the lower one).
 #' @param target_bins Preferred number of bins for continuous data.
 #' @param max_empty Highest tolerated fraction of interior empty bins
-#'   for non-lattice data.  The default 0 means histograms and dotplots
-#'   of continuous statistics never show gaps; a genuinely detached
-#'   outlier still gets its own bar with honest empty space via the
-#'   windowed second pass.  Lattice data are handled differently: see
-#'   Details.
+#'   for non-lattice data, judged on the central 98\% of the
+#'   simulations.  The default 0 means the body of a histogram or
+#'   dotplot never shows a gap; the outer 1\% per side may hold a lone
+#'   extreme simulation with honest empty space beside it.  Lattice data
+#'   are handled differently: see Details.
 #'
 #' @details
 #' For densely occupied lattice data (proportions \eqn{k/n}, where every
@@ -143,9 +143,8 @@ choose_binning <- function(stats, anchor, align = c("edge", "center"),
                 ok <- !body_gap(counts)
             } else {
                 # grouped bins: same gap-free rule as the ladder below
-                # (full range, else the central 99.8%)
-                ok <- frac_empty(counts) <= max_empty ||
-                    frac_empty(bin_counts(m * res, 0.001, 0.999)) <= max_empty
+                # (central 98% of the simulations)
+                ok <- frac_empty(bin_counts(m * res, 0.01, 0.99)) <= max_empty
             }
             if (ok && frac_zigzag(counts) <= 0.2) break
             m <- m + 1L
@@ -160,12 +159,13 @@ choose_binning <- function(stats, anchor, align = c("edge", "center"),
     # multiple of the lattice spacing, which removes aliasing
     # immediately; wider bins absorb the gaps.
     #
-    # Two passes: the first evaluates occupancy over the FULL range, so
-    # ordinary distributions come out with no gaps anywhere.  Only when
-    # no width can manage that (a genuinely detached outlier) does the
-    # second pass exclude the extreme 0.1% per side -- the outlier keeps
-    # its own bar with honest empty space rather than forcing chunky
-    # bins on the whole distribution.
+    # Occupancy is judged on the central 98% of the simulations.  Judging
+    # it on the full range made the bin count a lottery: one stray tail
+    # simulation leaving an empty bin behind it dropped a 1000-rep null
+    # from 30 bars to 16 or 13 on roughly two runs in three, so the same
+    # analysis looked different every time it ran.  The body of the
+    # distribution is always gap-free; the outer 1% per side may show an
+    # honest empty bin next to a lone extreme simulation.
     try_ladder <- function(lo, hi) {
         for (k in ks) {
             cand <- if (lattice) res * max(1, round((span / k) / res)) else span / k
@@ -175,8 +175,7 @@ choose_binning <- function(stats, anchor, align = c("edge", "center"),
         }
         NULL
     }
-    bw <- try_ladder(0, 1)
-    if (is.null(bw)) bw <- try_ladder(0.001, 0.999)
+    bw <- try_ladder(0.01, 0.99)
     if (is.null(bw))
         bw <- if (lattice) res * max(1, round((span / min(ks)) / res)) else span / min(ks)
 

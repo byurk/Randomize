@@ -22,7 +22,9 @@ SinglePropCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
             if (length(self$options$resp) > 0) {
 
                 results <- private$.computeSumm()
-                boot <- private$.computeBoots()
+                boot <- cached_sims(self$results$simtable,
+                    list(counts = private$.counts(self$options$resp)$counts, reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+                    function() private$.computeBoots())
                 simres <- private$.computeCI(boot)
 
                 private$.populateSummTable(results)

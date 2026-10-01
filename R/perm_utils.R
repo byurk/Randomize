@@ -35,6 +35,41 @@ zap_tiny <- function(x, tol = 1e-10) {
     x
 }
 
+#' Reuse simulations across re-runs that do not change them
+#'
+#' Jamovi re-runs an analysis from scratch on every option change, so
+#' toggling a display-only option (plot type, count labels, descriptives)
+#' used to draw a fresh set of simulations -- the plot changed shape for
+#' no statistical reason, which confuses students.  The simulations are
+#' now kept in the results table's state together with a key describing
+#' everything that determines them (the data actually used, the rep
+#' count, the seed settings, and any analysis-specific inputs such as
+#' the null value).  They are recomputed only when that key changes.
+#' The table's own \code{clearWith} list wipes the state for the same
+#' options, and the key guards against edits to the data.
+#'
+#' @param holder A results element (normally the simulation results
+#'   table) whose \code{state} carries the cache.
+#' @param key A list of everything the simulations depend on; compared
+#'   with \code{identical()}.
+#' @param compute A function of no arguments returning the simulations
+#'   (an \pkg{infer} tibble or a data frame with a \code{stat} column).
+#' @param slot Cache slot, for analyses that simulate several things
+#'   (one per variable pair).
+#' @return A plain data frame with a \code{stat} column.
+#' @keywords internal
+cached_sims <- function(holder, key, compute, slot = "sims") {
+    st <- holder$state
+    entry <- if (is.list(st)) st[[slot]] else NULL
+    if (!is.null(entry) && identical(entry$key, key))
+        return(entry$sims)
+    sims <- strip_infer(compute())
+    if (!is.list(st)) st <- list()
+    st[[slot]] <- list(key = key, sims = sims)
+    holder$setState(st)
+    sims
+}
+
 #' Set the RNG seed conditionally
 #'
 #' Consolidates the seed-setting pattern used by every analysis.

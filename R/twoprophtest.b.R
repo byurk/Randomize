@@ -73,7 +73,9 @@ TwoPropHTestClass <- R6::R6Class(
 
             if (is_2x2) {
 
-                perms <- private$.computePerms(mat)
+                perms <- cached_sims(self$results$simtable,
+                    list(mat = unname(mat), compare = self$options$compare, reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+                    function() private$.computePerms(mat))
                 simres <- private$.computePval(perms, dp$dp)
 
                 private$.populateSimTable(simres)

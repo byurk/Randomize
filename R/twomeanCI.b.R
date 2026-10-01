@@ -55,8 +55,9 @@ twomeanCIClass <- R6::R6Class(
       } else if (any(is.infinite(dataCI$dep))) {
         res <- createError(.('Variable contains infinite values'))
       } else {
-        boots <- private$.computeBoots(dataCI)
-        boots <- tidyr::drop_na(boots)
+        boots <- cached_sims(CITable,
+            list(dep = dataCI$dep, group = as.character(dataCI$group), reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+            function() tidyr::drop_na(private$.computeBoots(dataCI)))
         res <- private$.computeCI(boots, m[1]-m[2])
         res <- within(res, rm(se, zcrit))
         private$.preparePlot(boots, m[1]-m[2])

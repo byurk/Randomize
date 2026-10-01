@@ -51,8 +51,9 @@ slopeCIClass <- R6::R6Class(
         r2 <- summary(lm1)$r.squared
         r <- cor(dataCI$indep, dataCI$dep)
 
-        boots <- private$.computeBoots(dataCI)
-        boots <- tidyr::drop_na(boots)
+        boots <- cached_sims(CITable,
+            list(dep = dataCI$dep, indep = dataCI$indep, reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+            function() tidyr::drop_na(private$.computeBoots(dataCI)))
         res <- private$.computeCI(boots, b)
         res <- within(res, rm(se, zcrit))
         private$.preparePlot(boots, b)

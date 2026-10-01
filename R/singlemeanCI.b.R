@@ -24,7 +24,9 @@ SingleMeanCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
                 results <- private$.computeSumm()
                 xbar <- results$mean
 
-                boot <- private$.computeBoots()
+                boot <- cached_sims(self$results$simtable,
+                    list(x = jmvcore::naOmit(self$data[[self$options$resp]]), reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+                    function() private$.computeBoots())
                 simres <- private$.computeCI(boot, xbar)
 
                 private$.populateSummTable(results)

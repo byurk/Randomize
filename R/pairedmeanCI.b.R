@@ -46,8 +46,9 @@ pairedmeanCIClass <- R6::R6Class(
           } else if (any(is.infinite(column1)) | any(is.infinite(column2))) {
             res <- createError(.('One or both variables contain infinite values'))
           } else {
-            boots <- private$.computeBoots(dataCI)
-            boots <- tidyr::drop_na(boots)
+            boots <- cached_sims(CITable,
+                list(dif = dataCI$dif, reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+                function() tidyr::drop_na(private$.computeBoots(dataCI)), slot = paste(name1, name2))
             res <- private$.computeCI(boots, m1-m2)
             res <- within(res, rm(se, zcrit))
             private$.preparePlot(boots, m1-m2)

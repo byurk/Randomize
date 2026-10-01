@@ -55,7 +55,9 @@ twomeanhtestClass <- R6::R6Class(
       } else if (any(is.infinite(dataHTest$dep))) {
         res <- createError(.('Variable contains infinite values'))
       } else {
-        perms <- private$.computePerms(dataHTest)
+        perms <- cached_sims(htestTable,
+            list(dep = dataHTest$dep, group = as.character(dataHTest$group), reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+            function() private$.computePerms(dataHTest))
         res <- private$.computePval(perms, m[1]-m[2])
         private$.preparePlot(perms, m[1]-m[2], res$direction)
       }

@@ -634,6 +634,41 @@ test("a single simulation keeps the observed value on the axis", {
     stopifnot(count_layers(p, "GeomVline") == 1)   # dashed line, not an edge arrow
 })
 
+cat("\n=== Simulations are reused when only display options change ===\n")
+test("cached_sims: same key reuses, changed key recomputes", {
+    holder <- jmvcore::Table$new(options = jmvcore::Options$new(), name = "t", title = "t")
+    n <- 0
+    f <- function() { n <<- n + 1; data.frame(stat = rnorm(5)) }
+    a <- cached_sims(holder, list(x = 1:3, reps = 5), f)
+    b <- cached_sims(holder, list(x = 1:3, reps = 5), f)
+    stopifnot(identical(a, b), n == 1)
+    c3 <- cached_sims(holder, list(x = 1:4, reps = 5), f)
+    stopifnot(!identical(a, c3), n == 2)
+    cached_sims(holder, list(x = 1:4, reps = 5), f, slot = "other"); stopifnot(n == 3)
+    cached_sims(holder, list(x = 1:4, reps = 5), f, slot = "other"); stopifnot(n == 3)
+})
+test("re-running an analysis with unchanged inputs keeps the simulations (unseeded)", {
+    # jamovi calls .run() again on every option change; the cache lives in
+    # the results table's state, which jamovi preserves unless a clearWith
+    # option changed
+    r <- twomeanhtest(data = clean_data, vars = "score", group = "group", hypothesis = "different", reps = 200,
+                      dotHist = "histogram", seedBool = FALSE)
+    s1 <- r$simplot$state$df$stat
+    stopifnot(identical(r$htest$state$sims$sims$stat, s1))
+    r$analysis$.__enclos_env__$private$.run()
+    stopifnot(identical(r$simplot$state$df$stat, s1))
+    # and the cache key covers the data: a different data set gets new draws
+    r2 <- twomeanhtest(data = na_data, vars = "score", group = "group", hypothesis = "different", reps = 200,
+                       dotHist = "histogram", seedBool = FALSE)
+    stopifnot(!identical(r2$simplot$state$df$stat, s1))
+})
+test("edited data invalidates the cache even when no option changed", {
+    holder <- jmvcore::Table$new(options = jmvcore::Options$new(), name = "t", title = "t")
+    k1 <- list(dep = c(1, 2, 3), reps = 10); k2 <- list(dep = c(1, 2, 4), reps = 10)
+    a <- cached_sims(holder, k1, function() data.frame(stat = 1)); b <- cached_sims(holder, k2, function() data.frame(stat = 2))
+    stopifnot(a$stat == 1, b$stat == 2)
+})
+
 cat("\n=== Formula-free resampling matches the model-based statistics ===\n")
 test("f_stat equals anova(lm()) F", {
     f_ref <- anova(lm(score ~ group, data = multi_data))$F[1]
