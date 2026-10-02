@@ -24,7 +24,9 @@ SingleMeanCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
                 results <- private$.computeSumm()
                 xbar <- results$mean
 
-                boot <- private$.computeBoots()
+                boot <- cached_sims(self$results$simtable,
+                    list(x = private$.column(), reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+                    function() private$.computeBoots())
                 simres <- private$.computeCI(boot, xbar)
 
                 private$.populateSummTable(results)
@@ -36,11 +38,23 @@ SingleMeanCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
         },
 
         #### Compute results ----
+        # The response without missing values, as numbers.  A jamovi
+        # column of integers with a nominal measure type arrives as a
+        # factor carrying a "values" attribute; toNumeric() recovers the
+        # numbers (the other mean analyses already do this).  A text
+        # column is refused with a message rather than a median() error.
+        .column = function() {
+            resp <- self$options$resp
+            x <- jmvcore::toNumeric(jmvcore::naOmit(self$data[[resp]]))
+            if (!is.numeric(x))
+                jmvcore::reject(jmvcore::format("Variable '{resp}' is not numeric", resp = resp), code = '')
+            x
+        },
         .computeSumm = function() {
 
             resp <- self$options$resp
 
-            varData <- jmvcore::naOmit(self$data[[resp]])
+            varData <- private$.column()
 
             descriptives <- list(var=resp, num=length(varData), mean=mean(varData), med=median(varData), sd=sd(varData))
 
@@ -51,11 +65,20 @@ SingleMeanCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
             resp <- self$options$resp
             reps <- self$options$reps
 
-            varData <- jmvcore::naOmit(self$data[[resp]])
+            varData <- private$.column()
 
             df <- tibble::tibble(val = varData)
 
             set_seed_if(self$options$seedBool, self$options$rngSeed)
+
+            if (length(varData) < 2)
+                jmvcore::reject(jmvcore::format("Variable '{resp}' needs at least 2 observations", resp = resp), code = '')
+
+            # infer::specify() runs t.test() internally, which refuses a
+            # constant sample; every bootstrap mean of a constant sample
+            # is that constant, so draw it directly
+            if (is_constant(varData))
+                return(data.frame(replicate = seq_len(reps), stat = rep(mean(varData), reps)))
 
             boot <- df %>%
                 infer::specify(response = val) %>%
@@ -148,7 +171,7 @@ SingleMeanCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
 
             obs_stat <- xbar
 
-            bootplot$setState(list(df=strip_infer(boot), obs_stat=obs_stat, confLevel = confLevel, ciType = ciType, dotHist=dotHist,
+            bootplot$setState(list(df=strip_infer(boot), obs_stat=obs_stat, confLevel = confLevel, ciType = ciType, dotHist=dotHist, showCounts=self$options$showCounts,
                                           xlab="mean", stat_label="bootstrap means"))
 
         },
@@ -160,7 +183,10 @@ SingleMeanCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
             st <- image$state
             p <- plot_boot_dist(st$df, st$obs_stat, st$confLevel, st$ciType,
                                 st$dotHist, xlab = "mean",
-                                stat_label = "bootstrap means")
+                                stat_label = "bootstrap means",
+                                obs_label = "Observed\nMean",
+                                show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
             return(p)
         },
 
@@ -172,7 +198,7 @@ SingleMeanCIClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Class(
 
             if(!is.null(resp)){
 
-            column <- jmvcore::naOmit(data[[resp]])
+            column <- private$.column()
             if (length(column) == 0) {
                 jmvcore::reject(
                     jmvcore::format("Variable '{resp}' contains no data", resp=resp),

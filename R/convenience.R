@@ -13,13 +13,21 @@ find_image <- function(x, which) {
     if (which == "sim") {
         # Simulation / bootstrap distribution plot
         # Different analyses use different names
-        if (!is.null(x[["simplot"]])) return(x[["simplot"]])
-        if (!is.null(x[["Plot"]]))    return(x[["Plot"]])
-        return(NULL)
+        img <- x[["simplot"]]
+        if (is.null(img)) img <- x[["Plot"]]
+        if (is.null(img)) return(NULL)
+        # the paired analyses draw one plot per pair (an Array keyed by
+        # the pairs); return the first pair's plot
+        if (inherits(img, "Array")) {
+            keys <- img$itemKeys
+            if (length(keys) == 0) return(NULL)
+            img <- img$get(key = keys[[1]])
+        }
+        return(img)
     }
 
     if (which == "desc") {
-        # Descriptive (mean/median) plot — stored in an Array
+        # Descriptive (mean/median) plot - stored in an Array
         arr <- x[["descplot"]]
         if (is.null(arr)) return(NULL)
         # Get the first element, which contains a $desc sub-image
@@ -31,7 +39,7 @@ find_image <- function(x, which) {
     }
 
     if (which == "line") {
-        # Regression scatterplot — stored in an Array
+        # Regression scatterplot - stored in an Array
         arr <- x[["linplot"]]
         if (is.null(arr)) return(NULL)
         keys <- arr$itemKeys
@@ -60,6 +68,9 @@ find_image <- function(x, which) {
 #' @param show_text Logical; if \code{FALSE}, omit text annotations and
 #'   captions while keeping dashed lines and tail shading. Default
 #'   \code{TRUE}. Only applies to \code{which = "sim"}.
+#' @param show_counts Logical or \code{NULL}; print the count above each
+#'   bar or dot stack.  \code{NULL} (default) follows the analysis'
+#'   \code{showCounts} option. Only applies to \code{which = "sim"}.
 #' @param ... Additional arguments (ignored)
 #'
 #' @return A ggplot object
@@ -73,12 +84,14 @@ find_image <- function(x, which) {
 #' plot(r)                     # full plot (default, same as Jamovi)
 #' plot(r, show_text = FALSE)  # lines + shading, no text/caption
 #' plot(r, show_lines = FALSE) # bare distribution only
+#' plot(r, show_counts = TRUE) # label each bar / stack with its count
 #' plot(r, "desc")      # means/medians by group (requires desc=TRUE, plots=TRUE)
 #' }
 #'
 #' @export
 plot.Group <- function(x, which = c("sim", "desc", "line"),
-                       show_lines = TRUE, show_text = TRUE, ...) {
+                       show_lines = TRUE, show_text = TRUE,
+                       show_counts = NULL, ...) {
     which <- match.arg(which)
     img <- find_image(x, which)
 
@@ -101,12 +114,13 @@ plot.Group <- function(x, which = c("sim", "desc", "line"),
     }
 
     # For non-sim plots, or when all defaults, use the existing callback
-    if (which != "sim" || (show_lines && show_text)) {
+    if (which != "sim" || (show_lines && show_text && is.null(show_counts))) {
         return(img$plot$fun())
     }
 
     # Call utility functions directly with display toggles
     st <- img$state
+    if (is.null(show_counts)) show_counts <- isTRUE(st$showCounts)
 
     if (!is.null(st$direction)) {
         # Null distribution (hypothesis test)
@@ -116,16 +130,21 @@ plot.Group <- function(x, which = c("sim", "desc", "line"),
                        show_line = show_lines,
                        show_label = show_lines && show_text,
                        show_caption = show_lines && show_text,
-                       show_tail = show_lines)
+                       show_tail = show_lines,
+                       domain = st$domain,
+                       show_counts = show_counts)
     } else if (!is.null(st$confLevel)) {
         # Bootstrap distribution (CI)
         # show_lines=FALSE triggers bare mode: no lines or caption
         plot_boot_dist(st$df, st$obs_stat, st$confLevel, st$ciType,
                        st$dotHist, xlab = st$xlab,
                        stat_label = st$stat_label,
+                       obs_label = state_or(st$obs_label, "Observed\nStatistic"),
                        clamp = st$clamp,
                        show_lines = show_lines,
-                       show_caption = show_lines && show_text)
+                       show_label = show_lines && show_text,
+                       show_caption = show_lines && show_text,
+                       show_counts = show_counts)
     } else {
         # Fallback to callback for unknown plot types
         img$plot$fun()
@@ -141,7 +160,10 @@ plot.Group <- function(x, which = c("sim", "desc", "line"),
 #'
 #' The columns vary by analysis type:
 #'
-#' \strong{Hypothesis tests} (all include \code{reps} and \code{p}):
+#' \strong{Hypothesis tests} (all include \code{reps} and \code{p}; when no
+#' simulated statistic was as extreme as the observed one, \code{p} is the
+#' string \code{"< 1/reps"}, e.g. \code{"< .001"} for 1000 reps, rather
+#' than a misleading numeric 0):
 #' \itemize{
 #'   \item \code{twomeanhtest}: \code{md} (observed mean difference), \code{reps}, \code{p}
 #'   \item \code{pairedmeanhtest}: \code{md} (observed mean difference), \code{reps}, \code{p}

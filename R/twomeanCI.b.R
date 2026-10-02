@@ -54,12 +54,18 @@ twomeanCIClass <- R6::R6Class(
         res <- createError(.('Variable is not numeric'))
       } else if (any(is.infinite(dataCI$dep))) {
         res <- createError(.('Variable contains infinite values'))
+      } else if (any(n == 0)) {
+        # every value of one group missing: the level survives droplevels()
+        # (it is applied before the NA rows go) and every resampled
+        # statistic would be NaN
+        res <- createError(jmvcore::format(.('Group \'{g}\' has no non-missing observations'), g = groupLevels[n == 0][1]))
       } else {
-        boots <- private$.computeBoots(dataCI)
-        boots <- tidyr::drop_na(boots)
+        boots <- cached_sims(CITable,
+            list(dep = dataCI$dep, group = as.character(dataCI$group), reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+            function() tidyr::drop_na(private$.computeBoots(dataCI)))
         res <- private$.computeCI(boots, m[1]-m[2])
         res <- within(res, rm(se, zcrit))
-        private$.preparePlot(boots, m[1]-m[2])
+        private$.preparePlot(boots, m[1]-m[2], groupLevels)
       }
         
         if (isError(res)) {
@@ -162,23 +168,23 @@ twomeanCIClass <- R6::R6Class(
 
             set_seed_if(self$options$seedBool, self$options$rngSeed)
 
-            boots <- df %>%
-                infer::specify(dep ~ group) %>%
-                infer::generate(reps = reps, type = "bootstrap") %>%
-                infer::calculate(stat = "diff in means", order = c(groupLevels[1], groupLevels[2]))
+            # Not infer::specify(dep ~ group): under Jamovi 2.7's formula
+            # sandbox that call is rejected (see ?resample_means).  Same
+            # bootstrap distribution (rows resampled), drawn directly.
+            boots <- bootstrap_diff_means(df$dep, df$group, groupLevels, reps)
 
             return(boots)
 
         },
-          .preparePlot = function(boots, dm) {
+          .preparePlot = function(boots, dm, levels = NULL) {
 
             bootplot <- self$results$simplot
             dotHist <- self$options$dotHist
             confLevel <- self$options$confLevel
             ciType <- self$options$ciType
 
-            bootplot$setState(list(df=strip_infer(boots), obs_stat=dm, confLevel = confLevel, ciType = ciType, dotHist=dotHist,
-                                          xlab="difference (group 1 - group 2)", stat_label="bootstrap differences"))
+            bootplot$setState(list(df=strip_infer(boots), obs_stat=dm, confLevel = confLevel, ciType = ciType, dotHist=dotHist, showCounts=self$options$showCounts,
+                                          xlab=diff_label("means", levels), stat_label="bootstrap differences", obs_label="Observed\nDifference"))
 
           },
           .bootPlot = function(image, ggtheme, theme, ...) {
@@ -189,8 +195,11 @@ twomeanCIClass <- R6::R6Class(
             st <- image$state
             p <- plot_boot_dist(st$df, st$obs_stat, st$confLevel, st$ciType,
                                 st$dotHist,
-                                xlab = "difference (group 1 - group 2)",
-                                stat_label = "bootstrap differences")
+                                xlab = state_or(st$xlab, diff_label("means")),
+                                stat_label = "bootstrap differences",
+                                obs_label = "Observed\nDifference",
+                                show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
             return(p)
           },
           

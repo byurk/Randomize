@@ -51,18 +51,21 @@ items:
 
     - name: simplot
       title: Randomized mean differences
-      type: Image
-      description: a plot showing the distribution of mean differences
-      renderFun: .permPlot
-      width: 400
-      height: 350
-      clearWith:
-          - pairs
-          - hypothesis
-          - reps
-          - rngSeed
-          - seedBool
-          - dotHist
+      type: Array
+      description: a plot showing the distribution of mean differences, one per pair
+      items: (pairs)
+      template:
+          type: Image
+          renderFun: .permPlot
+          width: 400
+          height: 350
+          clearWith:
+              - hypothesis
+              - reps
+              - rngSeed
+              - seedBool
+              - dotHist
+              - showCounts
 
     - name: htest
       title: Paired Means - Hypothesis Test
@@ -70,7 +73,6 @@ items:
       type: Table
       rows: (pairs)
       clearWith:
-        - hypothesis
         - rngSeed
         - seedBool
         - reps

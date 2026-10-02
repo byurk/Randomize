@@ -65,6 +65,42 @@ make_null_scenarios <- function() {
         stats = rbinom(1000, 10, 0.5) / 10, obs = 0.7, direction = "greater",
         xlab = "proportion", domain = c(0, 1))
 
+    set.seed(126)
+    sc$prop_n30_greater <- list(
+        # n = 30, 1000 reps: 18 distinct values -- must get one column per
+        # value (a tail gap is honest, not a reason to double the width)
+        stats = rbinom(1000, 30, 0.5) / 30, obs = 20 / 30, direction = "greater",
+        xlab = "proportion", domain = c(0, 1))
+
+    set.seed(127)
+    sc$prop_n25_two_sided <- list(
+        stats = rbinom(500, 25, 0.5) / 25, obs = 18 / 25, direction = "two_sided",
+        xlab = "proportion", domain = c(0, 1))
+
+    set.seed(128)
+    sc$prop_n200_greater <- list(
+        # ~47 lattice steps: still one column per value
+        stats = rbinom(1000, 200, 0.5) / 200, obs = 115 / 200, direction = "greater",
+        xlab = "proportion", domain = c(0, 1))
+
+    set.seed(131)
+    sc$rounded_diff_5000 <- list(
+        # mean differences of scores rounded to 0.1 (n = 13 vs 12):
+        # a fine, densely occupied lattice at 5000 reps -- must be
+        # grouped to ~30 bars, not drawn one lattice step per bar
+        stats = local({
+            sc <- round(rnorm(25, 10, 2), 1); g <- rep(c("A", "B"), c(13, 12))
+            vapply(seq_len(5000), function(i) { p <- sample(g); mean(sc[p == "A"]) - mean(sc[p == "B"]) }, numeric(1))
+        }),
+        obs = -0.06, direction = "two_sided",
+        xlab = "difference in means")
+
+    set.seed(129)
+    sc$prop_n500_greater <- list(
+        # too many lattice steps for one column each: grouped bins
+        stats = rbinom(1000, 500, 0.5) / 500, obs = 270 / 500, direction = "greater",
+        xlab = "proportion", domain = c(0, 1))
+
     set.seed(110)
     sc$diffprop_25_25 <- list(
         # two-prop diff, equal n: lattice spacing 0.04
@@ -91,6 +127,21 @@ make_null_scenarios <- function() {
             }, numeric(1))
         }),
         obs = 5.4, direction = "greater",
+        xlab = "X-squared", domain = c(0, Inf))
+
+    set.seed(130)
+    sc$chisq_2x2_uneven <- list(
+        # 2x2 table whose two smallest chi-square values nearly coincide:
+        # they must share one bar rather than sizing every bar by that gap
+        stats = local({
+            rows <- c(25, 25); cols <- c(30, 20)
+            tabs <- r2dtable(1000, rows, cols)
+            vapply(tabs, function(tt) {
+                e <- outer(rows, cols) / 50
+                sum((tt - e)^2 / e)
+            }, numeric(1))
+        }),
+        obs = 2.1, direction = "greater",
         xlab = "X-squared", domain = c(0, Inf))
 
     set.seed(113)

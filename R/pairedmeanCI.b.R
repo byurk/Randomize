@@ -16,7 +16,7 @@ pairedmeanCIClass <- R6::R6Class(
       if(length(pairs) > 0){
         
         
-        pair <- pairs[[1]]
+        for (pair in pairs) {
         
         if(!any(sapply(pair,length)== 0)){
           
@@ -45,12 +45,15 @@ pairedmeanCIClass <- R6::R6Class(
             res <- createError(.('One or both variables are not numeric'))
           } else if (any(is.infinite(column1)) | any(is.infinite(column2))) {
             res <- createError(.('One or both variables contain infinite values'))
+          } else if (n < 2) {
+            res <- createError(.('At least 2 complete pairs are needed (rows with a missing value are dropped)'))
           } else {
-            boots <- private$.computeBoots(dataCI)
-            boots <- tidyr::drop_na(boots)
+            boots <- cached_sims(CITable,
+                list(dif = dataCI$dif, reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+                function() tidyr::drop_na(private$.computeBoots(dataCI)), slot = paste(name1, name2))
             res <- private$.computeCI(boots, m1-m2)
             res <- within(res, rm(se, zcrit))
-            private$.preparePlot(boots, m1-m2)
+            private$.preparePlot(pair, boots, m1-m2)
           }
           
           if (isError(res)) {
@@ -76,8 +79,8 @@ pairedmeanCIClass <- R6::R6Class(
               
               if (self$options$desc) {
                 
-                row1Key <- paste0(pair$i1, 1)
-                row2Key <- paste0(pair$i2, 1)
+                row1Key <- paste(pair$i1, pair$i2, 1)
+                row2Key <- paste(pair$i1, pair$i2, 2)
                 
                 descTable$setRow(rowKey=row1Key, list(
                   "name"=name1,
@@ -111,6 +114,7 @@ pairedmeanCIClass <- R6::R6Class(
                     }
                   }
                 }
+                  }  # for (pair in pairs)
               }
               
             },
@@ -143,19 +147,20 @@ pairedmeanCIClass <- R6::R6Class(
               
               if(length(pairs) > 0){
                 
-                pair <- pairs[[1]]
+                for (pair in pairs) {
                 
                 simtable$setRow(rowKey=pair, list(
                   `var1`=pair$i1,
                   `var2`=pair$i2))
                   
-                  row1Key <- paste0(pair$i1, 1)
-                  row2Key <- paste0(pair$i2, 1)
+                  row1Key <- paste(pair$i1, pair$i2, 1)
+                  row2Key <- paste(pair$i1, pair$i2, 2)
                   descTable$addRow(row1Key)
                   descTable$addRow(row2Key)
                   
                   plots$get(pair)$setTitle(paste0(pair, collapse=' - '))
                   
+                    }  # for (pair in pairs)
                 }
                 
               },
@@ -176,8 +181,13 @@ pairedmeanCIClass <- R6::R6Class(
                 reps <- self$options$reps
     
                 set_seed_if(self$options$seedBool, self$options$rngSeed)
-    
-    
+
+                # infer::specify() runs t.test() internally, which refuses
+                # constant differences; every bootstrap mean of a constant
+                # sample is that constant, so draw it directly
+                if (is_constant(df$dif))
+                    return(data.frame(replicate = seq_len(reps), stat = rep(mean(df$dif), reps)))
+
                 boots <- df %>%
                     infer::specify(response = dif) %>%
                     infer::generate(reps = reps, type = "bootstrap") %>%
@@ -193,14 +203,15 @@ pairedmeanCIClass <- R6::R6Class(
                 plot_desc_stats(image$state, xlab = NULL, ylab = NULL,
                                 ggtheme = ggtheme, theme = theme)
               },
-              .preparePlot = function(boots, dm) {
-                
-                bootplot <- self$results$simplot
+              .preparePlot = function(pair, boots, dm) {
+
+                bootplot <- self$results$simplot$get(key=pair)
+                bootplot$setTitle(paste(pair$i1, "\u2212", pair$i2))
                 dotHist <- self$options$dotHist
                 confLevel <- self$options$confLevel
                 ciType <- self$options$ciType
     
-                bootplot$setState(list(df=strip_infer(boots), obs_stat=dm, confLevel = confLevel, ciType = ciType, dotHist=dotHist,
+                bootplot$setState(list(df=strip_infer(boots), obs_stat=dm, confLevel = confLevel, ciType = ciType, dotHist=dotHist, showCounts=self$options$showCounts,
                                           xlab="mean difference", stat_label="bootstrap differences"))
                 
               },
@@ -214,7 +225,10 @@ pairedmeanCIClass <- R6::R6Class(
                 p <- plot_boot_dist(st$df, st$obs_stat, st$confLevel, st$ciType,
                                     st$dotHist,
                                     xlab = "mean difference",
-                                    stat_label = "bootstrap differences")
+                                    stat_label = "bootstrap differences",
+                                    obs_label = "Observed\nDifference",
+                                    show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
                 return(p)
               }
             )

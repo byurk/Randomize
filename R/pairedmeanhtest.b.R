@@ -16,7 +16,7 @@ pairedmeanhtestClass <- R6::R6Class(
       if(length(pairs) > 0){
         
         
-        pair <- pairs[[1]]
+        for (pair in pairs) {
         
         if(!any(sapply(pair,length)== 0)){
           
@@ -47,10 +47,14 @@ pairedmeanhtestClass <- R6::R6Class(
             res <- createError(.('One or both variables are not numeric'))
           } else if (any(is.infinite(column1)) | any(is.infinite(column2))) {
             res <- createError(.('One or both variables contain infinite values'))
+          } else if (n < 2) {
+            res <- createError(.('At least 2 complete pairs are needed (rows with a missing value are dropped)'))
           } else {
-            perms <- private$.computePerms(dataHTest)
+            perms <- cached_sims(htestTable,
+                list(dif = dataHTest$dif, reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+                function() private$.computePerms(dataHTest), slot = paste(name1, name2))
             res <- private$.computePval(perms, m1-m2)
-            private$.preparePlot(perms, m1-m2, res$direction)
+            private$.preparePlot(pair, perms, m1-m2, res$direction)
           }
           
           if (isError(res)) {
@@ -69,13 +73,13 @@ pairedmeanhtestClass <- R6::R6Class(
               htestTable$setRow(rowKey=pair, list(
                 "reps"=self$options$reps,
                 "md"=m1-m2,
-                "p"=res$pval))
+                "p"=format_sim_pval(res$pval, self$options$reps)))
               }
               
               if (self$options$desc) {
                 
-                row1Key <- paste0(pair$i1, 1)
-                row2Key <- paste0(pair$i2, 1)
+                row1Key <- paste(pair$i1, pair$i2, 1)
+                row2Key <- paste(pair$i1, pair$i2, 2)
                 
                 descTable$setRow(rowKey=row1Key, list(
                   "name"=name1,
@@ -109,6 +113,7 @@ pairedmeanhtestClass <- R6::R6Class(
                     }
                   }
                 }
+                  }  # for (pair in pairs)
               }
               
             },
@@ -143,19 +148,20 @@ pairedmeanhtestClass <- R6::R6Class(
               
               if(length(pairs) > 0){
                 
-                pair <- pairs[[1]]
+                for (pair in pairs) {
                 
                 table$setRow(rowKey=pair, list(
                   `var1`=pair$i1,
                   `var2`=pair$i2))
                   
-                  row1Key <- paste0(pair$i1, 1)
-                  row2Key <- paste0(pair$i2, 1)
+                  row1Key <- paste(pair$i1, pair$i2, 1)
+                  row2Key <- paste(pair$i1, pair$i2, 2)
                   descTable$addRow(row1Key)
                   descTable$addRow(row2Key)
                   
                   plots$get(pair)$setTitle(paste0(pair, collapse=' - '))
                   
+                    }  # for (pair in pairs)
                 }
                 
               },
@@ -173,7 +179,17 @@ pairedmeanhtestClass <- R6::R6Class(
                 reps <- self$options$reps
                 
                 set_seed_if(self$options$seedBool, self$options$rngSeed)
-                
+
+                # infer::specify() runs t.test() internally, which refuses
+                # constant differences (every post = pre + c); the paired
+                # permutation is a random sign flip of each difference, so
+                # draw those directly in that case
+                if (is_constant(dataHTest$dif)) {
+                    n <- nrow(dataHTest)
+                    signs <- matrix(sample(c(-1, 1), n * reps, replace = TRUE), nrow = reps)
+                    return(data.frame(replicate = seq_len(reps), stat = rowMeans(signs) * mean(dataHTest$dif)))
+                }
+
                 perms <- dataHTest %>%
                 infer::specify(response = dif) %>%
                 infer::hypothesize(null = "paired independence") %>%
@@ -189,10 +205,11 @@ pairedmeanhtestClass <- R6::R6Class(
                 plot_desc_stats(image$state, xlab = NULL, ylab = NULL,
                                 ggtheme = ggtheme, theme = theme)
               },
-              .preparePlot = function(perms, dm, direction) {
-                permplot <- self$results$simplot
+              .preparePlot = function(pair, perms, dm, direction) {
+                permplot <- self$results$simplot$get(key=pair)
+                permplot$setTitle(paste(pair$i1, "\u2212", pair$i2))
                 dotHist <- self$options$dotHist
-                permplot$setState(list(df=strip_infer(perms), obs_stat=dm, direction=direction, dotHist=dotHist,
+                permplot$setState(list(df=strip_infer(perms), obs_stat=dm, direction=direction, dotHist=dotHist, showCounts=self$options$showCounts,
                                           xlab="mean difference", obs_label="Observed\nDifference"))
               },
               .permPlot = function(image, ggtheme, theme, ...) {
@@ -201,7 +218,9 @@ pairedmeanhtestClass <- R6::R6Class(
                 st <- image$state
                 plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                                xlab = "mean difference",
-                               obs_label = "Observed\nDifference")
+                               obs_label = "Observed\nDifference",
+                               show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
               }
             )
           )

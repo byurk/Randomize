@@ -93,6 +93,7 @@ items:
           - rngSeed
           - seedBool
           - dotHist
+          - showCounts
 
     - name: CITable
       title: Simulation Results
@@ -101,8 +102,6 @@ items:
       rows: (vars)
       clearWith:
         - group
-        - confLevel
-        - ciType
         - rngSeed
         - seedBool
         - reps

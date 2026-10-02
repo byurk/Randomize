@@ -47,6 +47,8 @@ children:
             children:
               - type: ComboBox
                 name: dotHist
+              - type: CheckBox
+                name: showCounts
           - type: LayoutBox
             margin: large
             children:
@@ -55,6 +57,7 @@ children:
                 children:
                   - type: TextBox
                     name: rngSeed
+                    width: large
                     format: number
                     enable: (seedBool)
 

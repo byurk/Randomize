@@ -69,7 +69,9 @@ assert_axis_economy <- function(built, el) {
     if (x_use < 0.55)
         stop(paste0("distribution occupies only ",
                     round(100 * x_use), "% of the x axis"))
-    if ("ytop" %in% names(el)) {
+    # (dotplots never show fewer than 8 counts on the axis, so short
+    # stacks legitimately fill less of it)
+    if ("ytop" %in% names(el) && max(el$ytop) >= 8) {
         y_use <- max(el$ytop) / yr[2]
         if (y_use < 0.7)
             stop(paste0("distribution occupies only ",
@@ -90,7 +92,7 @@ layer_elements <- function(built) {
     } else {
         a <- built$plot$layers[[1]]$geom_params$a
         data.frame(xmin = d$x - a, xmax = d$x + a, fill = d$fill,
-                   height = 1, ytop = d$y + 0.45, halfw = a)
+                   height = 1, ytop = d$y + 0.5, halfw = a)
     }
 }
 
@@ -110,21 +112,55 @@ vline_positions <- function(built) {
     numeric(0)
 }
 
-# No missing interior bins: within the central 99.8% of the data,
+# No missing interior bins: within the central 98% of the data,
 # occupied bins must sit at a regular spacing with no absent bin between
-# them.  (A lone extreme outlier may still have its own separated bar
+# them.  (A lone extreme simulation may still have its own separated bar
 # beyond the window -- that is honest empty space, not a binning gap.)
-assert_gap_free <- function(el, stats) {
-    win <- stats::quantile(stats, c(0.001, 0.999), names = FALSE)
-    mids <- sort(unique(round((el$xmin + el$xmax) / 2, 12)))
+#
+# When every bin holds exactly one achievable value (single_value), an
+# empty bin is a value that genuinely never occurred and is allowed --
+# except between two well-populated bins (both >= 5), where it would
+# read as a binning error.
+assert_gap_free <- function(el, stats, single_value = FALSE) {
+    win <- stats::quantile(stats, c(0.01, 0.99), names = FALSE)
+    mid_all <- round((el$xmin + el$xmax) / 2, 12)
+    h <- tapply(el$height, mid_all, sum)
+    mids <- sort(as.numeric(names(h)))
     if (length(mids) < 3) return(invisible())
     step <- min(diff(mids))
+    if (single_value) {
+        gap <- diff(mids) > 1.5 * step
+        n_l <- as.numeric(h[as.character(mids[-length(mids)])])
+        n_r <- as.numeric(h[as.character(mids[-1])])
+        if (any(gap & n_l >= 5 & n_r >= 5))
+            stop("empty single-value bin between two populated bins")
+        return(invisible())
+    }
     inwin <- mids[mids >= win[1] - step & mids <= win[2] + step]
-    if (length(inwin) > 1 && any(diff(inwin) > 1.5 * step))
-        stop("empty bin (gap) inside the central window")
+    if (length(inwin) > 1) {
+        gap <- diff(inwin) > 1.5 * step
+        if (length(stats) >= 300) {
+            # from 300 simulations up, a gap is tolerated when either
+            # flanking column is sparse (< 5): honest sparseness, not a
+            # binning artifact
+            hl <- as.numeric(h[as.character(inwin[-length(inwin)])])
+            hr <- as.numeric(h[as.character(inwin[-1])])
+            gap <- gap & hl >= 5 & hr >= 5
+        }
+        if (any(gap)) stop("empty bin (gap) between well-populated bins inside the central window")
+    }
+}
+
+# Does the plot use one bin per achievable lattice value?
+is_single_value <- function(stats, anchor, align, sign = 1) {
+    b <- choose_binning(stats, anchor, align = align, sign = sign)
+    b$lattice && abs(b$bw - b$res) <= b$res * 1e-9
 }
 
 check_null_invariants <- function(s, mode) {
+    # the plot snaps statistics to 10 significant digits before any
+    # comparison with the observed value; judge the invariants the same way
+    s$stats <- signif(s$stats, 10); s$obs <- signif(s$obs, 10)
     df <- data.frame(stat = s$stats)
     p <- plot_null_dist(df, s$obs, s$direction, mode,
                         xlab = s$xlab, obs_label = "Observed\nValue",
@@ -150,12 +186,18 @@ check_null_invariants <- function(s, mode) {
     # bar/column per achievable value: gaps between values are honest,
     # and side purity is judged by centers (a bar AT the observed value
     # legitimately straddles the line, pure by value identity).
-    u <- sort(unique(s$stats))
-    sparse <- length(u) >= 2 && length(u) <= 8
+    # (a dotplot of a handful of simulations places every dot at its own
+    # value, the same honest-gaps class)
+    sparse <- is_sparse_values(s$stats) || (mode == "dotplot" && is_few_reps(s$stats))
+    sgn0 <- if (ptail == "lt") -1 else 1
+    single_value <- !sparse && is_single_value(s$stats, s$obs, "edge", sgn0)
     if (sparse) {
         el$halfw <- (el$xmax - el$xmin) / 2
     } else {
-        assert_gap_free(el, s$stats)
+        assert_gap_free(el, s$stats, single_value = single_value)
+        # one-value-per-bar: bars are value-centred like dot stacks, so
+        # side purity is judged by centre (the tie bar straddles the line)
+        if (single_value) el$halfw <- (el$xmax - el$xmin) / 2
     }
 
     # Nothing placed at impossible values.  Grouped bars are trimmed to
@@ -227,7 +269,9 @@ check_null_invariants <- function(s, mode) {
     # in the same column share identical x-extents, so collapse to unique
     # columns first.
     cols <- unique(el[, c("xmin", "xmax")])
-    if (nrow(cols) > 1) {
+    # (a handful of dots drawn at their own values may overlap honestly)
+    few_dots <- mode == "dotplot" && is_few_reps(s$stats) && !is_sparse_values(s$stats)
+    if (nrow(cols) > 1 && !few_dots) {
         ord <- cols[order(cols$xmin), ]
         # A dot column clamped to a domain bound may lean into its
         # neighbor's nominal extent; drawn glyphs are narrower than the
@@ -248,6 +292,200 @@ cat("\n=== Null distribution invariants (dotplot) ===\n")
 for (nm in names(null_sc)) {
     test(paste0(nm, " [dot]"), check_null_invariants(null_sc[[nm]], "dotplot"))
 }
+
+cat("\n=== Dense lattices: one column per value, tie stack on the line (#9, #11) ===\n")
+for (nm in c("prop_n20_greater", "prop_n30_greater", "prop_n25_two_sided",
+             "prop_n50_two_sided", "prop_n100_greater")) {
+    test(nm, {
+        s <- null_sc[[nm]]
+        df <- data.frame(stat = s$stats)
+        res <- min(diff(sort(unique(s$stats))))
+        sgn <- if (s$direction == "two_sided" &&
+                   mean(s$stats > s$obs) >= mean(s$stats < s$obs)) -1 else 1
+        if (!is_single_value(s$stats, s$obs, "edge", sgn))
+            stop("bins group several achievable values")
+        # dotplot: a column of dots sits exactly on the observed value,
+        # and (ties count toward the p-value) it is red
+        built <- build_checked(plot_null_dist(df, s$obs, s$direction, "dotplot",
+                                              xlab = s$xlab, domain = s$domain))
+        d <- built$data[[1]]
+        on_line <- abs(d$x - s$obs) < res * 1e-6
+        if (sum(abs(s$stats - s$obs) < res * 1e-6) > 0) {
+            if (!any(on_line)) stop("no dot stack centered on the observed value")
+            if (any(d$fill[on_line] != RED)) stop("tie stack is not red")
+        }
+        # histogram: the number of bars equals the number of distinct values,
+        # each centred on its value, identically for every direction
+        built <- build_checked(plot_null_dist(df, s$obs, s$direction, "histogram",
+                                              xlab = s$xlab, domain = s$domain))
+        bb <- built$data[[1]]
+        if (nrow(bb) != length(unique(s$stats)))
+            stop("bars do not correspond one-to-one to achievable values")
+        ctr <- sort(round((bb$xmin + bb$xmax) / 2, 9))
+        if (!isTRUE(all.equal(ctr, sort(round(unique(s$stats), 9)), tolerance = 1e-6)))
+            stop("single-value bars are not centred on their values")
+        for (other in setdiff(c("less", "greater", "two_sided"), s$direction)) {
+            b2 <- build_checked(plot_null_dist(df, s$obs, other, "histogram", xlab = s$xlab, domain = s$domain))$data[[1]]
+            if (!isTRUE(all.equal(sort(round(bb$xmin, 9)), sort(round(b2$xmin, 9)))) ||
+                !isTRUE(all.equal(sort(bb$ymax), sort(b2$ymax))))
+                stop(paste("bars differ for direction", other))
+        }
+    })
+}
+for (nm in c("prop_n200_greater", "prop_n500_greater", "rounded_diff_5000")) {
+    test(paste0(nm, " groups lattice steps: never more than the target bin count"), {
+        s <- null_sc[[nm]]
+        if (is_single_value(s$stats, s$obs, "edge", 1))
+            stop("expected grouped bins")
+        b <- choose_binning(s$stats, s$obs, align = "edge", sign = 1)
+        if (diff(range(s$stats)) / b$bw > 30 + 1e-9) stop("more than 30 columns")
+    })
+}
+
+cat("\n=== A handful of simulations: every dot at its own value ===\n")
+test("few continuous reps: dots sit exactly at their values (null and bootstrap)", {
+    set.seed(41)
+    x <- rnorm(12)
+    # (values within a dot width -- 4% of the span -- share a stack at
+    # their mean, so every dot is within that distance of its value)
+    tol <- 0.04 * diff(range(c(x, 0.3)))
+    for (dir in c("less", "greater", "two_sided")) {
+        d <- build_checked(plot_null_dist(data.frame(stat = x), 0.3, dir, "dotplot"))$data[[1]]
+        if (max(abs(sort(d$x) - sort(signif(x, 10)))) > tol)
+            stop("null dots are not at the simulated values")
+        ext <- if (dir == "less") d$x <= 0.3 else if (dir == "greater") d$x >= 0.3 else NULL
+        if (!is.null(ext) && any((d$fill == RED) != ext)) stop("a dot is shaded on the wrong side of the line")
+    }
+    d <- build_checked(plot_boot_dist(data.frame(stat = x + 5), 5, 95, "bootperc", "dotplot"))$data[[1]]
+    if (max(abs(sort(d$x) - sort(x + 5))) > tol) stop("bootstrap dots are not at the replicate values")
+    # exact ties stack; 26+ reps are binned as before
+    xt <- c(x, x[1:3])
+    d <- build_checked(plot_null_dist(data.frame(stat = xt), 0.3, "greater", "dotplot"))$data[[1]]
+    if (sum(d$y > 0.5) < 3) stop("tied values should stack")
+    d <- build_checked(plot_null_dist(data.frame(stat = rnorm(26)), 0.3, "greater", "dotplot"))$data[[1]]
+    if (length(unique(d$x)) >= 26) stop("26 reps should be binned")
+})
+
+cat("\n=== Sparse values: near-coincident values share a column ===\n")
+test("Yates-corrected 2x2 chi-square: no sliver bars", {
+    # values (|k - 15| - 0.5)^2 * c and 0: the two smallest almost coincide
+    set.seed(31)
+    k <- rbinom(1000, 30, 0.5)
+    stats <- pmax(abs(k - 15) - 0.5, 0)^2 / 3
+    obs <- 2.5^2 / 3
+    df <- data.frame(stat = stats)
+    built <- build_checked(plot_null_dist(df, obs, "greater", "histogram",
+                                          xlab = "X2", domain = c(0, Inf)))
+    el <- layer_elements(built)
+    # the leftmost bar is legitimately trimmed at the domain bound 0
+    inner <- el[el$xmin > 1e-9, ]
+    w <- inner$xmax - inner$xmin
+    span <- diff(range(stats))
+    if (min(w) < 0.02 * span) stop("sliver bar drawn")
+    # count conservation and purity still hold after merging
+    if (abs(sum(el$height) - 1000) > 1e-6) stop("counts not conserved")
+    red <- el[el$fill == RED, ]; black <- el[el$fill != RED, ]
+    if (nrow(red) && min((red$xmin + red$xmax) / 2) < obs - 1e-9) stop("red bar left of obs")
+    if (nrow(black) && max((black$xmin + black$xmax) / 2) > obs + 1e-9) stop("black bar right of obs")
+    # the merged column is one bar for 0 and 0.083 together
+    n0 <- sum(stats < 0.1)
+    if (!any(abs(el$height - n0) < 1e-6)) stop("near-coincident values were not merged")
+})
+test("sparse_groups never merges across the observed value", {
+    stats <- c(rep(0, 50), rep(0.05, 30), rep(2, 20))
+    g <- sparse_groups(stats, extreme = stats >= 0.05)
+    if (length(g$centers) != 3) stop("values on opposite sides of obs were merged")
+})
+
+cat("\n=== Sparse mode: structure, not just few values ===\n")
+test("5 continuous reps are binned; a 2x2 chi-square with ties is one column per value", {
+    set.seed(9)
+    cont5 <- rnorm(5)
+    if (is_sparse_values(cont5)) stop("5 distinct continuous values should be binned")
+    if (!is_sparse_values(rnorm(2))) stop("2 values are always sparse")
+    # Yates-corrected 2x2 chi-square: 8 distinct values, heavy repetition, not a lattice
+    k <- rhyper(300, 7, 18, 13); e <- c(13*7, 13*18, 12*7, 12*18) / 25   # permuted 2x2 tables
+    x2 <- vapply(k, function(a) { o <- c(a, 13 - a, 7 - a, 12 - (7 - a)); sum((pmax(abs(o - e) - 0.5, 0))^2 / e) }, numeric(1))
+    if (!is_sparse_values(x2)) stop("repeated chi-square values should be sparse")
+    # dots of a sparse chi-square plot sit at (merged) exact values, never at a bin midpoint
+    b <- ggplot2::ggplot_build(plot_null_dist(data.frame(stat = x2), 0, "greater", "dotplot", domain = c(0, Inf)))
+    xs <- sort(unique(b$data[[1]]$x))
+    if (min(xs) > 0.1) stop("the zero-valued simulations are not drawn at zero")
+})
+
+cat("\n=== Bin count is stable across re-runs of the same analysis ===\n")
+for (case in list(list(nm = "normal 1000", gen = function() rnorm(1000)),
+                  list(nm = "normal 300", gen = function() rnorm(300)),
+                  list(nm = "chi-square(3) 1000", gen = function() rchisq(1000, 3)),
+                  list(nm = "F(3,20) 1000", gen = function() rf(1000, 3, 20)),
+                  list(nm = "t(2) heavy tails 1000", gen = function() rt(1000, 2)),
+                  list(nm = "F(3,20) 5000", gen = function() rf(5000, 3, 20)))) {
+    test(paste(case$nm, "reps land on the same bin count run after run"), {
+        set.seed(31)
+        bars <- replicate(25, {
+            s <- case$gen()
+            b <- choose_binning(s, stats::quantile(s, 0.9), align = "edge", sign = 1)
+            round(diff(range(s)) / b$bw)
+        })
+        if (length(unique(bars)) > 2 || min(bars) < 24)
+            stop(paste("bar counts across runs:", paste(sort(unique(bars)), collapse = " ")))
+    })
+}
+test("below 300 reps no bin in the central 98% is ever empty", {
+    set.seed(32)
+    for (i in 1:20) {
+        s <- rchisq(100, 3)
+        b <- choose_binning(s, 2, align = "edge", sign = 1)
+        idx <- bin_index(s, 2, b$bw, b$off, 1, "edge")
+        q <- stats::quantile(idx, c(0.01, 0.99), type = 1, names = FALSE)
+        w <- idx[idx >= q[1] & idx <= q[2]]
+        if (any(tabulate(w - min(w) + 1) == 0)) stop("empty bin inside the window at 100 reps")
+    }
+})
+
+cat("\n=== Direction invariance: the alternative never changes the bars (except the tie column) ===\n")
+test("bin width never depends on the direction (rounded and continuous, 60 to 1000 reps)", {
+    sc <- round(c(rnorm(13, 10, 2), rnorm(12, 10, 2)), 1); g <- rep(c("A", "B"), c(13, 12))
+    obs <- mean(sc[g == "A"]) - mean(sc[g == "B"])
+    for (reps in c(60, 100, 300, 1000)) for (seed in 1:15) {
+        set.seed(seed)
+        s <- permute_diff_means(sc, g, c("A", "B"), reps)$stat
+        b1 <- choose_binning(s, obs, "edge", sign = 1); b2 <- choose_binning(s, obs, "edge", sign = -1)
+        if (abs(b1$bw - b2$bw) > 1e-12)
+            stop(sprintf("reps=%d seed=%d: width %.4f for greater vs %.4f for less", reps, seed, b1$bw, b2$bw))
+        s2 <- s + runif(reps, -1e-3, 1e-3)
+        b1 <- choose_binning(s2, obs + 2e-4, "edge", sign = 1); b2 <- choose_binning(s2, obs + 2e-4, "edge", sign = -1)
+        if (abs(b1$bw - b2$bw) > 1e-12)
+            stop(sprintf("continuous reps=%d seed=%d: width differs by direction", reps, seed))
+    }
+})
+test("rounded data: less / greater / two-sided give the same histogram apart from ties at the line", {
+    set.seed(41)
+    sc <- round(c(rnorm(13, 10, 2), rnorm(12, 10, 2)), 1); g <- rep(c("A", "B"), c(13, 12))
+    obs <- mean(sc[g == "A"]) - mean(sc[g == "B"])
+    s <- permute_diff_means(sc, g, c("A", "B"), 1000)$stat
+    ties <- sum(abs(s - obs) < 1e-9)
+    if (ties == 0) stop("test data should produce ties at the observed value")
+    heights <- function(dir) {
+        e <- ggplot2::ggplot_build(plot_null_dist(data.frame(stat = s), obs, dir, "histogram"))$data[[1]]
+        e <- e[order(e$xmin), ]; list(xmin = round(e$xmin, 9), h = e$ymax)
+    }
+    a <- heights("less"); b <- heights("greater")
+    if (!identical(a$xmin, b$xmin)) stop("bar edges depend on the direction")
+    d <- a$h - b$h
+    moved <- which(d != 0)
+    # only the two bars touching the observed value may differ, and by the tie count
+    if (length(moved) > 2 || any(abs(d[moved]) != ties)) stop("bar heights depend on the direction beyond the tie column")
+    if (length(moved) == 2 && !(abs(a$xmin[moved[1]] + (a$xmin[moved[2]] - a$xmin[moved[1]]) - obs) < 1e-6))
+        stop("the bars that differ are not the ones at the observed value")
+    # continuous data: strictly identical
+    s2 <- s + runif(1000, -1e-4, 1e-4); obs2 <- obs + 3e-5
+    e1 <- ggplot2::ggplot_build(plot_null_dist(data.frame(stat = s2), obs2, "less", "histogram"))$data[[1]]
+    e2 <- ggplot2::ggplot_build(plot_null_dist(data.frame(stat = s2), obs2, "greater", "histogram"))$data[[1]]
+    m1 <- unname(as.matrix(e1[order(e1$xmin), c("xmin", "ymax")]))
+    m2 <- unname(as.matrix(e2[order(e2$xmin), c("xmin", "ymax")]))
+    if (!isTRUE(all.equal(m1, m2))) stop("continuous data: bars depend on the direction")
+})
 
 cat("\n=== Toggle stability: bare mode draws identical bars ===\n")
 for (nm in c("prop_n20_greater", "cont_two_sided", "chisq_2x2")) {
@@ -300,12 +538,12 @@ for (nm in names(boot_sc)) {
             # impossible values (clamp = domain bounds; bootstrap bars
             # are trimmed, value-centered elements judged by center,
             # grouped dot columns exempt as in the null checks)
-            u <- sort(unique(s$stats))
-            sparse <- length(u) >= 2 && length(u) <= 8
+            sparse <- is_sparse_values(s$stats) || (mode == "dotplot" && is_few_reps(s$stats))
             if (sparse) {
                 el$halfw <- (el$xmax - el$xmin) / 2
             } else {
-                assert_gap_free(el, s$stats)
+                assert_gap_free(el, s$stats,
+                                single_value = is_single_value(s$stats, s$obs, "center"))
             }
             if (!is.null(s$clamp)) {
                 bars_el <- el[el$halfw == 0, ]

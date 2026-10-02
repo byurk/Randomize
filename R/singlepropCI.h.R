@@ -12,6 +12,7 @@ SinglePropCIOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
             ciType = "bootperc",
             reps = 100,
             dotHist = "dotplot",
+            showCounts = FALSE,
             seedBool = FALSE,
             rngSeed = 8675309, ...) {
 
@@ -36,7 +37,9 @@ SinglePropCIOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
             private$..confLevel <- jmvcore::OptionNumber$new(
                 "confLevel",
                 confLevel,
-                default=95)
+                default=95,
+                min=1,
+                max=99.9)
             private$..ciType <- jmvcore::OptionList$new(
                 "ciType",
                 ciType,
@@ -44,9 +47,11 @@ SinglePropCIOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
                     "bootperc",
                     "bootse"),
                 default="bootperc")
-            private$..reps <- jmvcore::OptionNumber$new(
+            private$..reps <- jmvcore::OptionInteger$new(
                 "reps",
                 reps,
+                min=1,
+                max=100000,
                 default=100)
             private$..dotHist <- jmvcore::OptionList$new(
                 "dotHist",
@@ -55,6 +60,10 @@ SinglePropCIOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
                     "dotplot",
                     "histogram"),
                 default="dotplot")
+            private$..showCounts <- jmvcore::OptionBool$new(
+                "showCounts",
+                showCounts,
+                default=FALSE)
             private$..seedBool <- jmvcore::OptionBool$new(
                 "seedBool",
                 seedBool,
@@ -70,6 +79,7 @@ SinglePropCIOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
             self$.addOption(private$..ciType)
             self$.addOption(private$..reps)
             self$.addOption(private$..dotHist)
+            self$.addOption(private$..showCounts)
             self$.addOption(private$..seedBool)
             self$.addOption(private$..rngSeed)
         }),
@@ -80,6 +90,7 @@ SinglePropCIOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
         ciType = function() private$..ciType$value,
         reps = function() private$..reps$value,
         dotHist = function() private$..dotHist$value,
+        showCounts = function() private$..showCounts$value,
         seedBool = function() private$..seedBool$value,
         rngSeed = function() private$..rngSeed$value),
     private = list(
@@ -89,6 +100,7 @@ SinglePropCIOptions <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
         ..ciType = NA,
         ..reps = NA,
         ..dotHist = NA,
+        ..showCounts = NA,
         ..seedBool = NA,
         ..rngSeed = NA)
 )
@@ -162,7 +174,8 @@ SinglePropCIResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
                     "reps",
                     "seedBool",
                     "rngSeed",
-                    "dotHist")))
+                    "dotHist",
+                    "showCounts")))
             self$add(jmvcore::Table$new(
                 options=options,
                 name="simtable",
@@ -170,8 +183,6 @@ SinglePropCIResults <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Clas
                 clearWith=list(
                     "resp",
                     "areCounts",
-                    "confLevel",
-                    "ciType",
                     "reps",
                     "seedBool",
                     "rngSeed"),
@@ -230,6 +241,8 @@ SinglePropCIBase <- if (requireNamespace("jmvcore", quietly=TRUE)) R6::R6Class(
 #' @param ciType .
 #' @param reps a number (default: 100), the number of bootstraps
 #' @param dotHist .
+#' @param showCounts \code{TRUE} or \code{FALSE} (default), whether to print
+#'   the count above each bar or dot stack of the simulation plot
 #' @param seedBool \code{TRUE} or \code{FALSE} (default), whether to seed the
 #'   random number generator
 #' @param rngSeed a number (default: 8675309), for seeding the random number
@@ -258,6 +271,7 @@ SinglePropCI <- function(
     ciType = "bootperc",
     reps = 100,
     dotHist = "dotplot",
+    showCounts = FALSE,
     seedBool = FALSE,
     rngSeed = 8675309) {
 
@@ -279,6 +293,7 @@ SinglePropCI <- function(
         ciType = ciType,
         reps = reps,
         dotHist = dotHist,
+        showCounts = showCounts,
         seedBool = seedBool,
         rngSeed = rngSeed)
 

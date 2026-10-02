@@ -55,6 +55,12 @@ ContTabHTestClass <- R6::R6Class(
                     jmvcore::reject(.('Counts may not be negative'))
                 if (any(is.infinite(data$.COUNTS)))
                     jmvcore::reject(.('Counts may not be infinite'))
+                # a missing count beside present row / column values is an
+                # error, not an empty cell (xtabs would carry the NA into
+                # chisq.test, which then dies); rows where the row / column
+                # value itself is missing are simply omitted
+                if (!is.null(countsName) && any(is.na(data$.COUNTS) & !is.na(data[[rowVarName]]) & !is.na(data[[colVarName]])))
+                    jmvcore::reject(.("Count variable '{v}' is missing a value in a row where '{rv}' and '{cv}' are present"), code='', v=countsName, rv=rowVarName, cv=colVarName)
             }
 
             mats <- conttab_matrices(data) # counts arranged as in a contingency table with standardized formatting
@@ -62,13 +68,20 @@ ContTabHTestClass <- R6::R6Class(
 
             private$.populateContTable(mat) # fill in contingency table
 
+            # hidden (filtered-out) levels show as empty rows / columns in
+            # the table but play no part in the test
+            mat <- mat[rowSums(mat) > 0, colSums(mat) > 0, drop = FALSE]
+
             suppressWarnings({
 
                 x2 <- NULL
 
-                #if (all(dim(mat) == 2) && all(rowSums(mat) > 0) && all(colSums(mat) > 0)) {
-                if (all(rowSums(mat) > 0) && all(colSums(mat) > 0)) {
+                if (all(dim(mat) >= 2)) {
                     x2 <- private$.computeX2(mat)
+                    # chisq.test() returns floating-point dust (e.g.
+                    # 1.1e-31) for tables whose statistic is exactly
+                    # zero; zap it so the table reads 0
+                    x2$x2 <- zap_tiny(x2$x2)
                 }
 
             }) # suppressWarnings
@@ -76,7 +89,12 @@ ContTabHTestClass <- R6::R6Class(
             private$.populateX2table(mat, x2) #, lor) # fill in the difference in proportion table
 
             if (!is.null(x2)) {
-                perms <- private$.computePerms(mat)
+                perms <- cached_sims(self$results$simtable,
+                    list(mat = unname(mat), compare = self$options$compare, reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+                    function() private$.computePerms(mat))
+                # same zap for the simulations, so the >= comparison
+                # against the observed value is unaffected
+                perms$stat <- zap_tiny(perms$stat)
                 simres <- private$.computePval(perms, x2$x2)
 
                 private$.populateSimTable(simres)
@@ -101,7 +119,7 @@ ContTabHTestClass <- R6::R6Class(
         .computePval = function(perms, x2) {
             reps <- self$options$reps
             pval <- compute_null_pval(perms, x2, "greater")
-            list(x2 = as.numeric(x2), reps = reps, p = pval)
+            list(x2 = as.numeric(x2), reps = reps, p = format_sim_pval(pval, reps))
         },
 
         .computePerms = function(mat){
@@ -218,7 +236,7 @@ ContTabHTestClass <- R6::R6Class(
         .preparePlot = function(perms, x2) {
             permplot <- self$results$Plot
             dotHist <- self$options$dotHist
-            permplot$setState(list(df=strip_infer(perms), obs_stat=as.numeric(x2), direction="greater", dotHist=dotHist,
+            permplot$setState(list(df=strip_infer(perms), obs_stat=as.numeric(x2), direction="greater", dotHist=dotHist, showCounts=self$options$showCounts, domain=c(0, Inf),
                                           xlab="X\u00B2", obs_label="Observed\nX\u00B2"))
         },
         .permPlot = function(image, ggtheme, theme, ...) {
@@ -228,7 +246,9 @@ ContTabHTestClass <- R6::R6Class(
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                            xlab = "X\u00B2",
                            obs_label = "Observed\nX\u00B2",
-                           domain = c(0, Inf))
+                           domain = c(0, Inf),
+                           show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
         },
 
         #### Helper functions ----

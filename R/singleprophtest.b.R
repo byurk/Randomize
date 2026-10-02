@@ -20,7 +20,10 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
             if (length(self$options$resp) > 0) {
 
                 results <- private$.computeSumm()
-                boot <- private$.computeBoots()
+                boot <- cached_sims(self$results$simtable,
+                    list(counts = private$.counts(self$options$resp)$counts,
+                         testValue = self$options$testValue, reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+                    function() private$.computeBoots())
                 simres <- private$.computePval(boot)
 
                 private$.populateSummTable(results)
@@ -68,10 +71,22 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
             total  <- results$total
             levels <- results$levels
 
+            set_seed_if(self$options$seedBool, self$options$rngSeed)
+
+            if (any(counts == 0)) {
+                # infer::specify() drops unused factor levels, so a level
+                # with no observations (e.g. 5 heads, 0 tails) makes the
+                # response look single-level and calculate() refuses to
+                # compute a proportion.  Draw the null samples directly
+                # instead: the proportion of successes in `total` draws
+                # with probability testValue is exactly what
+                # generate(type = "draw") produces.
+                return(data.frame(replicate = seq_len(reps),
+                                  stat = stats::rbinom(reps, total, testValue) / total))
+            }
+
             df <- tibble::tibble(level=levels, count=counts) %>%
                 tidyr::uncount(count)
-
-            set_seed_if(self$options$seedBool, self$options$rngSeed)
 
             boot <- df %>%
                 infer::specify(response = level, success = levels[1]) %>%
@@ -96,7 +111,8 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
 
             pval <- compute_null_pval(boot, counts[1] / total, direction)
 
-            list(obsProp = counts[1] / total, reps = reps, p = pval, direction = direction)
+            list(obsProp = counts[1] / total, reps = reps,
+             p = format_sim_pval(pval, reps), direction = direction)
         },
 
         #### Init tables/plots functions ----
@@ -109,6 +125,8 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
             if(!is.null(resp)){
 
             varData <- jmvcore::naOmit(self$data[[resp]])
+            if (is.factor(varData) && nlevels(varData) > 2)
+                varData <- droplevels(varData)
 
             if (self$options$areCounts) {
 
@@ -200,17 +218,20 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
             resp <- self$options$resp
             results <- private$.counts(resp)
             obs_stat <- results$counts[1] / results$total
-            bootplot$setState(list(df=strip_infer(boot), obs_stat=obs_stat, direction=direction, dotHist=dotHist,
-                                          xlab="proportion", obs_label="Observed\nProportion"))
+            xlab <- if (self$options$areCounts) "proportion" else sprintf("proportion of %s", shorten_label(results$levels[1]))
+            bootplot$setState(list(df=strip_infer(boot), obs_stat=obs_stat, direction=direction, dotHist=dotHist, showCounts=self$options$showCounts, domain=c(0, 1),
+                                          xlab=xlab, obs_label="Observed\nProportion"))
         },
         .bootPlot = function(image, ggtheme, theme, ...) {
             if (is.null(image$state))
                 return(FALSE)
             st <- image$state
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
-                           xlab = "proportion",
+                           xlab = state_or(st$xlab, "proportion"),
                            obs_label = "Observed\nProportion",
-                           domain = c(0, 1))
+                           domain = c(0, 1),
+                           show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
         },
 
         #### Helper functions ----
@@ -228,12 +249,51 @@ SinglePropHTestClass <- if (requireNamespace('jmvcore', quietly=TRUE)) R6::R6Cla
                     code=''
                 )
             }
+
+            if (self$options$areCounts) {
+                # `column` has blanks removed: jamovi pads shorter columns with
+                # missing values, so a 2-row count column beside longer data
+                # arrives with trailing NAs
+                raw <- column
+                cnt <- if (jmvcore::canBeNumeric(raw)) jmvcore::toNumeric(raw) else suppressWarnings(as.numeric(as.character(raw)))
+                if (length(cnt) != 2)
+                    jmvcore::reject(jmvcore::format("With 'Values are counts', '{resp}' must hold exactly 2 counts (found {n} non-missing values)", resp=resp, n=length(cnt)), code='')
+                if (any(is.na(cnt)))
+                    jmvcore::reject(jmvcore::format("Counts in '{resp}' must be numbers (a value is non-numeric)", resp=resp), code='')
+                if (any(cnt < 0))
+                    jmvcore::reject(jmvcore::format("Counts in '{resp}' may not be negative", resp=resp), code='')
+                if (any(cnt != round(cnt)))
+                    jmvcore::reject(jmvcore::format("Counts in '{resp}' must be whole numbers", resp=resp), code='')
+                if (sum(cnt) == 0)
+                    jmvcore::reject(jmvcore::format("Counts in '{resp}' are both zero", resp=resp), code='')
+            }
+
+            results <- private$.counts(resp)
+            if (length(results$counts) != 2) {
+                jmvcore::reject(
+                    jmvcore::format(
+                        "Variable '{resp}' must have exactly 2 levels (found {n}). A proportion is only defined for a binary variable.",
+                        resp=resp, n=length(results$counts)),
+                    code=''
+                )
+            }
+            if (any(is.na(results$counts)) || results$total <= 0) {
+                jmvcore::reject(
+                    jmvcore::format("Counts for '{resp}' must be non-negative numbers with a positive total", resp=resp),
+                    code=''
+                )
+            }
             }
 
         },
         .counts = function(var) {
 
             varData <- jmvcore::naOmit(self$data[[var]])
+            # a jamovi filter leaves the hidden levels on the factor; a
+            # 2-level factor with one empty level must still be allowed
+            # (5 heads, 0 tails), so only drop unused levels beyond two
+            if (is.factor(varData) && nlevels(varData) > 2)
+                varData <- droplevels(varData)
 
             if (self$options$areCounts) {
 

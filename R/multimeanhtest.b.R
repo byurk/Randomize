@@ -54,14 +54,18 @@ multimeanhtestClass <- R6::R6Class(
         res <- createError(.('Variable is not numeric'))
       } else if (any(is.infinite(dataHTest$dep))) {
         res <- createError(.('Variable contains infinite values'))
+      } else if (any(n < 2)) {
+        res <- createError(.('Each group needs at least 2 observations'))
+      } else if (!is.finite(f_stat(dataHTest$dep, dataHTest$group))) {
+        res <- createError(.('F is undefined: the variable does not vary within groups'))
       } else {
-        Fobs <- dataHTest %>%
-          infer::specify(dep ~ group) %>%
-          infer::hypothesize(null = "independence") %>%
-          infer::calculate("F") %>%
-          dplyr::pull()
+        # f_stat() rather than infer::calculate("F"): infer's specify()
+        # is rejected by Jamovi 2.7's formula sandbox (see ?resample_means)
+        Fobs <- f_stat(dataHTest$dep, dataHTest$group)
 
-        perms <- private$.computePerms(dataHTest)
+        perms <- cached_sims(htestTable,
+            list(dep = dataHTest$dep, group = as.character(dataHTest$group), reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+            function() private$.computePerms(dataHTest))
         res <- private$.computePval(perms, Fobs)
         private$.preparePlot(perms, Fobs)
       }
@@ -82,7 +86,7 @@ multimeanhtestClass <- R6::R6Class(
             htestTable$setRow(rowKey=depVarName, list(
               "reps"=self$options$reps,
               "oF"=Fobs,
-              "p"=res$pval))
+              "p"=format_sim_pval(res$pval, self$options$reps)))
             }
             
             if (self$options$desc) {
@@ -98,11 +102,17 @@ multimeanhtestClass <- R6::R6Class(
 
             for( level in groupLevels){
 
+              # a level whose values are all missing has no summary
+              # (tapply gives NULL); report n = 0 rather than a
+              # zero-length value the table refuses
+              dl <- desc[[level]]
+              if (is.null(dl)) dl <- c(n = 0, mean = NaN, median = NaN, sd = NaN)
+
               row <- list(
-                "num" = as.numeric(desc[[level]]['n']),
-                "mean" = as.numeric(desc[[level]]['mean']),
-                "median" = as.numeric(desc[[level]]['median']),
-                "sd" = as.numeric(desc[[level]]['sd'])
+                "num" = as.numeric(dl['n']),
+                "mean" = as.numeric(dl['mean']),
+                "median" = as.numeric(dl['median']),
+                "sd" = as.numeric(dl['sd'])
             )
 
             descTable$setRow(rowKey=paste0(depVarName,level), row)
@@ -161,11 +171,7 @@ multimeanhtestClass <- R6::R6Class(
 
             set_seed_if(self$options$seedBool, self$options$rngSeed)
 
-            perms <- dataHTest %>%
-                infer::specify(dep ~ group) %>%
-                infer::hypothesize(null = "independence") %>%
-                infer::generate(reps = reps, type = "permute") %>%
-                infer::calculate(stat = "F")
+            perms <- permute_F(dataHTest$dep, dataHTest$group, reps)
 
             return(perms)
 
@@ -185,7 +191,7 @@ multimeanhtestClass <- R6::R6Class(
           .preparePlot = function(perms, oF) {
             permplot <- self$results$simplot
             dotHist <- self$options$dotHist
-            permplot$setState(list(df=strip_infer(perms), obs_stat=oF, direction="greater", dotHist=dotHist,
+            permplot$setState(list(df=strip_infer(perms), obs_stat=oF, direction="greater", dotHist=dotHist, showCounts=self$options$showCounts, domain=c(0, Inf),
                                           xlab="F", obs_label="Observed\nF"))
         },
           .permPlot = function(image, ggtheme, theme, ...) {
@@ -195,7 +201,9 @@ multimeanhtestClass <- R6::R6Class(
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                            xlab = "F",
                            obs_label = "Observed\nF",
-                           domain = c(0, Inf))
+                           domain = c(0, Inf),
+                           show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
         },
           .formula=function() {
             jmvcore:::composeFormula(self$options$vars, self$options$group)

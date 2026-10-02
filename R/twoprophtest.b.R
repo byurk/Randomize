@@ -55,6 +55,12 @@ TwoPropHTestClass <- R6::R6Class(
                     jmvcore::reject(.('Counts may not be negative'))
                 if (any(is.infinite(data$.COUNTS)))
                     jmvcore::reject(.('Counts may not be infinite'))
+                # a missing count beside present row / column values is an
+                # error, not an empty cell (xtabs would carry the NA into
+                # chisq.test, which then dies); rows where the row / column
+                # value itself is missing are simply omitted
+                if (!is.null(countsName) && any(is.na(data$.COUNTS) & !is.na(data[[rowVarName]]) & !is.na(data[[colVarName]])))
+                    jmvcore::reject(.("Count variable '{v}' is missing a value in a row where '{rv}' and '{cv}' are present"), code='', v=countsName, rv=rowVarName, cv=colVarName)
             }
 
             mats <- conttab_matrices(data) # counts arranged as in a contingency table with standardized formatting
@@ -62,8 +68,22 @@ TwoPropHTestClass <- R6::R6Class(
 
             private$.populateContTable(mat) # fill in contingency table
 
+            # A jamovi filter leaves hidden levels on the factors; they show
+            # as empty rows / columns in the table above but play no part
+            # in the comparison
+            full_dim <- dim(mat)
+            # (subsetting an ftable drops its level names; keep them as
+            # dimnames so the plot can name the groups and the outcome)
+            keep_r <- rowSums(mat) > 0
+            keep_c <- colSums(mat) > 0
+            lev_r <- attr(mat, "row.vars")[[1]]
+            lev_c <- attr(mat, "col.vars")[[1]]
+            mat <- mat[keep_r, keep_c, drop = FALSE]
+            dimnames(mat) <- list(lev_r[keep_r], lev_c[keep_c])
+            attr(mat, "full_dim") <- full_dim
+
             dp <- NULL
-            is_2x2 <- all(dim(mat) == 2) && all(rowSums(mat) > 0) && all(colSums(mat) > 0)
+            is_2x2 <- all(dim(mat) == 2)
 
             if (is_2x2) {
                 dp <- private$.diffProp(mat)
@@ -73,11 +93,13 @@ TwoPropHTestClass <- R6::R6Class(
 
             if (is_2x2) {
 
-                perms <- private$.computePerms(mat)
+                perms <- cached_sims(self$results$simtable,
+                    list(mat = unname(mat), compare = self$options$compare, reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+                    function() private$.computePerms(mat))
                 simres <- private$.computePval(perms, dp$dp)
 
                 private$.populateSimTable(simres)
-                private$.preparePlot(perms, dp$dp, simres$direction)
+                private$.preparePlot(perms, dp$dp, simres$direction, mat)
 
             }
 
@@ -113,7 +135,7 @@ TwoPropHTestClass <- R6::R6Class(
             reps <- self$options$reps
             direction <- map_direction(self$options$hypothesis)
             pval <- compute_null_pval(perms, dp, direction)
-            list(obsDiff = dp, reps = reps, p = pval, direction = direction)
+            list(obsDiff = dp, reps = reps, p = format_sim_pval(pval, reps), direction = direction)
         },
 
         .computePerms = function(mat){
@@ -237,27 +259,30 @@ TwoPropHTestClass <- R6::R6Class(
             } else {
                 diffProp$setRow(rowNo=othRowNo, list(
                     `v[dp]`=NaN))
-                diffProp$addFootnote(rowNo=othRowNo, 'v[dp]', .('Available for 2x2 tables only'))
+                diffProp$addFootnote(rowNo=othRowNo, 'v[dp]', if (all(attr(mat, "full_dim") == 2)) .('Not available: an empty row or column leaves a proportion undefined') else .('Available for 2x2 tables only'))
             }
 
         },
 
         #### Plot functions ----
 
-        .preparePlot = function(perms, dp, direction) {
+        .preparePlot = function(perms, dp, direction, mat = NULL) {
             permplot <- self$results$Plot
             dotHist <- self$options$dotHist
-            permplot$setState(list(df=strip_infer(perms), obs_stat=dp, direction=direction, dotHist=dotHist,
-                                          xlab="difference (group 1 - group 2)", obs_label="Observed\nDifference"))
+            m <- if (!is.null(mat) && self$options$compare == "columns") t(mat) else mat
+            permplot$setState(list(df=strip_infer(perms), obs_stat=dp, direction=direction, dotHist=dotHist, showCounts=self$options$showCounts, domain=c(-1, 1),
+                                          xlab=diff_label("proportions", rownames(m), colnames(m)[1]), obs_label="Observed\nDifference"))
         },
         .permPlot = function(image, ggtheme, theme, ...) {
             if (is.null(image$state))
                 return(FALSE)
             st <- image$state
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
-                           xlab = "difference (group 1 - group 2)",
+                           xlab = state_or(st$xlab, diff_label("proportions")),
                            obs_label = "Observed\nDifference",
-                           domain = c(-1, 1))
+                           domain = c(-1, 1),
+                           show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
         },
 
         #### Helper functions ----

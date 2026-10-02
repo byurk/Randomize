@@ -55,6 +55,12 @@ TwoPropCIClass <- R6::R6Class(
                     jmvcore::reject(.('Counts may not be negative'))
                 if (any(is.infinite(data$.COUNTS)))
                     jmvcore::reject(.('Counts may not be infinite'))
+                # a missing count beside present row / column values is an
+                # error, not an empty cell (xtabs would carry the NA into
+                # chisq.test, which then dies); rows where the row / column
+                # value itself is missing are simply omitted
+                if (!is.null(countsName) && any(is.na(data$.COUNTS) & !is.na(data[[rowVarName]]) & !is.na(data[[colVarName]])))
+                    jmvcore::reject(.("Count variable '{v}' is missing a value in a row where '{rv}' and '{cv}' are present"), code='', v=countsName, rv=rowVarName, cv=colVarName)
             }
 
             mats <- conttab_matrices(data) # counts arranged as in a contingency table with standardized formatting
@@ -62,8 +68,22 @@ TwoPropCIClass <- R6::R6Class(
 
             private$.populateContTable(mat) # fill in contingency table
 
+            # A jamovi filter leaves hidden levels on the factors; they show
+            # as empty rows / columns in the table above but play no part
+            # in the comparison
+            full_dim <- dim(mat)
+            # (subsetting an ftable drops its level names; keep them as
+            # dimnames so the plot can name the groups and the outcome)
+            keep_r <- rowSums(mat) > 0
+            keep_c <- colSums(mat) > 0
+            lev_r <- attr(mat, "row.vars")[[1]]
+            lev_c <- attr(mat, "col.vars")[[1]]
+            mat <- mat[keep_r, keep_c, drop = FALSE]
+            dimnames(mat) <- list(lev_r[keep_r], lev_c[keep_c])
+            attr(mat, "full_dim") <- full_dim
+
             dp <- NULL
-            is_2x2 <- all(dim(mat) == 2) && all(rowSums(mat) > 0) && all(colSums(mat) > 0)
+            is_2x2 <- all(dim(mat) == 2)
 
             if (is_2x2) {
                 dp <- private$.diffProp(mat)
@@ -73,12 +93,13 @@ TwoPropCIClass <- R6::R6Class(
 
             if (is_2x2) {
 
-                boots <- private$.computeBoots(mat)
-                boots <- tidyr::drop_na(boots)
+                boots <- cached_sims(self$results$simtable,
+                    list(mat = unname(mat), compare = self$options$compare, reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+                    function() tidyr::drop_na(private$.computeBoots(mat)))
                 simres <- private$.computeCI(boots, dp$dp)
 
                 private$.populateSimTable(simres)
-                private$.preparePlot(boots, dp$dp)
+                private$.preparePlot(boots, dp$dp, mat)
 
             }
 
@@ -126,20 +147,15 @@ TwoPropCIClass <- R6::R6Class(
             if (self$options$compare == "columns")
                 mat <- t(mat)
 
-            # create data from from contingency table for use with infer functions
-            df <- tibble::tibble(Group = c("G1", "G2", "G1", "G2"),
-                                 Outcome = c("O1", "O1", "O2", "O2"),
-                                 Count = c(mat[1,1], mat[2,1], mat[1,2], mat[2,2])) %>%
-                tidyr::uncount(Count)
-
             reps <- self$options$reps
 
             set_seed_if(self$options$seedBool, self$options$rngSeed)
 
-            boots <- df %>%
-                infer::specify(Outcome ~ Group, success = "O1") %>%
-                infer::generate(reps = reps, type = "bootstrap") %>%
-                infer::calculate(stat = "diff in props", order = c("G1", "G2"))
+            # Drawn directly rather than through infer: with a handful of
+            # rows and one or two reps a resample can contain a single
+            # group, and infer then errors ("G2 is not a level of the
+            # explanatory variable") instead of dropping that replicate.
+            boots <- bootstrap_diff_props(unclass(mat), reps)
 
             return(boots)
 
@@ -242,22 +258,23 @@ TwoPropCIClass <- R6::R6Class(
             } else {
                 diffProp$setRow(rowNo=othRowNo, list(
                     `v[dp]`=NaN))
-                diffProp$addFootnote(rowNo=othRowNo, 'v[dp]', .('Available for 2x2 tables only'))
+                diffProp$addFootnote(rowNo=othRowNo, 'v[dp]', if (all(attr(mat, "full_dim") == 2)) .('Not available: an empty row or column leaves a proportion undefined') else .('Available for 2x2 tables only'))
             }
 
         },
 
         #### Plot functions ----
 
-        .preparePlot = function(boots, dp) {
+        .preparePlot = function(boots, dp, mat = NULL) {
+            m <- if (!is.null(mat) && self$options$compare == "columns") t(mat) else mat
 
             bootplot <- self$results$Plot
             dotHist <- self$options$dotHist
             confLevel <- self$options$confLevel
             ciType <- self$options$ciType
 
-            bootplot$setState(list(df=strip_infer(boots), obs_stat=dp, confLevel = confLevel, ciType = ciType, dotHist=dotHist,
-                                          xlab="difference (group 1 - group 2)", stat_label="bootstrap differences"))
+            bootplot$setState(list(df=strip_infer(boots), obs_stat=dp, confLevel = confLevel, ciType = ciType, dotHist=dotHist, showCounts=self$options$showCounts,
+                                          xlab=diff_label("proportions", rownames(m), colnames(m)[1]), stat_label="bootstrap differences", obs_label="Observed\nDifference"))
 
         },
         .bootPlot = function(image, ggtheme, theme, ...) {
@@ -268,8 +285,11 @@ TwoPropCIClass <- R6::R6Class(
             st <- image$state
             p <- plot_boot_dist(st$df, st$obs_stat, st$confLevel, st$ciType,
                                 st$dotHist,
-                                xlab = "difference (group 1 - group 2)",
-                                stat_label = "bootstrap differences")
+                                xlab = state_or(st$xlab, diff_label("proportions")),
+                                stat_label = "bootstrap differences",
+                                obs_label = "Observed\nDifference",
+                                show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
             return(p)
         },
 

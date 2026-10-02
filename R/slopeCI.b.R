@@ -40,6 +40,10 @@ slopeCIClass <- R6::R6Class(
         res <- createError(.('Independent variable is not numeric'))
       } else if (any(is.infinite(dataCI$indep))) {
         res <- createError(.('Independent variable contains infinite values'))
+      } else if (nrow(dataCI) < 3) {
+        res <- createError(.('At least 3 complete observations are needed'))
+      } else if (stats::var(dataCI$indep) == 0) {
+        res <- createError(.('Independent variable is constant, so the slope is undefined'))
       } else {
         lm1 <- lm(dep ~ indep, data=dataCI)
         coef <- lm1$coefficients
@@ -47,8 +51,9 @@ slopeCIClass <- R6::R6Class(
         r2 <- summary(lm1)$r.squared
         r <- cor(dataCI$indep, dataCI$dep)
 
-        boots <- private$.computeBoots(dataCI)
-        boots <- tidyr::drop_na(boots)
+        boots <- cached_sims(CITable,
+            list(dep = dataCI$dep, indep = dataCI$indep, reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+            function() tidyr::drop_na(private$.computeBoots(dataCI)))
         res <- private$.computeCI(boots, b)
         res <- within(res, rm(se, zcrit))
         private$.preparePlot(boots, b)
@@ -168,7 +173,8 @@ slopeCIClass <- R6::R6Class(
             ggplot2::geom_point(alpha = 0.8, size=2.5, shape = 21, color = theme$color[1], fill = theme$color[2]) +
             ggplot2::geom_smooth(method = "lm", se = FALSE, color = theme$color[1]) +
             ggplot2::labs(x=indepName, y=depName) +
-            ggtheme
+            ggtheme +
+            fitted_line_label(image$state, indepName)
             
             return(plot)
           },
@@ -184,7 +190,7 @@ slopeCIClass <- R6::R6Class(
             confLevel <- self$options$confLevel
             ciType <- self$options$ciType
 
-            bootplot$setState(list(df=strip_infer(boots), obs_stat=b, confLevel = confLevel, ciType = ciType, dotHist=dotHist,
+            bootplot$setState(list(df=strip_infer(boots), obs_stat=b, confLevel = confLevel, ciType = ciType, dotHist=dotHist, showCounts=self$options$showCounts,
                                           xlab="slope", stat_label="bootstrap slopes"))
 
         },
@@ -198,7 +204,10 @@ slopeCIClass <- R6::R6Class(
           p <- plot_boot_dist(st$df, st$obs_stat, st$confLevel, st$ciType,
                               st$dotHist,
                               xlab = "slope",
-                              stat_label = "bootstrap slopes")
+                              stat_label = "bootstrap slopes",
+                              obs_label = "Observed\nSlope",
+                              show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
           return(p)
         },
           

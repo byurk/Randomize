@@ -54,10 +54,17 @@ twomeanhtestClass <- R6::R6Class(
         res <- createError(.('Variable is not numeric'))
       } else if (any(is.infinite(dataHTest$dep))) {
         res <- createError(.('Variable contains infinite values'))
+      } else if (any(n == 0)) {
+        # every value of one group missing: the level survives droplevels()
+        # (it is applied before the NA rows go) and every resampled
+        # statistic would be NaN
+        res <- createError(jmvcore::format(.('Group \'{g}\' has no non-missing observations'), g = groupLevels[n == 0][1]))
       } else {
-        perms <- private$.computePerms(dataHTest)
+        perms <- cached_sims(htestTable,
+            list(dep = dataHTest$dep, group = as.character(dataHTest$group), reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+            function() private$.computePerms(dataHTest))
         res <- private$.computePval(perms, m[1]-m[2])
-        private$.preparePlot(perms, m[1]-m[2], res$direction)
+        private$.preparePlot(perms, m[1]-m[2], res$direction, groupLevels)
       }
         
         if (isError(res)) {
@@ -76,7 +83,7 @@ twomeanhtestClass <- R6::R6Class(
             htestTable$setRow(rowKey=depVarName, list(
               "reps"=self$options$reps,
               "md"=m[1]-m[2],
-              "p"=res$pval))
+              "p"=format_sim_pval(res$pval, self$options$reps)))
             }
             
             if (self$options$desc) {
@@ -147,11 +154,10 @@ twomeanhtestClass <- R6::R6Class(
 
             set_seed_if(self$options$seedBool, self$options$rngSeed)
 
-            perms <- dataHTest %>%
-                infer::specify(dep ~ group) %>%
-                infer::hypothesize(null = "independence") %>%
-                infer::generate(reps = reps, type = "permute") %>%
-                infer::calculate(stat = "diff in means", order = c(groupLevels[1], groupLevels[2]))
+            # Not infer::specify(dep ~ group): under Jamovi 2.7's formula
+            # sandbox that call is rejected (see ?resample_means).  Same
+            # permutation distribution, drawn directly.
+            perms <- permute_diff_means(dataHTest$dep, dataHTest$group, groupLevels, reps)
 
             return(perms)
 
@@ -168,13 +174,13 @@ twomeanhtestClass <- R6::R6Class(
             return('')
             super$.sourcifyOption(option)
           },
-          .preparePlot = function(perms, dm, direction) {
+          .preparePlot = function(perms, dm, direction, levels = NULL) {
 
             permplot <- self$results$simplot
             dotHist <- self$options$dotHist
 
-            permplot$setState(list(df=strip_infer(perms), obs_stat=dm, direction=direction, dotHist=dotHist,
-                                          xlab="difference (group 1 - group 2)", obs_label="Observed\nDifference"))
+            permplot$setState(list(df=strip_infer(perms), obs_stat=dm, direction=direction, dotHist=dotHist, showCounts=self$options$showCounts,
+                                          xlab=diff_label("means", levels), obs_label="Observed\nDifference"))
 
         },
           .permPlot = function(image, ggtheme, theme, ...) {
@@ -184,8 +190,10 @@ twomeanhtestClass <- R6::R6Class(
 
             st <- image$state
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
-                           xlab = "difference (group 1 - group 2)",
-                           obs_label = "Observed\nDifference")
+                           xlab = state_or(st$xlab, diff_label("means")),
+                           obs_label = "Observed\nDifference",
+                           show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
         },
           .formula=function() {
             jmvcore:::composeFormula(self$options$vars, self$options$group)

@@ -74,6 +74,7 @@ items:
           - rngSeed
           - seedBool
           - dotHist
+          - showCounts
 
     - name: CITable
       title: Slope - Bootstrap CI
@@ -82,8 +83,6 @@ items:
       rows: (dep)
       clearWith:
         - indep
-        - confLevel
-        - ciType
         - rngSeed
         - seedBool
         - reps

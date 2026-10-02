@@ -40,6 +40,10 @@ slopehtestClass <- R6::R6Class(
         res <- createError(.('Independent variable is not numeric'))
       } else if (any(is.infinite(dataHTest$indep))) {
         res <- createError(.('Independent variable contains infinite values'))
+      } else if (nrow(dataHTest) < 3) {
+        res <- createError(.('At least 3 complete observations are needed'))
+      } else if (stats::var(dataHTest$indep) == 0) {
+        res <- createError(.('Independent variable is constant, so the slope is undefined'))
       } else {
         lm1 <- lm(dep ~ indep, data=dataHTest)
         coef <- lm1$coefficients
@@ -47,7 +51,9 @@ slopehtestClass <- R6::R6Class(
         r2 <- summary(lm1)$r.squared
         r <- cor(dataHTest$indep, dataHTest$dep)
 
-        perms <- private$.computePerms(dataHTest)
+        perms <- cached_sims(htestTable,
+            list(dep = dataHTest$dep, indep = dataHTest$indep, reps = self$options$reps, seedBool = self$options$seedBool, rngSeed = self$options$rngSeed),
+            function() private$.computePerms(dataHTest))
         res <- private$.computePval(perms, b)
         private$.preparePlot(perms, b, res$direction)
       }
@@ -68,7 +74,7 @@ slopehtestClass <- R6::R6Class(
             htestTable$setRow(rowKey=depVarName, list(
               "reps"=self$options$reps,
               "b"=b,
-              "p"=res$pval))
+              "p"=format_sim_pval(res$pval, self$options$reps)))
 
             if (self$options$coef) {
 
@@ -153,7 +159,8 @@ slopehtestClass <- R6::R6Class(
             ggplot2::geom_point(alpha = 0.8, size=2.5, shape = 21, color = theme$color[1], fill = theme$color[2]) +
             ggplot2::geom_smooth(method = "lm", se = FALSE, color = theme$color[1]) +
             ggplot2::labs(x=indepName, y=depName) +
-            ggtheme
+            ggtheme +
+            fitted_line_label(image$state, indepName)
             
             return(plot)
           },
@@ -165,7 +172,7 @@ slopehtestClass <- R6::R6Class(
           .preparePlot = function(perms, b, direction) {
             permplot <- self$results$simplot
             dotHist <- self$options$dotHist
-            permplot$setState(list(df=strip_infer(perms), obs_stat=b, direction=direction, dotHist=dotHist,
+            permplot$setState(list(df=strip_infer(perms), obs_stat=b, direction=direction, dotHist=dotHist, showCounts=self$options$showCounts,
                                           xlab="slope", obs_label="Observed\nSlope"))
           },
           .permPlot = function(image, ggtheme, theme, ...) {
@@ -174,7 +181,9 @@ slopehtestClass <- R6::R6Class(
             st <- image$state
             plot_null_dist(st$df, st$obs_stat, st$direction, st$dotHist,
                            xlab = "slope",
-                           obs_label = "Observed\nSlope")
+                           obs_label = "Observed\nSlope",
+                           show_counts = isTRUE(st$showCounts),
+                           plot_width = image$width)
           },
           .formula=function() {
             jmvcore:::composeFormula(self$options$dep, self$options$indep)
